@@ -111,10 +111,10 @@ void Error_Handler(void);
 #define FSMC_NWAIT_GPIO_Port GPIOD
 #define D2_Pin GPIO_PIN_0
 #define D2_GPIO_Port GPIOD
-#define MicroSDCard_D3_Pin GPIO_PIN_11
-#define MicroSDCard_D3_GPIO_Port GPIOC
-#define MicroSDCard_D2_Pin GPIO_PIN_10
-#define MicroSDCard_D2_GPIO_Port GPIOC
+#define DEBUG_UART_RX_Pin GPIO_PIN_11
+#define DEBUG_UART_RX_GPIO_Port GPIOC
+#define DEBUG_UART_TX_Pin GPIO_PIN_10
+#define DEBUG_UART_TX_GPIO_Port GPIOC
 #define USB_FS_DP_Pin GPIO_PIN_12
 #define USB_FS_DP_GPIO_Port GPIOA
 #define DCMI_D7_Pin GPIO_PIN_7
