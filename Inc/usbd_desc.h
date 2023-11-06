@@ -22,7 +22,7 @@
 #define __USBD_DESC__C__
 
 #ifdef __cplusplus
- extern "C" {
+extern "C" {
 #endif
 
 /* Includes ------------------------------------------------------------------*/
