@@ -630,6 +630,7 @@ void Error_Handler(void) {
 	/* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
+	HAL_GPIO_WritePin(LED3_Red_GPIO_Port, LED3_Red_Pin, GPIO_PIN_SET);
 	while (1) {
 	}
 	/* USER CODE END Error_Handler_Debug */
