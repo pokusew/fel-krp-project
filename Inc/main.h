@@ -36,7 +36,7 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+int Debug_UART_Get_Byte();
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/

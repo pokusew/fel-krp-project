@@ -70,6 +70,13 @@ static void MX_USART3_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+int Debug_UART_Get_Byte() {
+	if (__HAL_UART_GET_FLAG(&huart3, UART_FLAG_RXNE) == SET) {
+		return (uint8_t) (huart3.Instance->DR & (uint8_t) 0x00FF);
+	}
+	return -1;
+}
+
 /* USER CODE END 0 */
 
 /**

@@ -29,12 +29,16 @@
 #include <time.h>
 #include <sys/time.h>
 #include <sys/times.h>
+#include <sys/unistd.h>
+#include "stm32f4xx_hal.h"
 
 
 /* Variables */
 extern int __io_putchar(int ch) __attribute__((weak));
 
 extern int __io_getchar(void) __attribute__((weak));
+
+extern UART_HandleTypeDef huart3;
 
 
 char *__env[1] = {0};
@@ -72,14 +76,25 @@ __attribute__((weak)) int _read(int file, char *ptr, int len) {
 	return len;
 }
 
-__attribute__((weak)) int _write(int file, char *ptr, int len) {
-	(void) file;
-	int DataIdx;
+// see https://electronics.stackexchange.com/questions/206113/how-do-i-use-the-printf-function-on-stm32
+// see https://github.com/ARMmbed/mbed-os/tree/master/platform/source/minimal-printf
+int _write(int file, char *data, int len) {
 
-	for (DataIdx = 0; DataIdx < len; DataIdx++) {
-		__io_putchar(*ptr++);
+	if ((file != STDOUT_FILENO) && (file != STDERR_FILENO)) {
+		errno = EBADF;
+		return -1;
 	}
-	return len;
+
+	HAL_StatusTypeDef status = HAL_UART_Transmit(
+		&huart3,
+		(uint8_t *) data,
+		len,
+		HAL_MAX_DELAY
+	);
+
+	// return # of bytes written - as best we can tell
+	return (status == HAL_OK ? len : 0);
+
 }
 
 int _close(int file) {
