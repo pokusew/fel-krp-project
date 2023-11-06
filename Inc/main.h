@@ -329,7 +329,15 @@ void Error_Handler(void);
 #define MII_INT_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
-
+// user-friendly aliases for LEDs
+#define LED1_Green_Pin LED1_Pin
+#define LED1_Green_GPIO_Port LED1_GPIO_Port
+#define LED2_Orange_Pin LED2_Pin
+#define LED2_Orange_GPIO_Port LED2_GPIO_Port
+#define LED3_Red_Pin LED3_Pin
+#define LED3_Red_GPIO_Port LED3_GPIO_Port
+#define LED4_Blue_Pin LED4_Pin
+#define LED4_Blue_GPIO_Port LED4_GPIO_Port
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
