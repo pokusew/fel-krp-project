@@ -34,3 +34,6 @@ Desktop.ini
 
 # CLion CMake build output
 /cmake-build-*
+
+# https://github.com/solokeys/solo1
+/solo1

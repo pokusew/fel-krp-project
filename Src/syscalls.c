@@ -31,6 +31,7 @@
 #include <sys/times.h>
 #include <sys/unistd.h>
 #include "stm32f4xx_hal.h"
+#include "main.h"
 
 
 /* Variables */
@@ -62,6 +63,7 @@ int _kill(int pid, int sig) {
 
 void _exit(int status) {
 	_kill(status, -1);
+	HAL_GPIO_WritePin(LED3_Red_GPIO_Port, LED3_Red_Pin, GPIO_PIN_SET);
 	while (1) {}    /* Make sure we hang here */
 }
 

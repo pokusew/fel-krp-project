@@ -23,6 +23,7 @@
 
 /* USER CODE BEGIN INCLUDE */
 #include "utils.h"
+#include "fifo.h"
 #include <inttypes.h>
 /* USER CODE END INCLUDE */
 
@@ -97,7 +98,7 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_FS[USBD_CUSTOM_HID_REPORT_DES
 	//
 	// TODO: During development, change USAGE_PAGE value to allow easy debugging using WebHID.
 	//       (FIDO2 HID is on WebHID blocklist for security reasons)
-	/* USAGE_PAGE (FIDO Alliance) */ 0x06, 0xd0, 0xe1,
+	/* USAGE_PAGE (FIDO Alliance) */ 0x06, 0xd0, 0xf1,
 	/* USAGE (Keyboard)           */ 0x09, 0x01,
 	/* COLLECTION (Application)   */ 0xa1, 0x01,
 	/* USAGE (Input Report Data)  */ 0x09, 0x20,
@@ -220,6 +221,7 @@ static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state) {
 	info_log("CUSTOM_HID_OutEvent_FS counter = %" PRIu8 nl, hhid->Report_buf[4]);
 
 	// TODO: process data (Report_buf)
+	fifo_hidmsg_add(hhid->Report_buf);
 
 	// Start next USB packet transfer once data processing is completed
 	if (USBD_CUSTOM_HID_ReceivePacket(&hUsbDeviceFS) != (uint8_t) USBD_OK) {
