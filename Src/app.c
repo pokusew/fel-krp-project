@@ -28,13 +28,18 @@ noreturn void app_run(app_state_t *app) {
 
 	bool on = true;
 
-	uint8_t report[4] = {0xA1, 0xB2, 0xC3, 0xC4};
+	uint8_t report[64] = {0xA1, 0xB2, 0xC3, 0xD4, 0x00};
+	uint8_t *const counter = &report[4];
 
 	while (true) {
 
-		// uint8_t status = USBD_HID_SendReport(&hUsbDeviceFS, report, 4);
-
-		// debug_log("status = %" PRId8 nl, status);
+		(*counter)++;
+		uint8_t status = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, report, 64);
+		if (status == USBD_OK) {
+			debug_log("sent counter = %" PRIu8 nl, *counter);
+		} else {
+			debug_log("sending counter = %"PRIu8 " failed with status = %" PRIu8 nl, *counter, status);
+		}
 
 		HAL_Delay(5000);
 

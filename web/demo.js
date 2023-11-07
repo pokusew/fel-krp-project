@@ -106,7 +106,9 @@ function handleDisconnectedDevice(e) {
 }
 
 function handleInputReport(e) {
-	appendLog(`${device.productName} (vendorId=${device.vendorId}, productId=${device.productId}): got input report #${e.reportId}`);
+	const device = e.device;
+	appendLog(`${device.productName} (vendorId=${device.vendorId}, productId=${device.productId}):`);
+	appendLog(`got input report #${e.reportId} size = ${e.data.byteLength}`)
 	appendLog(new Uint8Array(e.data.buffer));
 	appendLog();
 }
