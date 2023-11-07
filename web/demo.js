@@ -6,19 +6,44 @@
 // https://wicg.github.io/webhid/
 // https://github.com/WICG/webhid/blob/main/blocklist.txt
 
+// STATE
+
+// TODO: support more devices
+let counter = 1;
+let lastDevice = null;
+
 // UI
 
-const dialogElem = document.querySelector('dialog#dialog');
+const outputElem = document.querySelector('#log');
 
-const btnElem = document.querySelector('#demo');
+function clearLog() {
+	outputElem.textContent = '';
+}
+
+function appendLog(message = '') {
+	outputElem.textContent += message + '\n';
+}
+
+const dialogElem = document.querySelector('dialog#dialog');
 
 function showMessage(message) {
 	dialogElem.querySelector('#message').textContent = message;
 	dialogElem.showModal();
 }
 
-btnElem.addEventListener('click', (event) => {
+document.querySelector('#allow-access').addEventListener('click', (event) => {
 	requestPermissions();
+});
+
+document.querySelector('#send').addEventListener('click', (event) => {
+	if (lastDevice === null) {
+		return;
+	}
+	demoSend(lastDevice);
+});
+
+document.querySelector('#clear-log').addEventListener('click', (event) => {
+	clearLog();
 });
 
 // LOGIC
@@ -47,34 +72,43 @@ async function requestPermissions() {
 
 async function handleDevice(device) {
 
-	console.log(`handleDevice: ${device.productName} (vendorId=${device.vendorId}, productId=${device.productId})`);
+	appendLog(`handleDevice: ${device.productName} (vendorId=${device.vendorId}, productId=${device.productId})`);
 
 	printCollections(device.collections);
 
 	if (!device.opened) {
 		await device.open();
 	} else {
-		console.log('device already open');
+		appendLog('device already open');
 	}
 
+	lastDevice = device;
+
 	device.addEventListener('inputreport', handleInputReport);
+
+	appendLog();
 
 }
 
 function handleConnectedDevice(e) {
 	const device = e.device;
-	console.log(`device connected: ${device.productName} (vendorId=${device.vendorId}, productId=${device.productId})`);
+	appendLog(`device connected: ${device.productName} (vendorId=${device.vendorId}, productId=${device.productId})`);
 	handleDevice(device);
 }
 
 function handleDisconnectedDevice(e) {
 	const device = e.device;
-	console.log(`device disconnected: ${device.productName} (vendorId=${device.vendorId}, productId=${device.productId})`);
+	if (lastDevice === device) {
+		lastDevice = null;
+	}
+	appendLog(`device disconnected: ${device.productName} (vendorId=${device.vendorId}, productId=${device.productId})`);
+	appendLog();
 }
 
 function handleInputReport(e) {
-	console.log(`${device.productName} (vendorId=${device.vendorId}, productId=${device.productId}): got input report #${e.reportId}`);
-	console.log(new Uint8Array(e.data.buffer));
+	appendLog(`${device.productName} (vendorId=${device.vendorId}, productId=${device.productId}): got input report #${e.reportId}`);
+	appendLog(new Uint8Array(e.data.buffer));
+	appendLog();
 }
 
 function printCollections(collections, level = 1) {
@@ -85,27 +119,54 @@ function printCollections(collections, level = 1) {
 
 	for (const collection of collections) {
 		// A HID collection includes usage, usage page, reports, and subcollections.
-		console.log(`${padding} Usage: ${collection.usage}`);
-		console.log(`${padding} Usage page: ${collection.usagePage}`);
+		appendLog(`${padding} Usage: ${collection.usage}`);
+		appendLog(`${padding} Usage page: ${collection.usagePage}`);
 
 		for (const inputReport of collection.inputReports) {
-			console.log(`${padding} Input report: #${inputReport.reportId}`);
+			appendLog(`${padding} Input report: #${inputReport.reportId}`);
 			// Loop through inputReport.items
 		}
 
 		for (const outputReport of collection.outputReports) {
-			console.log(`${padding} Output report: #${outputReport.reportId}`);
+			appendLog(`${padding} Output report: #${outputReport.reportId}`);
 			// Loop through outputReport.items
 		}
 
 		for (const featureReport of collection.featureReports) {
-			console.log(`${padding} Feature report: #${featureReport.reportId}`);
+			appendLog(`${padding} Feature report: #${featureReport.reportId}`);
 			// Loop through featureReport.items
 		}
 
 		// Loop through subcollections with collection.children
 		printCollections(collection.children, level + 1);
 	}
+
+}
+
+async function demoSend(device) {
+
+	const value = counter & 0xFF;
+
+	const data = new Uint8Array([
+		0xa1,
+		0xb2,
+		0xc3,
+		0xc4,
+		value,
+	]);
+
+	try {
+		await device.sendReport(0, data);
+	} catch (err) {
+		appendLog(`an error while sending data: ${err.toString()}`);
+		appendLog();
+		return;
+	}
+
+	counter++;
+
+	appendLog(`sent counter = ${value}`);
+	appendLog();
 
 }
 

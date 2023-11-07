@@ -1,0 +1,32 @@
+html {
+	font-family: sans-serif;
+}
+
+html, body {
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	padding: 1.5rem 2rem 0 2rem;
+}
+
+h1 {
+	margin: 0 0 1.5rem 0;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+button {
+	display: block;
+	font-size: 1.125rem;
+	margin: 0 0 1rem 0;
+}
+
+#log {
+	font-family: monospace;
+	font-size: 1rem;
+	opacity: .8;
+}

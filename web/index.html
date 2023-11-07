@@ -2,14 +2,28 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>HID Debugger</title>
+		<link href="./styles.css" rel="stylesheet" />
 	</head>
 	<body>
-		<button id="demo">Allow access to USB 1209:0001 (Martin FIDO2 Key) HID using WebHID API</button>
+
+		<h1>HID Debugger based on WebHID</h1>
+
+		<button id="allow-access">Allow access to USB 1209:0001 (Martin FIDO2 Key) HID using WebHID API</button>
+		<button id="send">Send</button>
+		<button id="clear-log">Clear log</button>
+
+		<h2>Log</h2>
+
+		<pre id="log"></pre>
+
 		<dialog id="dialog">
 			<p id="message"></p>
 			<button>OK</button>
 		</dialog>
+
 		<script src="./demo.js"></script>
+
 	</body>
 </html>
