@@ -22,7 +22,6 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "terminal.h"
 #include "app.h"
 /* USER CODE END Includes */
 
