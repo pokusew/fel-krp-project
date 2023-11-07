@@ -53,6 +53,8 @@ async function handleDevice(device) {
 
 	if (!device.opened) {
 		await device.open();
+	} else {
+		console.log('device already open');
 	}
 
 	device.addEventListener('inputreport', handleInputReport);
@@ -60,11 +62,14 @@ async function handleDevice(device) {
 }
 
 function handleConnectedDevice(e) {
-	console.log(`Device connected: ${e.device.productName}`);
+	const device = e.device;
+	console.log(`device connected: ${device.productName} (vendorId=${device.vendorId}, productId=${device.productId})`);
+	handleDevice(device);
 }
 
 function handleDisconnectedDevice(e) {
-	console.log(`Device disconnected: ${e.device.productName}`);
+	const device = e.device;
+	console.log(`device disconnected: ${device.productName} (vendorId=${device.vendorId}, productId=${device.productId})`);
 }
 
 function handleInputReport(e) {
