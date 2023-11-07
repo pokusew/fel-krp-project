@@ -18,28 +18,43 @@
 #define is_not_in_range_incl(value, min_incl, max_incl) ((value) < (min_incl) || (max_incl) < (value))
 #define pow2(y) (1u << (y))
 
-#define DEBUG 1
+// macro(...) fn(other_arg, __VA_ARGS__)
+// see https://stackoverflow.com/questions/1644868/define-macro-for-debug-printing-in-c
+// see https://gcc.gnu.org/onlinedocs/cpp/Variadic-Macros.html
 
-#if DEBUG != 1
+#define DEBUG_LEVEL 3
+
+#if DEBUG_LEVEL > 2
+#define if_debug(code) (code)
+#define debug_log(...) fprintf(stdout, __VA_ARGS__)
+#define debug_log_str(line) write(STDERR_FILENO, (line), sizeof((line)))
+#else
+#define if_debug(code) ((void) 0)
+#define debug_log(...) ((void) 0)
+#define debug_log_str(line) ((void) 0)
 // defining NDEBUG removes asserts
 #define NDEBUG
-#define debug(code) ((void) 0)
-#define debug_printf(...) ((void) 0)
-#define debug_print(line) ((void) 0)
+#endif
+
+#if DEBUG_LEVEL > 1
+#define info_log(...) fprintf(stdout, __VA_ARGS__)
+#define info_log_str(line) write(STDERR_FILENO, (line), sizeof((line)))
 #else
-#define debug(code) (code)
-// https://stackoverflow.com/questions/1644868/define-macro-for-debug-printing-in-c
-// https://gcc.gnu.org/onlinedocs/cpp/Variadic-Macros.html
-// note: it may be useful to use stderr instead of stdout
-#define debug_printf(...) fprintf(stdout, __VA_ARGS__)
-#define debug_print(line) write(STDERR_FILENO, (line), sizeof((line)))
+#define info_log(...) ((void) 0)
+#define info_log_str(line) ((void) 0)
+#endif
+
+#if DEBUG_LEVEL > 0
+#define error_log(...) fprintf(stdout, __VA_ARGS__)
+#define error_log_str(line) write(STDERR_FILENO, (line), sizeof((line)))
+#else
+#define error_log(...) ((void) 0)
+#define error_log_str(line) ((void) 0)
 #endif
 
 #include <assert.h>
 
-#define print(line) write(STDOUT_FILENO, (line), sizeof((line)));
-
-#define print_error(line) write(STDERR_FILENO, (line), sizeof((line)));
+#define write_str(line) write(STDOUT_FILENO, (line), sizeof((line)));
 
 #include <stdint.h>
 

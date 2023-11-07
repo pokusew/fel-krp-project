@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "app.h"
+#include "terminal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -108,9 +109,9 @@ int main(void) {
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
 	MX_ADC3_Init();
+	MX_USART3_UART_Init();
 	MX_FSMC_Init();
 	MX_USB_DEVICE_Init();
-	MX_USART3_UART_Init();
 	/* USER CODE BEGIN 2 */
 
 	main_app = &app;
@@ -249,7 +250,14 @@ static void MX_USART3_UART_Init(void) {
 		Error_Handler();
 	}
 	/* USER CODE BEGIN USART3_Init 2 */
-
+	// printf(csp("0", "0") CSI_ERASE_IN_DISPLAY_ENTIRE_SCREEN gray("debug serial ready") nl);
+	printf(
+		nl
+		nl
+		gray("-----------------------------------------------------------") nl
+		nl
+		gray("debug serial ready") nl
+	);
 	/* USER CODE END USART3_Init 2 */
 
 }

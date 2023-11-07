@@ -1,7 +1,7 @@
 #include "utils.h"
 
 void debug_sizeof() {
-	debug_printf(
+	debug_log(
 		"sizeof(int)=%u" nl
 		"sizeof(long)=%u" nl
 		"sizeof(long int)=%u" nl
@@ -18,27 +18,27 @@ void debug_sizeof() {
 void print_byte_as_bits(unsigned char value) {
 
 	for (int i = 7; 0 <= i; i--) {
-		debug_printf("%c", (value & (1 << i)) ? '1' : '0'); // NOLINT(hicpp-signed-bitwise)
+		debug_log("%c", (value & (1 << i)) ? '1' : '0'); // NOLINT(hicpp-signed-bitwise)
 	}
 
 }
 
 void debug_bytes(const unsigned char *ptr, int size) {
 
-	debug_printf("  bits in MSB: ");
+	debug_log("  bits in MSB: ");
 
 	if (IS_BIG_ENDIAN) {
 		for (int i = 0; i < size; i++) {
-			debug_printf(" ");
+			debug_log(" ");
 			print_byte_as_bits(*(ptr + i));
 		}
 	} else {
 		for (int i = size - 1; i >= 0; i--) {
-			debug_printf(" ");
+			debug_log(" ");
 			print_byte_as_bits(*(ptr + i));
 		}
 	}
-	debug_printf(nl);
+	debug_log(nl);
 
 }
 

@@ -22,7 +22,7 @@
 #include "usbd_custom_hid_if.h"
 
 /* USER CODE BEGIN INCLUDE */
-
+#include "utils.h"
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -113,7 +113,7 @@ __ALIGN_BEGIN static uint8_t CUSTOM_HID_ReportDesc_FS[USBD_CUSTOM_HID_REPORT_DES
 	/* OUTPUT (Data,Var,Abs)      */ 0x91, 0x02,
 	//
 	/* USER CODE END 0 */
-	0xC0    /*     END_COLLECTION	             */
+	/* END_COLLECTION	          */ 0xC0
 };
 
 /* USER CODE BEGIN PRIVATE_VARIABLES */
@@ -152,13 +152,12 @@ static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state);
   * @}
   */
 
-USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_fops_FS =
-	{
-		CUSTOM_HID_ReportDesc_FS,
-		CUSTOM_HID_Init_FS,
-		CUSTOM_HID_DeInit_FS,
-		CUSTOM_HID_OutEvent_FS
-	};
+USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_fops_FS = {
+	CUSTOM_HID_ReportDesc_FS,
+	CUSTOM_HID_Init_FS,
+	CUSTOM_HID_DeInit_FS,
+	CUSTOM_HID_OutEvent_FS
+};
 
 /** @defgroup USBD_CUSTOM_HID_Private_Functions USBD_CUSTOM_HID_Private_Functions
   * @brief Private functions.
@@ -173,7 +172,13 @@ USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_fops_FS =
   */
 static int8_t CUSTOM_HID_Init_FS(void) {
 	/* USER CODE BEGIN 4 */
+
+	// TODO
+
+	info_log("CUSTOM_HID_Init_FS" nl);
+
 	return (USBD_OK);
+
 	/* USER CODE END 4 */
 }
 
@@ -183,7 +188,13 @@ static int8_t CUSTOM_HID_Init_FS(void) {
   */
 static int8_t CUSTOM_HID_DeInit_FS(void) {
 	/* USER CODE BEGIN 5 */
+
+	// TODO
+
+	info_log("CUSTOM_HID_DeInit_FS" nl);
+
 	return (USBD_OK);
+
 	/* USER CODE END 5 */
 }
 
@@ -195,15 +206,21 @@ static int8_t CUSTOM_HID_DeInit_FS(void) {
   */
 static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state) {
 	/* USER CODE BEGIN 6 */
+
 	UNUSED(event_idx);
 	UNUSED(state);
 
-	/* Start next USB packet transfer once data processing is completed */
+	// TODO
+
+	info_log("CUSTOM_HID_OutEvent_FS" nl);
+
+	// Start next USB packet transfer once data processing is completed
 	if (USBD_CUSTOM_HID_ReceivePacket(&hUsbDeviceFS) != (uint8_t) USBD_OK) {
 		return -1;
 	}
 
 	return (USBD_OK);
+
 	/* USER CODE END 6 */
 }
 
@@ -214,12 +231,9 @@ static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state) {
   * @param  len: The report length
   * @retval USBD_OK if all operations are OK else USBD_FAIL
   */
-/*
-static int8_t USBD_CUSTOM_HID_SendReport_FS(uint8_t *report, uint16_t len)
-{
-  return USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, report, len);
+static uint8_t USBD_CUSTOM_HID_SendReport_FS(uint8_t *report, uint16_t len) {
+	return USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, report, len);
 }
-*/
 /* USER CODE END 7 */
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */
