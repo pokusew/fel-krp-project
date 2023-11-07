@@ -70,7 +70,7 @@ noreturn void app_run(app_state_t *app) {
 		else
 		{
 		}
-		ctaphid_check_timeouts();
+		// ctaphid_check_timeouts();
 
 		// HAL_Delay(1000);
 

@@ -50,24 +50,6 @@ else ()
 endif ()
 
 
-set(TINYCBOR_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/solo1/tinycbor/lib/libtinycbor.a)
-add_custom_target(build_tinycbor ALL
-		COMMAND ./build.sh
-		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/solo1/tinycbor
-		COMMENT "Original TinyCBOR makefile target")
-
-# now create an imported static target
-add_library(tinycbor STATIC IMPORTED)
-# Import target "tinycbor" for configuration ""
-set_property(TARGET tinycbor APPEND PROPERTY IMPORTED_CONFIGURATIONS NOCONFIG)
-set_target_properties(tinycbor PROPERTIES
-		IMPORTED_LOCATION_NOCONFIG "${TINYCBOR_LIBRARY}")
-
-# now you can use scintilla as if it were a regular cmake built target in your project
-add_dependencies(tinycbor build_tinycbor)
-
-# SEARCH=-L../../tinycbor/lib -L../../crypto/salty/c-api
-
 include_directories(
 		Inc
 		Drivers/STM32F4xx_HAL_Driver/Inc
@@ -108,22 +90,28 @@ file(GLOB_RECURSE SOURCES "Startup/*.*" "Src/*.*" "Middlewares/*.*" "Drivers/*.*
 		solo1/crypto/cifra/src/sha512.c solo1/crypto/cifra/src/blockwise.c
 
 		solo1/crypto/micro-ecc/uECC.c
+
+		solo1/tinycbor/src/cbortojson.c
+#		solo1/tinycbor/src/open_memstream.c
+		solo1/tinycbor/src/cborvalidation.c
+		solo1/tinycbor/src/cborparser_dup_string.c
+		solo1/tinycbor/src/cborpretty_stdio.c
+		solo1/tinycbor/src/cborencoder_close_container_checked.c
+		solo1/tinycbor/src/cborpretty.c
+		solo1/tinycbor/src/cborerrorstrings.c
+		solo1/tinycbor/src/cborparser.c
+		solo1/tinycbor/src/cborencoder.c
 )
 
 set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/STM32F407IGHX_FLASH.ld)
 
-link_directories(
-		solo1/tinycbor/lib
-		solo1/crypto/salty/c-api
-)
+
 
 add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map)
 add_link_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork)
 add_link_options(-T ${LINKER_SCRIPT})
-#add_link_options(-ltinycbor)
 
 add_executable(${PROJECT_NAME}.elf ${SOURCES} ${LINKER_SCRIPT})
-target_link_libraries(${PROJECT_NAME}.elf tinycbor)
 
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
 set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
