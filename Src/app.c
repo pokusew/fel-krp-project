@@ -1,8 +1,13 @@
 #include <stdbool.h>
+// see https://en.cppreference.com/w/c/types/integer
+#include <inttypes.h>
+
 
 #include "app.h"
 #include "terminal.h"
 #include "utils.h"
+#include "usb_device.h"
+#include "usbd_hid.h"
 
 void app_init(app_state_t *app) {
 
@@ -26,7 +31,15 @@ noreturn void app_run(app_state_t *app) {
 
 	bool on = true;
 
+	uint8_t report[4] = {0xA1, 0xB2, 0xC3, 0xC4};
+
 	while (true) {
+
+		// uint8_t status = USBD_HID_SendReport(&hUsbDeviceFS, report, 4);
+
+		// printf("status = %" PRId8 nl, status);
+
+		HAL_Delay(30000);
 
 		if ((debug_uart_rx = Debug_UART_Get_Byte()) != -1) {
 
