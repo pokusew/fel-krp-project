@@ -10,6 +10,7 @@
 #define CSI_CURSOR_POSITION(line, col) CSI line ";" col "H"
 #define csp(line, col) CSI_CURSOR_POSITION(line, col)
 #define CSI_ERASE_IN_DISPLAY(n) CSI n "J"
+#define CSI_ERASE_IN_DISPLAY_ENTIRE_SCREEN CSI_ERASE_IN_DISPLAY("2")
 #define CSI_ERASE_IN_LINE(n) CSI n "K"
 
 #define RN "\r\n"
