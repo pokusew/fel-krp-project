@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <stdio.h>
 
+#include "terminal.h"
+
 #ifndef nl
 #define nl "\r\n"
 #endif

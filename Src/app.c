@@ -4,7 +4,6 @@
 
 
 #include "app.h"
-#include "terminal.h"
 #include "utils.h"
 #include "usb_device.h"
 #include "usbd_custom_hid_if.h"
