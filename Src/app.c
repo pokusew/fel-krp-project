@@ -7,7 +7,7 @@
 #include "terminal.h"
 #include "utils.h"
 #include "usb_device.h"
-#include "usbd_hid.h"
+#include "usbd_custom_hid_if.h"
 
 void app_init(app_state_t *app) {
 
@@ -35,9 +35,9 @@ noreturn void app_run(app_state_t *app) {
 
 	while (true) {
 
-		uint8_t status = USBD_HID_SendReport(&hUsbDeviceFS, report, 4);
+		// uint8_t status = USBD_HID_SendReport(&hUsbDeviceFS, report, 4);
 
-		printf("status = %" PRId8 nl, status);
+		// printf("status = %" PRId8 nl, status);
 
 		HAL_Delay(5000);
 
