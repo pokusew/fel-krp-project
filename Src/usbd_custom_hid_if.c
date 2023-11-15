@@ -218,7 +218,7 @@ static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state) {
 		return USBD_FAIL;
 	}
 
-	info_log("CUSTOM_HID_OutEvent_FS counter = %" PRIu8 nl, hhid->Report_buf[4]);
+	info_log(cyan("CUSTOM_HID_OutEvent_FS") " counter = %" PRIu8 nl, hhid->Report_buf[4]);
 
 	// TODO: process data (Report_buf)
 	fifo_hidmsg_add(hhid->Report_buf);
