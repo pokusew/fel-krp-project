@@ -41,7 +41,8 @@
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
-void Error_Handler(void);
+// already declared via include usbd_def.h > usbd_conf.h > main.h
+// noreturn void Error_Handler(void);
 
 /* External functions --------------------------------------------------------*/
 void SystemClock_Config(void);
