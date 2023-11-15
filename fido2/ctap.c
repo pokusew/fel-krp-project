@@ -880,7 +880,7 @@ uint8_t ctap_make_credential(CborEncoder *encoder, uint8_t *request, int length)
 
 	if (ctap_is_pin_set() == 1 && MC.pinAuthPresent == 0) {
 		printf2(TAG_ERR, "pinAuth is required\r\n");
-		return CTAP2_ERR_PIN_REQUIRED;
+		return CTAP2_ERR_PUAT_REQUIRED;
 	} else {
 		if (ctap_is_pin_set() || (MC.pinAuthPresent)) {
 			ret = verify_pin_auth(MC.pinAuth, MC.clientDataHash);
@@ -1178,7 +1178,7 @@ static int8_t save_credential_list(uint8_t *clientDataHash,
 	if (count) {
 		if (count > ALLOW_LIST_MAX_SIZE - 1) {
 			printf2(TAG_ERR, "ALLOW_LIST_MAX_SIZE Exceeded\r\n");
-			return CTAP2_ERR_TOO_MANY_ELEMENTS;
+			return CTAP2_ERR_FP_DATABASE_FULL;
 		}
 
 		memmove(getAssertionState.clientDataHash, clientDataHash, CLIENT_DATA_HASH_SIZE);

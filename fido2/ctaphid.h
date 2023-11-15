@@ -1,11 +1,5 @@
-// Copyright 2019 SoloKeys Developers
-//
-// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
-// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
-// http://opensource.org/licenses/MIT>, at your option. This file may not be
-// copied, modified, or distributed except according to those terms.
-#ifndef _CTAPHID_H_H
-#define _CTAPHID_H_H
+#ifndef FIDO2_CTAPHID_H
+#define FIDO2_CTAPHID_H
 
 #include "device.h"
 #include "ctap_errors.h"
@@ -101,4 +95,4 @@ void ctaphid_update_status(int8_t status);
 
 #define ctaphid_packet_len(pkt)     ((uint16_t)((pkt)->pkt.init.bcnth << 8) | ((pkt)->pkt.init.bcntl))
 
-#endif
+#endif // FIDO2_CTAPHID_H

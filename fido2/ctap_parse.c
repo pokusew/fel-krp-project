@@ -865,7 +865,7 @@ uint8_t parse_allow_list(CTAP_getAssertion *GA, CborValue *it) {
 	for (i = 0; i < len; i++) {
 		if (i >= ALLOW_LIST_MAX_SIZE) {
 			printf1(TAG_PARSE, "Error, out of memory for allow list.\r\n");
-			return CTAP2_ERR_TOO_MANY_ELEMENTS;
+			return CTAP2_ERR_FP_DATABASE_FULL;
 		}
 
 		GA->credLen += 1;
