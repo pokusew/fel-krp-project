@@ -50,7 +50,7 @@ int check_pinhash(uint8_t * pinAuth, uint8_t * msg, uint8_t len)
 
 void wallet_init()
 {
-    printf1(TAG_WALLET,"Wallet is ready\n");
+    printf1(TAG_WALLET,"Wallet is ready\r\n");
 }
 
 int8_t wallet_pin(uint8_t subcmd, uint8_t * pinAuth, uint8_t * arg1, uint8_t * arg2, uint8_t * arg3, int len)
@@ -61,7 +61,7 @@ int8_t wallet_pin(uint8_t subcmd, uint8_t * pinAuth, uint8_t * arg1, uint8_t * a
     switch(subcmd)
     {
         case CP_cmdGetKeyAgreement:
-            printf1(TAG_WALLET,"cmdGetKeyAgreement\n");
+            printf1(TAG_WALLET,"cmdGetKeyAgreement\r\n");
 
             if ( ctap_device_locked() )
             {
@@ -73,13 +73,13 @@ int8_t wallet_pin(uint8_t subcmd, uint8_t * pinAuth, uint8_t * arg1, uint8_t * a
 
             break;
         case CP_cmdGetRetries:
-            printf1(TAG_WALLET,"cmdGetRetries\n");
+            printf1(TAG_WALLET,"cmdGetRetries\r\n");
             pinTokenEnc[0] = ctap_leftover_pin_attempts();
             extension_writeback(pinTokenEnc,1);
 
             break;
         case CP_cmdSetPin:
-            printf1(TAG_WALLET,"cmdSetPin\n");
+            printf1(TAG_WALLET,"cmdSetPin\r\n");
             if (ctap_is_pin_set() || ctap_device_locked())
             {
                 return CTAP2_ERR_NOT_ALLOWED;
@@ -99,7 +99,7 @@ int8_t wallet_pin(uint8_t subcmd, uint8_t * pinAuth, uint8_t * arg1, uint8_t * a
 
             break;
         case CP_cmdChangePin:
-            printf1(TAG_WALLET,"cmdChangePin\n");
+            printf1(TAG_WALLET,"cmdChangePin\r\n");
 
             if (! ctap_is_pin_set() )
             {
@@ -126,7 +126,7 @@ int8_t wallet_pin(uint8_t subcmd, uint8_t * pinAuth, uint8_t * arg1, uint8_t * a
         case CP_cmdGetPinToken:
 
 
-            printf1(TAG_WALLET,"cmdGetPinToken\n");
+            printf1(TAG_WALLET,"cmdGetPinToken\r\n");
 
             if ( ctap_device_locked() )
             {
@@ -148,7 +148,7 @@ int8_t wallet_pin(uint8_t subcmd, uint8_t * pinAuth, uint8_t * arg1, uint8_t * a
             break;
 
         default:
-            printf2(TAG_ERR,"Error, invalid client pin subcommand\n");
+            printf2(TAG_ERR,"Error, invalid client pin subcommand\r\n");
             return CTAP2_ERR_INVALID_OPTION;
     }
 
@@ -200,7 +200,7 @@ int16_t bridge_to_wallet(uint8_t * keyh, uint8_t klen)
     if (offset > MAX_PAYLOAD_SIZE)
     {
         ret = CTAP1_ERR_INVALID_LENGTH;
-        printf2(TAG_ERR,"Wallet operation lengths too big\n");
+        printf2(TAG_ERR,"Wallet operation lengths too big\r\n");
         goto cleanup;
     }
 
@@ -208,20 +208,20 @@ int16_t bridge_to_wallet(uint8_t * keyh, uint8_t klen)
     switch(req->operation)
     {
         case WalletSign:
-            printf1(TAG_WALLET,"WalletSign\n");
+            printf1(TAG_WALLET,"WalletSign\r\n");
             printf1(TAG_WALLET,"pinAuth:"); dump_hex1(TAG_WALLET, req->pinAuth, 16);
 
             if (args[0] == NULL || lens[0] == 0)
             {
                 ret = CTAP2_ERR_MISSING_PARAMETER;
-                printf2(TAG_ERR,"Missing parameter for WalletSign\n");
+                printf2(TAG_ERR,"Missing parameter for WalletSign\r\n");
                 goto cleanup;
             }
 
             printf1(TAG_WALLET,"challenge:"); dump_hex1(TAG_WALLET, args[0], lens[0]);
             if (args[1] != NULL && req->numArgs > 1)
             {
-                printf1(TAG_WALLET,"keyid is specified\n");
+                printf1(TAG_WALLET,"keyid is specified\r\n");
                 printf1(TAG_WALLET,"keyid:"); dump_hex1(TAG_WALLET, args[1], lens[1]);
             }
 
@@ -229,18 +229,18 @@ int16_t bridge_to_wallet(uint8_t * keyh, uint8_t klen)
             {
                 if (check_pinhash(req->pinAuth, msg_buf, reqlen))
                 {
-                    printf1(TAG_WALLET,"pinAuth is valid\n");
+                    printf1(TAG_WALLET,"pinAuth is valid\r\n");
                 }
                 else
                 {
-                    printf1(TAG_WALLET,"pinAuth is NOT valid\n");
+                    printf1(TAG_WALLET,"pinAuth is NOT valid\r\n");
                     ret = CTAP2_ERR_PIN_AUTH_INVALID;
                     goto cleanup;
                 }
             }
             else
             {
-                printf1(TAG_WALLET,"Warning: no pin is set.  Ignoring pinAuth\n");
+                printf1(TAG_WALLET,"Warning: no pin is set.  Ignoring pinAuth\r\n");
             }
 
 
@@ -265,31 +265,31 @@ int16_t bridge_to_wallet(uint8_t * keyh, uint8_t klen)
             if (args[0] == NULL)
             {
                 ret = CTAP2_ERR_MISSING_PARAMETER;
-                printf2(TAG_ERR,"Missing parameter for WalletReg\n");
+                printf2(TAG_ERR,"Missing parameter for WalletReg\r\n");
                 goto cleanup;
             }
             if (lens[0] < 8 || lens[0] > keysize)
             {
                 ret = CTAP1_ERR_INVALID_LENGTH;
-                printf2(TAG_ERR,"Invalid length for WalletReg\n");
+                printf2(TAG_ERR,"Invalid length for WalletReg\r\n");
                 goto cleanup;
             }
             if (ctap_is_pin_set())
             {
                 if (check_pinhash(req->pinAuth, msg_buf, reqlen))
                 {
-                    printf1(TAG_WALLET,"pinAuth is valid\n");
+                    printf1(TAG_WALLET,"pinAuth is valid\r\n");
                 }
                 else
                 {
-                    printf1(TAG_WALLET,"pinAuth is NOT valid\n");
+                    printf1(TAG_WALLET,"pinAuth is NOT valid\r\n");
                     ret = CTAP2_ERR_PIN_AUTH_INVALID;
                     goto cleanup;
                 }
             }
             else
             {
-                printf1(TAG_WALLET,"Warning: no pin is set.  Ignoring pinAuth\n");
+                printf1(TAG_WALLET,"Warning: no pin is set.  Ignoring pinAuth\r\n");
             }
 
             memmove(chksum, args[0] + lens[0] - 4, 4);
@@ -309,7 +309,7 @@ int16_t bridge_to_wallet(uint8_t * keyh, uint8_t klen)
             if (memcmp(shasum, chksum, 4) != 0)
             {
                 ret = CTAP2_ERR_CREDENTIAL_NOT_VALID;
-                printf2(TAG_ERR,"Integrity fail for WalletReg\n");
+                printf2(TAG_ERR,"Integrity fail for WalletReg\r\n");
                 dump_hex1(TAG_ERR, chksum, sizeof(chksum));
                 goto cleanup;
             }
@@ -337,12 +337,12 @@ int16_t bridge_to_wallet(uint8_t * keyh, uint8_t klen)
 
             break;
         case WalletPin:
-            printf1(TAG_WALLET,"WalletPin\n");
+            printf1(TAG_WALLET,"WalletPin\r\n");
             ret = wallet_pin(req->p1, req->pinAuth, args[0], args[1], args[2], lens[0]);
             break;
         case WalletReset:
             // resets device
-            printf1(TAG_WALLET,"WalletReset\n");
+            printf1(TAG_WALLET,"WalletReset\r\n");
 
             if ( ! ctap_device_locked() )
             {
@@ -350,7 +350,7 @@ int16_t bridge_to_wallet(uint8_t * keyh, uint8_t klen)
                 {
                     if ( ! check_pinhash(req->pinAuth, msg_buf, reqlen))
                     {
-                        printf2(TAG_ERR,"pinAuth is NOT valid\n");
+                        printf2(TAG_ERR,"pinAuth is NOT valid\r\n");
                         dump_hex1(TAG_ERR,msg_buf,reqlen);
                         ret = CTAP2_ERR_PIN_AUTH_INVALID;
                         goto cleanup;
@@ -361,7 +361,7 @@ int16_t bridge_to_wallet(uint8_t * keyh, uint8_t klen)
 
             if (ctap_user_presence_test(5000))
             {
-                printf1(TAG_WALLET,"Reseting device!\n");
+                printf1(TAG_WALLET,"Reseting device!\r\n");
                 ctap_reset();
             }
             else
@@ -375,7 +375,7 @@ int16_t bridge_to_wallet(uint8_t * keyh, uint8_t klen)
 
 
         default:
-            printf2(TAG_ERR,"Invalid wallet command: %x\n",req->operation);
+            printf2(TAG_ERR,"Invalid wallet command: %x\r\n",req->operation);
             ret = CTAP1_ERR_INVALID_COMMAND;
             break;
     }

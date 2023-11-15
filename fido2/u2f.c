@@ -40,7 +40,7 @@ void u2f_request_ex(APDU_HEADER *req, uint8_t *payload, uint32_t len, CTAP_RESPO
 
     if (req->cla != 0)
     {
-        printf1(TAG_U2F, "CLA not zero\n");
+        printf1(TAG_U2F, "CLA not zero\r\n");
         rcode = U2F_SW_CLASS_NOT_SUPPORTED;
         goto end;
     }
@@ -63,18 +63,18 @@ void u2f_request_ex(APDU_HEADER *req, uint8_t *payload, uint32_t len, CTAP_RESPO
 
                     timestamp();
                     rcode = u2f_register((struct u2f_register_request*)payload);
-                    printf1(TAG_TIME,"u2f_register time: %d ms\n", timestamp());
+                    printf1(TAG_TIME,"u2f_register time: %d ms\r\n", timestamp());
 
                 }
                 break;
             case U2F_AUTHENTICATE:
-                printf1(TAG_U2F, "U2F_AUTHENTICATE\n");
+                printf1(TAG_U2F, "U2F_AUTHENTICATE\r\n");
                 timestamp();
                 rcode = u2f_authenticate((struct u2f_authenticate_request*)payload, req->p1);
-                printf1(TAG_TIME,"u2f_authenticate time: %d ms\n", timestamp());
+                printf1(TAG_TIME,"u2f_authenticate time: %d ms\r\n", timestamp());
                 break;
             case U2F_VERSION:
-                printf1(TAG_U2F, "U2F_VERSION\n");
+                printf1(TAG_U2F, "U2F_VERSION\r\n");
                 if (len)
                 {
                     rcode = U2F_SW_WRONG_LENGTH;
@@ -90,7 +90,7 @@ void u2f_request_ex(APDU_HEADER *req, uint8_t *payload, uint32_t len, CTAP_RESPO
                 rcode = U2F_SW_NO_ERROR;
                 break;
             default:
-                printf1(TAG_ERR, "Error, unknown U2F command\n");
+                printf1(TAG_ERR, "Error, unknown U2F command\r\n");
                 rcode = U2F_SW_INS_NOT_SUPPORTED;
                 break;
         }
@@ -102,7 +102,7 @@ void u2f_request_ex(APDU_HEADER *req, uint8_t *payload, uint32_t len, CTAP_RESPO
 end:
     if (rcode != U2F_SW_NO_ERROR)
     {
-        printf1(TAG_U2F,"U2F Error code %04x\n", rcode);
+        printf1(TAG_U2F,"U2F Error code %04x\r\n", rcode);
         ctap_response_init(_u2f_resp);
     }
 
@@ -135,7 +135,7 @@ int8_t u2f_response_writeback(const uint8_t * buf, uint16_t len)
 {
     if ((_u2f_resp->length + len) > _u2f_resp->data_size)
     {
-        printf2(TAG_ERR, "Not enough space for U2F response, writeback\n");
+        printf2(TAG_ERR, "Not enough space for U2F response, writeback\r\n");
         exit(1);
     }
     memmove(_u2f_resp->data + _u2f_resp->length, buf, len);
@@ -190,18 +190,18 @@ int8_t u2f_new_keypair(struct u2f_key_handle * kh, uint8_t * appid, uint8_t * pu
 // Return 1 if authenticate, 0 if not.
 int8_t u2f_authenticate_credential(struct u2f_key_handle * kh, uint8_t key_handle_len, uint8_t * appid)
 {
-    printf1(TAG_U2F, "checked CRED SIZE %d. (FIDO2: %d)\n", key_handle_len, sizeof(CredentialId));
+    printf1(TAG_U2F, "checked CRED SIZE %d. (FIDO2: %d)\r\n", key_handle_len, sizeof(CredentialId));
     uint8_t tag[U2F_KEY_HANDLE_TAG_SIZE];
 
     if (key_handle_len == sizeof(CredentialId))
     {
-        printf1(TAG_U2F, "FIDO2 key handle detected.\n");
+        printf1(TAG_U2F, "FIDO2 key handle detected.\r\n");
         CredentialId * cred = (CredentialId *) kh;
         // FIDO2 credential.
 
         if (memcmp(cred->rpIdHash, appid, 32) != 0)
         {
-            printf1(TAG_U2F, "APPID does not match rpIdHash.\n");
+            printf1(TAG_U2F, "APPID does not match rpIdHash.\r\n");
             return 0;
         }
         make_auth_tag(appid, (uint8_t*)&cred->entropy, cred->count, tag);
@@ -219,9 +219,9 @@ int8_t u2f_authenticate_credential(struct u2f_key_handle * kh, uint8_t key_handl
         }
     }
 
-    printf1(TAG_U2F, "key handle + appid not authentic\n");
-    printf1(TAG_U2F, "calc tag: \n"); dump_hex1(TAG_U2F,tag, U2F_KEY_HANDLE_TAG_SIZE);
-    printf1(TAG_U2F, "inp  tag: \n"); dump_hex1(TAG_U2F,kh->tag, U2F_KEY_HANDLE_TAG_SIZE);
+    printf1(TAG_U2F, "key handle + appid not authentic\r\n");
+    printf1(TAG_U2F, "calc tag: \r\n"); dump_hex1(TAG_U2F,tag, U2F_KEY_HANDLE_TAG_SIZE);
+    printf1(TAG_U2F, "inp  tag: \r\n"); dump_hex1(TAG_U2F,kh->tag, U2F_KEY_HANDLE_TAG_SIZE);
     return 0;
 }
 

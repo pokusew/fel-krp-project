@@ -51,12 +51,12 @@ int16_t bridge_u2f_to_solo(uint8_t * output, uint8_t * keyh, int keylen)
             output[2] = SOLO_VERSION_PATCH;
             break;
         case WalletRng:
-            printf1(TAG_WALLET,"SoloRng\n");
+            printf1(TAG_WALLET,"SoloRng\r\n");
 
             ret = ctap_generate_rng(output, 71);
             if (ret != 1)
             {
-                printf1(TAG_WALLET,"Rng failed\n");
+                printf1(TAG_WALLET,"Rng failed\r\n");
                 ret = CTAP2_ERR_PROCESSING;
                 goto cleanup;
             }
@@ -73,7 +73,7 @@ int16_t bridge_u2f_to_solo(uint8_t * output, uint8_t * keyh, int keylen)
 #endif
 
         default:
-            printf2(TAG_ERR,"Invalid wallet command: %x\n",req->operation);
+            printf2(TAG_ERR,"Invalid wallet command: %x\r\n",req->operation);
             ret = CTAP1_ERR_INVALID_COMMAND;
             break;
     }

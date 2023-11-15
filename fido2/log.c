@@ -79,7 +79,7 @@ void LOG(uint32_t tag, const char * filename, int num, const char * fmt, ...)
     }
     if (i != 0)
     {
-        printf2(TAG_ERR,"INVALID LOG TAG\n");
+        printf2(TAG_ERR,"INVALID LOG TAG\r\n");
         exit(1);
     }
     set_logging_tag(tag);

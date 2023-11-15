@@ -131,7 +131,7 @@ int16_t extend_u2f(APDU_HEADER * req, uint8_t * payload, uint32_t len)
             {
                 rcode =  U2F_SW_WRONG_DATA;
             }
-            printf1(TAG_EXT,"Ignoring U2F check request\n");
+            printf1(TAG_EXT,"Ignoring U2F check request\r\n");
             dump_hex1(TAG_EXT, (uint8_t *) &auth->kh, auth->khl);
             goto end;
         }
@@ -140,7 +140,7 @@ int16_t extend_u2f(APDU_HEADER * req, uint8_t * payload, uint32_t len)
             if ( ! is_extension_request((uint8_t *) &auth->kh, auth->khl))     // Pin requests
             {
                 rcode = U2F_SW_WRONG_DATA;
-                printf1(TAG_EXT, "Ignoring U2F auth request\n");
+                printf1(TAG_EXT, "Ignoring U2F auth request\r\n");
                 dump_hex1(TAG_EXT, (uint8_t *) &auth->kh, auth->khl);
                 goto end;
             }
@@ -149,7 +149,7 @@ int16_t extend_u2f(APDU_HEADER * req, uint8_t * payload, uint32_t len)
     }
     else if (req->ins == U2F_VERSION)
     {
-        printf1(TAG_EXT, "U2F_VERSION\n");
+        printf1(TAG_EXT, "U2F_VERSION\r\n");
         if (len)
         {
             rcode = U2F_SW_WRONG_LENGTH;

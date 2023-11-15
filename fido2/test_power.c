@@ -79,7 +79,7 @@ int main(int argc, char * argv[])
 
     memset(hidmsg,0,sizeof(hidmsg));
 
-    printf1(TAG_GEN,"recv'ing hid msg \n");
+    printf1(TAG_GEN,"recv'ing hid msg \r\n");
 
 
     while(1)
@@ -97,7 +97,7 @@ int main(int argc, char * argv[])
             t2 = millis();
             ctaphid_handle_packet(hidmsg);
             accum += millis() - t2;
-            printf1(TAG_TIME,"accum: %lu\n", (uint32_t)accum);
+            printf1(TAG_TIME,"accum: %lu\r\n", (uint32_t)accum);
             memset(hidmsg, 0, sizeof(hidmsg));
         }
         else
@@ -109,7 +109,7 @@ int main(int argc, char * argv[])
 
     // Should never get here
     usbhid_close();
-    printf1(TAG_GREEN, "done\n");
+    printf1(TAG_GREEN, "done\r\n");
     return 0;
 }
 
@@ -151,7 +151,7 @@ int usbhid_recv(uint8_t * msg)
         {
             if (lastval != 0)
             {
-                printf1(TAG_GEN, "button!\n");
+                printf1(TAG_GEN, "button!\r\n");
                 /*printf1(TAG_GEN,"size of array: %d elements", sizeof(hidcmds)/64);*/
                 reading = 1;
             }

@@ -141,7 +141,7 @@ __attribute__((weak)) int device_is_nfc()
 
 __attribute__((weak)) void device_wink()
 {
-    printf1(TAG_GREEN,"*WINK*\n");
+    printf1(TAG_GREEN,"*WINK*\r\n");
 }
 
 __attribute__((weak)) void device_set_clock_rate(DEVICE_CLOCK_RATE param){/**/}

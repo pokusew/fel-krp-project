@@ -9,7 +9,7 @@
 
 #ifdef APP_CONFIG
 #include APP_CONFIG
-#endif 
+#endif
 
 #include <stdint.h>
 
@@ -57,9 +57,9 @@ typedef enum
 #if defined(DEBUG_LEVEL) && DEBUG_LEVEL > 0
 
 void set_logging_mask(uint32_t mask);
-#define printf1(tag,fmt, ...) LOG(tag & ~(TAG_FILENO), NULL, 0, fmt, ##__VA_ARGS__)
-#define printf2(tag,fmt, ...) LOG(tag | TAG_FILENO,__FILE__, __LINE__, fmt, ##__VA_ARGS__)
-#define printf3(tag,fmt, ...) LOG(tag | TAG_FILENO,__FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define printf1(tag,...) fprintf(stdout, __VA_ARGS__)
+#define printf2(tag,...) fprintf(stdout, __VA_ARGS__)
+#define printf3(tag,...) fprintf(stdout, __VA_ARGS__)
 
 #define dump_hex1(tag,data,len) LOG_HEX(tag,data,len)
 

@@ -23,7 +23,7 @@ bool migrate_from_FF_to_01(AuthenticatorState_0xFF* state_prev_0xff, Authenticat
     static_assert(sizeof(AuthenticatorState_0xFF) <= sizeof(AuthenticatorState_0x01), "New state structure is smaller, than current one, which is not handled");
 
     if (ctap_generate_rng(state_tmp_ptr->PIN_SALT, sizeof(state_tmp_ptr->PIN_SALT)) != 1) {
-        printf2(TAG_ERR, "Error, rng failed\n");
+        printf2(TAG_ERR, "Error, rng failed\r\n");
         return false;
     }
     if (state_prev_0xff->is_pin_set){
@@ -70,10 +70,10 @@ void do_migration_if_required(AuthenticatorState* state_current){
     authenticator_read_state(&state_previous);
     authenticator_read_state(&state_tmp);
     if(state_current->data_version == 0xFF){
-        printf2(TAG_ERR, "Running migration\n");
+        printf2(TAG_ERR, "Running migration\r\n");
         bool success = migrate_from_FF_to_01((AuthenticatorState_0xFF *) &state_previous, &state_tmp);
         if (!success){
-            printf2(TAG_ERR, "Failed migration from 0xFF to 1\n");
+            printf2(TAG_ERR, "Failed migration from 0xFF to 1\r\n");
             // FIXME discuss migration failure behavior
             goto return_cleanup;
         }

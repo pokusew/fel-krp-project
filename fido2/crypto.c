@@ -31,7 +31,7 @@
 #include APP_CONFIG
 #include "log.h"
 
-#if defined(STM32L432xx)
+#if defined(STM32L432xx) || defined(STM32F407xx)
 #include "salty.h"
 #else
 #include <sodium/crypto_sign_ed25519.h>
@@ -138,7 +138,7 @@ void crypto_sha256_hmac_init(uint8_t * key, uint32_t klen, uint8_t * hmac)
 
     if(klen > 64)
     {
-        printf2(TAG_ERR, "Error, key size must be <= 64\n");
+        printf2(TAG_ERR, "Error, key size must be <= 64\r\n");
         exit(1);
     }
 
@@ -173,7 +173,7 @@ void crypto_sha256_hmac_final(uint8_t * key, uint32_t klen, uint8_t * hmac)
 
     if(klen > 64)
     {
-        printf2(TAG_ERR, "Error, key size must be <= 64\n");
+        printf2(TAG_ERR, "Error, key size must be <= 64\r\n");
         exit(1);
     }
     memmove(buf, key, klen);
@@ -207,7 +207,7 @@ void crypto_ecc256_sign(uint8_t * data, int len, uint8_t * sig)
 {
     if ( uECC_sign(_signing_key, data, len, sig, _es256_curve) == 0)
     {
-        printf2(TAG_ERR, "error, uECC failed\n");
+        printf2(TAG_ERR, "error, uECC failed\r\n");
         exit(1);
     }
 }
@@ -250,13 +250,13 @@ void crypto_ecdsa_sign(uint8_t * data, int len, uint8_t * sig, int MBEDTLS_ECP_I
 
     if ( uECC_sign(_signing_key, data, len, sig, curve) == 0)
     {
-        printf2(TAG_ERR, "error, uECC failed\n");
+        printf2(TAG_ERR, "error, uECC failed\r\n");
         exit(1);
     }
     return;
 
 fail:
-    printf2(TAG_ERR, "error, invalid key length\n");
+    printf2(TAG_ERR, "error, invalid key length\r\n");
     exit(1);
 
 }
@@ -304,7 +304,7 @@ void crypto_ecc256_make_key_pair(uint8_t * pubkey, uint8_t * privkey)
 {
     if (uECC_make_key(pubkey, privkey, _es256_curve) != 1)
     {
-        printf2(TAG_ERR, "Error, uECC_make_key failed\n");
+        printf2(TAG_ERR, "Error, uECC_make_key failed\r\n");
         exit(1);
     }
 }
@@ -313,7 +313,7 @@ void crypto_ecc256_shared_secret(const uint8_t * pubkey, const uint8_t * privkey
 {
     if (uECC_shared_secret(pubkey, privkey, shared_secret, _es256_curve) != 1)
     {
-        printf2(TAG_ERR, "Error, uECC_shared_secret failed\n");
+        printf2(TAG_ERR, "Error, uECC_shared_secret failed\r\n");
         exit(1);
     }
 
@@ -365,12 +365,13 @@ void crypto_aes256_encrypt(uint8_t * buf, int length)
 
 void crypto_ed25519_derive_public_key(uint8_t * data, int len, uint8_t * x)
 {
-#if defined(STM32L432xx)
+#if defined(STM32L432xx) || defined(STM32F407xx)
 
     uint8_t seed[salty_SECRETKEY_SEED_LENGTH];
 
     generate_private_key(data, len, NULL, 0, seed);
-    salty_public_key(&seed, (uint8_t (*)[salty_PUBLICKEY_SERIALIZED_LENGTH])x);
+	// TODO
+    // salty_public_key(&seed, (uint8_t (*)[salty_PUBLICKEY_SERIALIZED_LENGTH])x);
 
 #else
 
@@ -385,7 +386,7 @@ void crypto_ed25519_derive_public_key(uint8_t * data, int len, uint8_t * x)
 
 void crypto_ed25519_load_key(uint8_t * data, int len)
 {
-#if defined(STM32L432xx)
+#if defined(STM32L432xx) || defined(STM32F407xx)
 
     static uint8_t seed[salty_SECRETKEY_SEED_LENGTH];
 
@@ -427,11 +428,13 @@ void crypto_ed25519_sign(uint8_t * data1, int len1, uint8_t * data2, int len2, u
     memcpy(data,        data1, len1);
     memcpy(data + len1, data2, len2);
 
-#if defined(STM32L432xx)
+#if defined(STM32L432xx) || defined(STM32F407xx)
 
     // TODO: check that correct load_key() had been called?
-    salty_sign((uint8_t (*)[salty_SECRETKEY_SEED_LENGTH])_signing_key, data, len,
-            (uint8_t (*)[salty_SIGNATURE_SERIALIZED_LENGTH])sig);
+
+	// TODO: implement
+    // salty_sign((uint8_t (*)[salty_SECRETKEY_SEED_LENGTH])_signing_key, data, len,
+    //         (uint8_t (*)[salty_SIGNATURE_SERIALIZED_LENGTH])sig);
 
 #else
 
