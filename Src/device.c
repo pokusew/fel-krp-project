@@ -21,11 +21,23 @@ uint32_t millis() {
  *  **Required** to compile and work for FIDO application.
 */
 void usbhid_send(uint8_t *msg) {
-	uint8_t status = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, msg, 64);
-	if (status == USBD_OK) {
-		debug_log("solo usbhid_send ok" nl);
-	} else {
+	while (true) {
+		uint8_t status = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, msg, 64);
+
+		if (status == USBD_OK) {
+			debug_log("solo usbhid_send ok" nl);
+			return;
+		}
+
+		if (status == USBD_BUSY) {
+			debug_log("solo usbhid_send busy" nl);
+			HAL_Delay(1);
+			// TODO: limit max number of repeats
+			continue;
+		}
+
 		debug_log("solo usbhid_send fail status = %" PRIu8 nl, status);
+		exit(1);
 	}
 }
 
