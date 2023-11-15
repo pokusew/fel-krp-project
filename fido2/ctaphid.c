@@ -1,12 +1,7 @@
-// Copyright 2019 SoloKeys Developers
-//
-// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
-// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
-// http://opensource.org/licenses/MIT>, at your option. This file may not be
-// copied, modified, or distributed except according to those terms.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "device.h"
 #include "ctaphid.h"
@@ -17,6 +12,7 @@
 #include "log.h"
 #include "extensions.h"
 #include "version.h"
+#include "utils.h"
 
 // move custom SHA512 command out,
 // and the following headers too
@@ -57,7 +53,7 @@ struct CID {
 };
 
 
-#define SUCESS          0
+#define SUCCESS         0
 #define SEQUENCE_ERROR  1
 
 static int state;
@@ -94,12 +90,13 @@ static uint32_t get_new_cid() {
 	do {
 		cid++;
 	} while (cid == 0 || cid == 0xffffffff);
+	debug_log("get_new_cid cid = %08" PRIx32 nl, cid);
 	return cid;
 }
 
 static int8_t add_cid(uint32_t cid) {
-	uint32_t i;
-	for (i = 0; i < CID_MAX - 1; i++) {
+	debug_log("add_cid cid = %08" PRIx32 nl, cid);
+	for (uint32_t i = 0; i < CID_MAX - 1; i++) {
 		if (!CIDS[i].busy) {
 			CIDS[i].cid = cid;
 			CIDS[i].busy = 1;
@@ -111,8 +108,8 @@ static int8_t add_cid(uint32_t cid) {
 }
 
 static int8_t cid_exists(uint32_t cid) {
-	uint32_t i;
-	for (i = 0; i < CID_MAX - 1; i++) {
+	debug_log("cid_exists cid = %08" PRIx32 nl, cid);
+	for (uint32_t i = 0; i < CID_MAX - 1; i++) {
 		if (CIDS[i].cid == cid) {
 			return 1;
 		}
@@ -121,8 +118,8 @@ static int8_t cid_exists(uint32_t cid) {
 }
 
 static int8_t cid_refresh(uint32_t cid) {
-	uint32_t i;
-	for (i = 0; i < CID_MAX - 1; i++) {
+	debug_log("cid_refresh cid = %08" PRIx32 nl, cid);
+	for (uint32_t i = 0; i < CID_MAX - 1; i++) {
 		if (CIDS[i].cid == cid) {
 			CIDS[i].last_used = millis();
 			CIDS[i].busy = 1;
@@ -133,8 +130,8 @@ static int8_t cid_refresh(uint32_t cid) {
 }
 
 static int8_t cid_del(uint32_t cid) {
-	uint32_t i;
-	for (i = 0; i < CID_MAX - 1; i++) {
+	debug_log("cid_del cid = %08" PRIx32 nl, cid);
+	for (uint32_t i = 0; i < CID_MAX - 1; i++) {
 		if (CIDS[i].cid == cid) {
 			CIDS[i].busy = 0;
 			return 0;
@@ -182,7 +179,7 @@ static int buffer_packet(CTAPHID_PACKET *pkt) {
 			ctap_buffer_offset += CTAPHID_CONT_PAYLOAD_SIZE;
 		}
 	}
-	return SUCESS;
+	return SUCCESS;
 }
 
 static void buffer_reset() {
@@ -287,7 +284,7 @@ static void send_init_response(uint32_t oldcid, uint32_t newcid, uint8_t *nonce)
 	init_resp.protocol_version = CTAPHID_PROTOCOL_VERSION;
 	init_resp.version_major = 0;//?
 	init_resp.version_minor = 0;//?
-	init_resp.build_version = 0;//?
+	init_resp.version_build = 0;//?
 	init_resp.capabilities = CTAP_CAPABILITIES;
 
 	ctaphid_write(&wb, &init_resp, sizeof(CTAPHID_INIT_RESPONSE));
@@ -296,10 +293,9 @@ static void send_init_response(uint32_t oldcid, uint32_t newcid, uint8_t *nonce)
 
 
 void ctaphid_check_timeouts() {
-	uint8_t i;
-	for (i = 0; i < CID_MAX; i++) {
+	for (uint8_t i = 0; i < CID_MAX; i++) {
 		if (CIDS[i].busy && ((millis() - CIDS[i].last_used) >= 750)) {
-			printf1(TAG_HID, "TIMEOUT CID: %08x\r\n", CIDS[i].cid);
+			printf1(TAG_HID, "TIMEOUT CID: %08" PRIx32 nl, CIDS[i].cid);
 			ctaphid_send_error(CIDS[i].cid, CTAP1_ERR_TIMEOUT);
 			CIDS[i].busy = 0;
 			if (CIDS[i].cid == buffer_cid()) {
@@ -308,7 +304,6 @@ void ctaphid_check_timeouts() {
 			// memset(CIDS + i, 0, sizeof(struct CID));
 		}
 	}
-
 }
 
 void ctaphid_update_status(int8_t status) {
@@ -327,24 +322,27 @@ void ctaphid_update_status(int8_t status) {
 static int ctaphid_buffer_packet(uint8_t *pkt_raw, uint8_t *cmd, uint32_t *cid, int *len) {
 	CTAPHID_PACKET *pkt = (CTAPHID_PACKET *) (pkt_raw);
 
-	printf1(TAG_HID, "Recv packet\r\n");
-	printf1(TAG_HID, "  CID: %08x \r\n", pkt->cid);
-	printf1(TAG_HID, "  cmd: %02x\r\n", pkt->pkt.init.cmd);
-	if (!is_cont_pkt(pkt)) { printf1(TAG_HID, "  length: %d\r\n", ctaphid_packet_len(pkt)); }
+	printf1(TAG_HID, "ctaphid_buffer_packet" nl);
+	printf1(TAG_HID, "  CID: 0x%08" PRIx32 nl, pkt->cid);
+	printf1(TAG_HID, "  cmd: 0x%02" PRIx8 nl, pkt->pkt.init.cmd);
+	if (!is_cont_pkt(pkt)) {
+		printf1(TAG_HID, "  length: %d" nl, ctaphid_packet_len(pkt));
+	}
 
 	int ret;
 	uint32_t oldcid;
 	uint32_t newcid;
 
-
 	*cid = pkt->cid;
 
 	if (is_init_pkt(pkt)) {
+
 		if (ctaphid_packet_len(pkt) != 8) {
-			printf2(TAG_ERR, "Error,invalid length field for init packet\r\n");
+			printf2(TAG_ERR, "Error, invalid length field for init packet\r\n");
 			*cmd = CTAP1_ERR_INVALID_LENGTH;
 			return HID_ERROR;
 		}
+
 		if (pkt->cid == 0) {
 			printf2(TAG_ERR, "Error, invalid cid 0\r\n");
 			*cmd = CTAP1_ERR_INVALID_CHANNEL;
@@ -379,6 +377,7 @@ static int ctaphid_buffer_packet(uint8_t *pkt_raw, uint8_t *cmd, uint32_t *cid, 
 
 		return HID_IGNORE;
 	} else {
+
 		if (pkt->cid == CTAPHID_BROADCAST_CID) {
 			*cmd = CTAP1_ERR_INVALID_CHANNEL;
 			return HID_ERROR;
@@ -393,17 +392,17 @@ static int ctaphid_buffer_packet(uint8_t *pkt_raw, uint8_t *cmd, uint32_t *cid, 
 		if (cid_exists(pkt->cid)) {
 			if (buffer_status() == BUFFERING) {
 				if (pkt->cid == buffer_cid() && !is_cont_pkt(pkt)) {
-					printf2(TAG_ERR, "INVALID_SEQ\r\n");
-					printf2(TAG_ERR, "Have %d/%d bytes\r\n", ctap_buffer_offset, ctap_buffer_bcnt);
+					printf2(TAG_ERR, "INVALID_SEQ" nl);
+					printf2(TAG_ERR, "Have %d/%d bytes" nl, ctap_buffer_offset, ctap_buffer_bcnt);
 					*cmd = CTAP1_ERR_INVALID_SEQ;
 					return HID_ERROR;
 				} else if (pkt->cid != buffer_cid()) {
 					if (!is_cont_pkt(pkt)) {
-						printf2(TAG_ERR, "BUSY with %08x\r\n", buffer_cid());
+						printf2(TAG_ERR, "BUSY with %08" PRIx32 nl, buffer_cid());
 						*cmd = CTAP1_ERR_CHANNEL_BUSY;
 						return HID_ERROR;
 					} else {
-						printf2(TAG_ERR, "ignoring random cont packet from %04x\r\n", pkt->cid);
+						printf2(TAG_ERR, "ignoring random cont packet from %08" PRIx32 nl, pkt->cid);
 						return HID_IGNORE;
 					}
 				}
@@ -416,7 +415,7 @@ static int ctaphid_buffer_packet(uint8_t *pkt_raw, uint8_t *cmd, uint32_t *cid, 
 				}
 			} else {
 				if (buffer_status() == EMPTY || pkt->cid != buffer_cid()) {
-					printf2(TAG_ERR, "ignoring random cont packet from %04x\r\n", pkt->cid);
+					printf2(TAG_ERR, "ignoring random cont packet from %08" PRIx32 nl, pkt->cid);
 					return HID_IGNORE;
 				}
 			}
@@ -454,18 +453,12 @@ extern void _check_ret(CborError ret, int line, const char *filename);
                             if ((r) != CborNoError) exit(1);
 
 
-uint8_t ctaphid_custom_command(int len, CTAP_RESPONSE *ctap_resp, CTAPHID_WRITE_BUFFER *wb);
-
-
-extern void solo_lock_if_not_already();
-
 uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
+
 	uint8_t cmd = 0;
 	uint32_t cid;
 	int len = 0;
-#ifndef DISABLE_CTAPHID_CBOR
 	int status;
-#endif
 
 	static uint8_t is_busy = 0;
 	static CTAPHID_WRITE_BUFFER wb;
@@ -495,16 +488,17 @@ uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
 		return 0;
 	}
 
+	// assert(bufstatus == BUFFERED);
 
 	switch (cmd) {
 
 		case CTAPHID_INIT:
-			printf2(TAG_ERR, "CTAPHID_INIT, error this should already be handled\r\n");
+			printf2(TAG_ERR, "CTAPHID_INIT, error this should already be handled" nl);
 			exit(1);
 			break;
-#ifndef DISABLE_CTAPHID_PING
+
 		case CTAPHID_PING:
-			printf1(TAG_HID, "CTAPHID_PING\r\n");
+			printf1(TAG_HID, "CTAPHID_PING" nl);
 
 			wb.bcnt = len;
 			timestamp();
@@ -513,32 +507,31 @@ uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
 			printf1(TAG_TIME, "PING writeback: %d ms\r\n", timestamp());
 
 			break;
-#endif
-#ifndef DISABLE_CTAPHID_WINK
-		case CTAPHID_WINK:
-			printf1(TAG_HID, "CTAPHID_WINK\r\n");
 
+		case CTAPHID_WINK:
+			printf1(TAG_HID, "CTAPHID_WINK" nl);
 
 			device_wink();
 
 			ctaphid_write(&wb, NULL, 0);
 
 			break;
-#endif
-#ifndef DISABLE_CTAPHID_CBOR
+
 		case CTAPHID_CBOR:
-			printf1(TAG_HID, "CTAPHID_CBOR\n");
+			printf1(TAG_HID, "CTAPHID_CBOR" nl);
 
 			if (len == 0) {
-				printf2(TAG_ERR, "Error,invalid 0 length field for cbor packet\r\n");
+				printf2(TAG_ERR, "Error,invalid 0 length field for cbor packet" nl);
 				ctaphid_send_error(cid, CTAP1_ERR_INVALID_LENGTH);
 				return 0;
 			}
+
 			if (is_busy) {
-				printf1(TAG_HID, "Channel busy for CBOR\n");
+				printf1(TAG_HID, "Channel busy for CBOR" nl);
 				ctaphid_send_error(cid, CTAP1_ERR_CHANNEL_BUSY);
 				return 0;
 			}
+
 			is_busy = 1;
 			ctap_response_init(&ctap_resp);
 			status = ctap_request(ctap_buffer, len, &ctap_resp);
@@ -547,28 +540,30 @@ uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
 			wb.cid = cid;
 			wb.cmd = cmd;
 
-
 			timestamp();
 			ctaphid_write(&wb, &status, 1);
 			ctaphid_write(&wb, ctap_resp.data, ctap_resp.length);
 			ctaphid_write(&wb, NULL, 0);
-			printf1(TAG_TIME, "CBOR writeback: %d ms\r\n", timestamp());
+			printf1(TAG_TIME, "CBOR writeback: %" PRId32 " ms" nl, timestamp());
 			is_busy = 0;
-			break;
-#endif
-		case CTAPHID_MSG:
 
-			printf1(TAG_HID, "CTAPHID_MSG\r\n");
+			break;
+
+		case CTAPHID_MSG:
+			printf1(TAG_HID, "CTAPHID_MSG" nl);
+
 			if (len == 0) {
-				printf2(TAG_ERR, "Error,invalid 0 length field for MSG/U2F packet\r\n");
+				printf2(TAG_ERR, "Error, invalid 0 length field for MSG/U2F packet" nl);
 				ctaphid_send_error(cid, CTAP1_ERR_INVALID_LENGTH);
 				return 0;
 			}
+
 			if (is_busy) {
-				printf1(TAG_HID, "Channel busy for MSG\r\n");
+				printf1(TAG_HID, "Channel busy for MSG" nl);
 				ctaphid_send_error(cid, CTAP1_ERR_CHANNEL_BUSY);
 				return 0;
 			}
+
 			is_busy = 1;
 			ctap_response_init(&ctap_resp);
 			u2f_request((struct u2f_request_apdu *) ctap_buffer, &ctap_resp);
@@ -577,161 +572,30 @@ uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
 			wb.cid = cid;
 			wb.cmd = cmd;
 
-
 			ctaphid_write(&wb, ctap_resp.data, ctap_resp.length);
 			ctaphid_write(&wb, NULL, 0);
 			is_busy = 0;
+
 			break;
+
 		case CTAPHID_CANCEL:
-			printf1(TAG_HID, "CTAPHID_CANCEL\r\n");
+			printf1(TAG_HID, "CTAPHID_CANCEL" nl);
 			is_busy = 0;
 			break;
 
 		default:
-			if (ctaphid_custom_command(len, &ctap_resp, &wb) != 0) {
-				is_busy = 0;
-			} else {
-				printf2(TAG_ERR, "error, unimplemented HID cmd: %02x\r\n", buffer_cmd());
-				ctaphid_send_error(cid, CTAP1_ERR_INVALID_COMMAND);
-			}
+			printf2(TAG_ERR, "error, unimplemented HID cmd: %02x", buffer_cmd());
+			ctaphid_send_error(cid, CTAP1_ERR_INVALID_COMMAND);
+
 	}
+
 	cid_del(cid);
 	buffer_reset();
 
-	printf1(TAG_HID, "\n");
-	if (!is_busy) { return cmd; }
-	else { return 0; }
-
-}
-
-uint8_t ctaphid_custom_command(int len, CTAP_RESPONSE *ctap_resp, CTAPHID_WRITE_BUFFER *wb) {
-	ctap_response_init(ctap_resp);
-
-#if !defined(IS_BOOTLOADER) && (defined(SOLO_EXPERIMENTAL))
-	uint32_t param;
-#endif
-#if defined(IS_BOOTLOADER)
-	uint8_t is_busy;
-#endif
-
-	switch (wb->cmd) {
-#if defined(IS_BOOTLOADER)
-		case CTAPHID_BOOT:
-			printf1(TAG_HID,"CTAPHID_BOOT\r\n");
-			u2f_set_writeback_buffer(ctap_resp);
-			is_busy = bootloader_bridge(len, ctap_buffer);
-			wb->bcnt = 1 + ctap_resp->length;
-
-			ctaphid_write(wb, &is_busy, 1);
-			ctaphid_write(wb, ctap_resp->data, ctap_resp->length);
-			ctaphid_write(wb, NULL, 0);
-			return 1;
-#endif
-#if defined(SOLO)
-		case CTAPHID_ENTERBOOT:
-			printf1(TAG_HID,"CTAPHID_ENTERBOOT\r\n");
-			boot_solo_bootloader();
-			wb->bcnt = 0;
-			ctaphid_write(wb, NULL, 0);
-			return 1;
-#endif
-#if defined(SOLO)
-		case CTAPHID_REBOOT:
-			device_reboot();
-			return 1;
-#endif
-
-#if !defined(IS_BOOTLOADER)
-		case CTAPHID_GETRNG:
-			printf1(TAG_HID, "CTAPHID_GETRNG\r\n");
-			wb->bcnt = ctap_buffer[0];
-			if (!wb->bcnt) {
-				wb->bcnt = 57;
-			}
-			memset(ctap_buffer, 0, wb->bcnt);
-			ctap_generate_rng(ctap_buffer, wb->bcnt);
-			ctaphid_write(wb, ctap_buffer, wb->bcnt);
-			ctaphid_write(wb, NULL, 0);
-			return 1;
-			break;
-#endif
-
-		case CTAPHID_GETVERSION:
-			printf1(TAG_HID, "CTAPHID_GETVERSION\r\n");
-			wb->bcnt = 4;
-			ctap_buffer[0] = SOLO_VERSION_MAJ;
-			ctap_buffer[1] = SOLO_VERSION_MIN;
-			ctap_buffer[2] = SOLO_VERSION_PATCH;
-#if defined(SOLO)
-			ctap_buffer[3] = solo_is_locked();
-#else
-			ctap_buffer[3] = 0;
-#endif
-			ctaphid_write(wb, ctap_buffer, 4);
-			ctaphid_write(wb, NULL, 0);
-			return 1;
-			break;
-
-			// Remove on next release
-#if !defined(IS_BOOTLOADER) && defined(SOLO)
-			case 0x99:
-				solo_lock_if_not_already();
-				wb->bcnt = 0;
-				ctaphid_write(wb, NULL, 0);
-				return 1;
-			break;
-#endif
-
-#if !defined(IS_BOOTLOADER) && (defined(SOLO_EXPERIMENTAL))
-			case CTAPHID_LOADKEY:
-				/**
-				 * Load external key.  Useful for enabling backups.
-				 * bytes:                   4                     4                      96
-				 * payload:  version [maj rev patch RFU]| counter_replacement (BE) | master_key |
-				 *
-				 * Counter should be increased by a large amount, e.g. (0x10000000)
-				 * to outdo any previously lost/broken keys.
-				*/
-				printf1(TAG_HID,"CTAPHID_LOADKEY\r\n");
-				if (len != 104)
-				{
-					printf2(TAG_ERR,"Error, invalid length.\r\n");
-					ctaphid_send_error(wb->cid, CTAP1_ERR_INVALID_LENGTH);
-					return 1;
-				}
-				param = ctap_buffer[0] << 16;
-				param |= ctap_buffer[1] << 8;
-				param |= ctap_buffer[2] << 0;
-				if (param != 0){
-					ctaphid_send_error(wb->cid, CTAP2_ERR_UNSUPPORTED_OPTION);
-					return 1;
-				}
-
-				// Ask for THREE button presses
-				if (ctap_user_presence_test(8000) > 0)
-					if (ctap_user_presence_test(2000) > 0)
-						if (ctap_user_presence_test(2000) > 0)
-						{
-							ctap_load_external_keys(ctap_buffer + 8);
-							param = ctap_buffer[7];
-							param |= ctap_buffer[6] << 8;
-							param |= ctap_buffer[5] << 16;
-							param |= ctap_buffer[4] << 24;
-							ctap_atomic_count(param);
-
-							wb->bcnt = 0;
-
-							ctaphid_write(wb, NULL, 0);
-							return 1;
-						}
-
-				printf2(TAG_ERR, "Error, invalid length.\r\n");
-				ctaphid_send_error(wb->cid, CTAP2_ERR_OPERATION_DENIED);
-				return 1;
-#endif
-
-
+	if (!is_busy) {
+		return cmd;
+	} else {
+		return 0;
 	}
 
-	return 0;
 }
