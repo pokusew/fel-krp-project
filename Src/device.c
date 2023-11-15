@@ -52,10 +52,8 @@ int ctap_generate_rng(uint8_t *dst, size_t num) {
 	return 1;
 }
 
-int usbhid_recv(uint8_t * msg)
-{
-	if (fifo_hidmsg_size())
-	{
+int usbhid_recv(uint8_t *msg) {
+	if (fifo_hidmsg_size()) {
 		fifo_hidmsg_take(msg);
 		// printf1(TAG_DUMP2,">> ");
 		// dump_hex1(TAG_DUMP2,msg, HID_PACKET_SIZE);
