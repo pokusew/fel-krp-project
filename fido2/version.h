@@ -21,19 +21,20 @@
 #include <stdbool.h>
 
 typedef struct {
-  union{
-    uint32_t raw;
-    struct {
-      uint8_t major;
-      uint8_t minor;
-      uint8_t patch;
-      uint8_t reserved;
-    };
-  };
+	union {
+		uint32_t raw;
+		struct {
+			uint8_t major;
+			uint8_t minor;
+			uint8_t patch;
+			uint8_t reserved;
+		};
+	};
 } version_t;
 
-bool is_newer(const version_t* const newer, const version_t* const older);
-extern const version_t firmware_version ;
+bool is_newer(const version_t *const newer, const version_t *const older);
+
+extern const version_t firmware_version;
 
 
 #endif

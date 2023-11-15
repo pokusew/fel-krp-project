@@ -10,6 +10,6 @@
 
 #include "storage.h"
 
-void do_migration_if_required(AuthenticatorState* state_current);
+void do_migration_if_required(AuthenticatorState *state_current);
 
 #endif //FIDO2_PR_DATA_MIGRATION_H

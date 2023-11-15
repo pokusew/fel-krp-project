@@ -53,61 +53,58 @@
 // Delay in milliseconds to wait for user input
 #define U2F_MS_USER_INPUT_WAIT              3000
 
-struct u2f_request_apdu
-{
-    uint8_t cla;
-    uint8_t ins;
-    uint8_t p1;
-    uint8_t p2;
-    uint8_t LC1;
-    uint8_t LC2;
-    uint8_t LC3;
-    uint8_t payload[U2F_MAX_REQUEST_PAYLOAD];
+struct u2f_request_apdu {
+	uint8_t cla;
+	uint8_t ins;
+	uint8_t p1;
+	uint8_t p2;
+	uint8_t LC1;
+	uint8_t LC2;
+	uint8_t LC3;
+	uint8_t payload[U2F_MAX_REQUEST_PAYLOAD];
 };
 
-struct u2f_ec_point
-{
-    uint8_t fmt;
-    uint8_t x[U2F_EC_POINT_SIZE];
-    uint8_t y[U2F_EC_POINT_SIZE];
+struct u2f_ec_point {
+	uint8_t fmt;
+	uint8_t x[U2F_EC_POINT_SIZE];
+	uint8_t y[U2F_EC_POINT_SIZE];
 };
 
-struct u2f_register_request
-{
-    uint8_t chal[U2F_CHALLENGE_SIZE];
-    uint8_t app[U2F_APPLICATION_SIZE];
+struct u2f_register_request {
+	uint8_t chal[U2F_CHALLENGE_SIZE];
+	uint8_t app[U2F_APPLICATION_SIZE];
 };
 
 
-struct u2f_key_handle
-{
-    uint8_t tag[U2F_KEY_HANDLE_TAG_SIZE];
-    uint8_t key[U2F_KEY_HANDLE_KEY_SIZE];
+struct u2f_key_handle {
+	uint8_t tag[U2F_KEY_HANDLE_TAG_SIZE];
+	uint8_t key[U2F_KEY_HANDLE_KEY_SIZE];
 };
 
 
-struct u2f_authenticate_request
-{
-    uint8_t chal[U2F_CHALLENGE_SIZE];
-    uint8_t app[U2F_APPLICATION_SIZE];
-    uint8_t khl;
-    struct u2f_key_handle kh;
+struct u2f_authenticate_request {
+	uint8_t chal[U2F_CHALLENGE_SIZE];
+	uint8_t app[U2F_APPLICATION_SIZE];
+	uint8_t khl;
+	struct u2f_key_handle kh;
 };
 
 // u2f_request send a U2F message to U2F protocol
 // @req U2F message
-void u2f_request(struct u2f_request_apdu* req, CTAP_RESPONSE * resp);
+void u2f_request(struct u2f_request_apdu *req, CTAP_RESPONSE *resp);
 
 // u2f_request send a U2F message to NFC protocol
 // @req data with iso7816 apdu message
 // @len data length
-void u2f_request_nfc(uint8_t * header, uint8_t * data, int datalen, CTAP_RESPONSE * resp);
+void u2f_request_nfc(uint8_t *header, uint8_t *data, int datalen, CTAP_RESPONSE *resp);
 
-int8_t u2f_authenticate_credential(struct u2f_key_handle * kh, uint8_t key_handle_len, uint8_t * appid);
+int8_t u2f_authenticate_credential(struct u2f_key_handle *kh, uint8_t key_handle_len, uint8_t *appid);
 
-int8_t u2f_response_writeback(const uint8_t * buf, uint16_t len);
+int8_t u2f_response_writeback(const uint8_t *buf, uint16_t len);
+
 void u2f_reset_response();
-void u2f_set_writeback_buffer(CTAP_RESPONSE * resp);
+
+void u2f_set_writeback_buffer(CTAP_RESPONSE *resp);
 
 int16_t u2f_version();
 

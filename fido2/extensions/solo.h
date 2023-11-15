@@ -22,6 +22,6 @@
 #ifndef SOLO_H_
 #define SOLO_H_
 
-int16_t bridge_u2f_to_solo(uint8_t * output, uint8_t * keyh, int keylen);
+int16_t bridge_u2f_to_solo(uint8_t *output, uint8_t *keyh, int keylen);
 
 #endif

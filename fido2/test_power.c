@@ -46,79 +46,79 @@
 
 int main(int argc, char * argv[])
 {
-    int count = 0;
-    uint64_t t1 = 0;
-    uint64_t t2 = 0;
-    uint64_t accum = 0;
-    uint8_t hidmsg[64];
+	int count = 0;
+	uint64_t t1 = 0;
+	uint64_t t2 = 0;
+	uint64_t accum = 0;
+	uint8_t hidmsg[64];
 
-    set_logging_mask(
-            0
-            /*TAG_GEN|*/
-            /*TAG_MC |*/
-            /*TAG_GA |*/
-            /*TAG_CP |*/
-            /*TAG_CTAP|*/
-            /*TAG_HID|*/
-            /*TAG_U2F|*/
-            /*TAG_PARSE |*/
-            /*TAG_TIME|*/
-            /*TAG_DUMP|*/
-            /*TAG_GREEN|*/
-            /*TAG_RED|*/
-            |TAG_ERR
-            );
+	set_logging_mask(
+			0
+			/*TAG_GEN|*/
+			/*TAG_MC |*/
+			/*TAG_GA |*/
+			/*TAG_CP |*/
+			/*TAG_CTAP|*/
+			/*TAG_HID|*/
+			/*TAG_U2F|*/
+			/*TAG_PARSE |*/
+			/*TAG_TIME|*/
+			/*TAG_DUMP|*/
+			/*TAG_GREEN|*/
+			/*TAG_RED|*/
+			|TAG_ERR
+			);
 
-    device_init();
-    ctaphid_init();
-    ctap_init();
+	device_init();
+	ctaphid_init();
+	ctap_init();
 
-    GPIO_INPUT(BUTT);
-    GPIO_OUTPUT(TRIG);
-    GPIO_CLEAR(TRIG);
+	GPIO_INPUT(BUTT);
+	GPIO_OUTPUT(TRIG);
+	GPIO_CLEAR(TRIG);
 
-    memset(hidmsg,0,sizeof(hidmsg));
+	memset(hidmsg,0,sizeof(hidmsg));
 
-    printf1(TAG_GEN,"recv'ing hid msg \r\n");
+	printf1(TAG_GEN,"recv'ing hid msg \r\n");
 
 
-    while(1)
-    {
-        if (millis() - t1 > 100)
-        {
-            /*printf("heartbeat %ld\n", beat++);*/
-            heartbeat();
-            t1 = millis();
-        }
+	while(1)
+	{
+		if (millis() - t1 > 100)
+		{
+			/*printf("heartbeat %ld\n", beat++);*/
+			heartbeat();
+			t1 = millis();
+		}
 
-        if (usbhid_recv(hidmsg) > 0)
-        {
-            printf1(TAG_DUMP,"%d>> ",count++); dump_hex1(TAG_DUMP, hidmsg,sizeof(hidmsg));
-            t2 = millis();
-            ctaphid_handle_packet(hidmsg);
-            accum += millis() - t2;
-            printf1(TAG_TIME,"accum: %lu\r\n", (uint32_t)accum);
-            memset(hidmsg, 0, sizeof(hidmsg));
-        }
-        else
-        {
-            /*main_loop_delay();*/
-        }
-        ctaphid_check_timeouts();
-    }
+		if (usbhid_recv(hidmsg) > 0)
+		{
+			printf1(TAG_DUMP,"%d>> ",count++); dump_hex1(TAG_DUMP, hidmsg,sizeof(hidmsg));
+			t2 = millis();
+			ctaphid_handle_packet(hidmsg);
+			accum += millis() - t2;
+			printf1(TAG_TIME,"accum: %lu\r\n", (uint32_t)accum);
+			memset(hidmsg, 0, sizeof(hidmsg));
+		}
+		else
+		{
+			/*main_loop_delay();*/
+		}
+		ctaphid_check_timeouts();
+	}
 
-    // Should never get here
-    usbhid_close();
-    printf1(TAG_GREEN, "done\r\n");
-    return 0;
+	// Should never get here
+	usbhid_close();
+	printf1(TAG_GREEN, "done\r\n");
+	return 0;
 }
 
 
 
 void ctaphid_write_block(uint8_t * data)
 {
-    // Don't actually use usb
-    /*usbhid_send(data);*/
+	// Don't actually use usb
+	/*usbhid_send(data);*/
 }
 
 uint8_t hidcmds[][64] = {"\x03\x00\x00\x00\x86\x00\x08\x2d\x73\x95\x80\x2e\xbb\x44\x8d\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
@@ -135,41 +135,41 @@ uint8_t hidcmds[][64] = {"\x03\x00\x00\x00\x86\x00\x08\x2d\x73\x95\x80\x2e\xbb\x
 
 int usbhid_recv(uint8_t * msg)
 {
-    static int lastval = 0;
-    static int reading = 0;
-    int val;
-    // button1 == p0.11
-    // button2 == p0.12
-    // button3 == p0.24
-    // button4 == p0.25
-    if (!reading)
-    {
-        delay(1);
-        GPIO_CLEAR(TRIG);
-        val = GPIO_READ(BUTT);
-        if (val == 0)
-        {
-            if (lastval != 0)
-            {
-                printf1(TAG_GEN, "button!\r\n");
-                /*printf1(TAG_GEN,"size of array: %d elements", sizeof(hidcmds)/64);*/
-                reading = 1;
-            }
-        }
-        lastval = val;
-    }
-    else
-    {
-    	GPIO_SET(TRIG);
-        memmove(msg, hidcmds[reading-1], 64);
-        reading++;
-        if (reading-1 == sizeof(hidcmds)/64)
-        {
-            reading = 0;
-        }
-        return 64;
-    }
-    return 0;
+	static int lastval = 0;
+	static int reading = 0;
+	int val;
+	// button1 == p0.11
+	// button2 == p0.12
+	// button3 == p0.24
+	// button4 == p0.25
+	if (!reading)
+	{
+		delay(1);
+		GPIO_CLEAR(TRIG);
+		val = GPIO_READ(BUTT);
+		if (val == 0)
+		{
+			if (lastval != 0)
+			{
+				printf1(TAG_GEN, "button!\r\n");
+				/*printf1(TAG_GEN,"size of array: %d elements", sizeof(hidcmds)/64);*/
+				reading = 1;
+			}
+		}
+		lastval = val;
+	}
+	else
+	{
+		GPIO_SET(TRIG);
+		memmove(msg, hidcmds[reading-1], 64);
+		reading++;
+		if (reading-1 == sizeof(hidcmds)/64)
+		{
+			reading = 0;
+		}
+		return 64;
+	}
+	return 0;
 }
 
 #endif

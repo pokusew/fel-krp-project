@@ -34,11 +34,11 @@
 // reserved for debug, not implemented except for HACKER and DEBUG_LEVEl > 0
 #define CTAPHID_PROBE           (TYPE_INIT | 0x70)
 
-    #define ERR_INVALID_CMD         0x01
-    #define ERR_INVALID_PAR         0x02
-    #define ERR_INVALID_SEQ         0x04
-    #define ERR_MSG_TIMEOUT         0x05
-    #define ERR_CHANNEL_BUSY        0x06
+#define ERR_INVALID_CMD         0x01
+#define ERR_INVALID_PAR         0x02
+#define ERR_INVALID_SEQ         0x04
+#define ERR_MSG_TIMEOUT         0x05
+#define ERR_CHANNEL_BUSY        0x06
 
 #define CTAPHID_PROTOCOL_VERSION    2
 
@@ -62,40 +62,37 @@
 
 #define HID_MESSAGE_SIZE        64
 
-typedef struct
-{
-    uint32_t cid;
-    union{
-        struct{
-            uint8_t cmd;
-            uint8_t bcnth;
-            uint8_t bcntl;
-            uint8_t payload[CTAPHID_INIT_PAYLOAD_SIZE];
-        } init;
-        struct{
-            uint8_t seq;
-            uint8_t payload[CTAPHID_CONT_PAYLOAD_SIZE];
-        } cont;
-    } pkt;
+typedef struct {
+	uint32_t cid;
+	union {
+		struct {
+			uint8_t cmd;
+			uint8_t bcnth;
+			uint8_t bcntl;
+			uint8_t payload[CTAPHID_INIT_PAYLOAD_SIZE];
+		} init;
+		struct {
+			uint8_t seq;
+			uint8_t payload[CTAPHID_CONT_PAYLOAD_SIZE];
+		} cont;
+	} pkt;
 } CTAPHID_PACKET;
 
 
-typedef struct
-{
-    uint8_t nonce[8];
-    uint32_t cid;
-    uint8_t protocol_version;
-    uint8_t version_major;
-    uint8_t version_minor;
-    uint8_t build_version;
-    uint8_t capabilities;
+typedef struct {
+	uint8_t nonce[8];
+	uint32_t cid;
+	uint8_t protocol_version;
+	uint8_t version_major;
+	uint8_t version_minor;
+	uint8_t build_version;
+	uint8_t capabilities;
 } __attribute__((packed)) CTAPHID_INIT_RESPONSE;
-
 
 
 void ctaphid_init();
 
-uint8_t ctaphid_handle_packet(uint8_t * pkt_raw);
+uint8_t ctaphid_handle_packet(uint8_t *pkt_raw);
 
 void ctaphid_check_timeouts();
 

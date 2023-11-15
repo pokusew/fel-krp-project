@@ -9,7 +9,7 @@
 
 #include <stdint.h>
 
-#define WALLET_MAX_BUFFER	(32 + 255)
+#define WALLET_MAX_BUFFER    (32 + 255)
 
 // Sign request
 // op: 					0x10
@@ -64,30 +64,28 @@
 
 #define MAX_PAYLOAD_SIZE            (255 - 16 - 4 - 4)
 
-typedef struct
-{
-    uint8_t operation;
-    uint8_t p1;
-    uint8_t p2;
-    uint8_t numArgs;
-    uint8_t tag[4];
-    uint8_t pinAuth[16];
-    uint8_t payload[MAX_PAYLOAD_SIZE];
+typedef struct {
+	uint8_t operation;
+	uint8_t p1;
+	uint8_t p2;
+	uint8_t numArgs;
+	uint8_t tag[4];
+	uint8_t pinAuth[16];
+	uint8_t payload[MAX_PAYLOAD_SIZE];
 }__attribute__((packed)) wallet_request;
 
 
-typedef enum
-{
-    WalletSign = 0x10,
-    WalletRegister = 0x11,
-    WalletPin = 0x12,
-    WalletReset= 0x13,
-    WalletVersion= 0x14,
-    WalletRng = 0x15,
+typedef enum {
+	WalletSign = 0x10,
+	WalletRegister = 0x11,
+	WalletPin = 0x12,
+	WalletReset = 0x13,
+	WalletVersion = 0x14,
+	WalletRng = 0x15,
 } WalletOperation;
 
 
-int16_t bridge_to_wallet(uint8_t * keyh, uint8_t klen);
+int16_t bridge_to_wallet(uint8_t *keyh, uint8_t klen);
 
 void wallet_init();
 
