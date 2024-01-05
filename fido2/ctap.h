@@ -1,11 +1,5 @@
-// Copyright 2019 SoloKeys Developers
-//
-// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
-// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
-// http://opensource.org/licenses/MIT>, at your option. This file may not be
-// copied, modified, or distributed except according to those terms.
-#ifndef _CTAP_H
-#define _CTAP_H
+#ifndef FIDO2_CTAP_H
+#define FIDO2_CTAP_H
 
 #include "cbor.h"
 
@@ -418,4 +412,4 @@ void lock_device_permanently();
 
 void ctap_load_external_keys(uint8_t *keybytes);
 
-#endif
+#endif // FIDO2_CTAP_H
