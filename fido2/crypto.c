@@ -25,6 +25,8 @@
 #include APP_CONFIG
 #include "log.h"
 
+#include "utils.h"
+
 #if defined(STM32L432xx) || defined(STM32F407xx)
 #include "salty.h"
 #else
@@ -118,7 +120,7 @@ void crypto_sha256_hmac_init(uint8_t *key, uint32_t klen, uint8_t *hmac) {
 	}
 
 	if (klen > 64) {
-		printf2(TAG_ERR, "Error, key size must be <= 64\r\n");
+		printf2(TAG_ERR, "Error, key size must be <= 64" nl);
 		exit(1);
 	}
 
@@ -147,7 +149,7 @@ void crypto_sha256_hmac_final(uint8_t *key, uint32_t klen, uint8_t *hmac) {
 
 
 	if (klen > 64) {
-		printf2(TAG_ERR, "Error, key size must be <= 64\r\n");
+		printf2(TAG_ERR, "Error, key size must be <= 64" nl);
 		exit(1);
 	}
 	memmove(buf, key, klen);
@@ -176,7 +178,7 @@ void crypto_ecc256_load_attestation_key(void) {
 
 void crypto_ecc256_sign(uint8_t *data, int len, uint8_t *sig) {
 	if (uECC_sign(_signing_key, data, len, sig, _es256_curve) == 0) {
-		printf2(TAG_ERR, "error, uECC failed\r\n");
+		printf2(TAG_ERR, "error, uECC failed" nl);
 		exit(1);
 	}
 }
@@ -215,13 +217,13 @@ void crypto_ecdsa_sign(uint8_t *data, int len, uint8_t *sig, int MBEDTLS_ECP_ID)
 	}
 
 	if (uECC_sign(_signing_key, data, len, sig, curve) == 0) {
-		printf2(TAG_ERR, "error, uECC failed\r\n");
+		printf2(TAG_ERR, "error, uECC failed" nl);
 		exit(1);
 	}
 	return;
 
 	fail:
-	printf2(TAG_ERR, "error, invalid key length\r\n");
+	printf2(TAG_ERR, "error, invalid key length" nl);
 	exit(1);
 
 }
@@ -264,14 +266,14 @@ void crypto_load_external_key(uint8_t *key, int len) {
 
 void crypto_ecc256_make_key_pair(uint8_t *pubkey, uint8_t *privkey) {
 	if (uECC_make_key(pubkey, privkey, _es256_curve) != 1) {
-		printf2(TAG_ERR, "Error, uECC_make_key failed\r\n");
+		printf2(TAG_ERR, "Error, uECC_make_key failed" nl);
 		exit(1);
 	}
 }
 
 void crypto_ecc256_shared_secret(const uint8_t *pubkey, const uint8_t *privkey, uint8_t *shared_secret) {
 	if (uECC_shared_secret(pubkey, privkey, shared_secret, _es256_curve) != 1) {
-		printf2(TAG_ERR, "Error, uECC_shared_secret failed\r\n");
+		printf2(TAG_ERR, "Error, uECC_shared_secret failed" nl);
 		exit(1);
 	}
 

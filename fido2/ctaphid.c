@@ -310,7 +310,7 @@ void ctaphid_check_timeouts() {
 
 void ctaphid_update_status(int8_t status) {
 	CTAPHID_WRITE_BUFFER wb;
-	printf1(TAG_HID, "Send device update %d!\r\n", status);
+	printf1(TAG_HID, "Send device update %d!" nl, status);
 	ctaphid_write_buffer_init(&wb);
 
 	wb.cid = buffer_cid();
@@ -340,13 +340,13 @@ static int ctaphid_buffer_packet(uint8_t *pkt_raw, uint8_t *cmd, uint32_t *cid, 
 	if (is_init_pkt(pkt)) {
 
 		if (ctaphid_packet_len(pkt) != 8) {
-			printf2(TAG_ERR, "Error, invalid length field for init packet\r\n");
+			printf2(TAG_ERR, "Error, invalid length field for init packet" nl);
 			*cmd = CTAP1_ERR_INVALID_LENGTH;
 			return HID_ERROR;
 		}
 
 		if (pkt->cid == 0) {
-			printf2(TAG_ERR, "Error, invalid cid 0\r\n");
+			printf2(TAG_ERR, "Error, invalid cid 0" nl);
 			*cmd = CTAP1_ERR_INVALID_CHANNEL;
 			return HID_ERROR;
 		}
@@ -354,13 +354,13 @@ static int ctaphid_buffer_packet(uint8_t *pkt_raw, uint8_t *cmd, uint32_t *cid, 
 		ctaphid_init();
 		if (is_broadcast(pkt)) {
 			// Check if any existing cids are busy first ?
-			printf1(TAG_HID, "adding a new cid\r\n");
+			printf1(TAG_HID, "adding a new cid" nl);
 			oldcid = CTAPHID_BROADCAST_CID;
 			newcid = get_new_cid();
 			ret = add_cid(newcid);
 			// handle init here
 		} else {
-			printf1(TAG_HID, "synchronizing to cid\r\n");
+			printf1(TAG_HID, "synchronizing to cid" nl);
 			oldcid = pkt->cid;
 			newcid = pkt->cid;
 			if (cid_exists(newcid)) {
@@ -370,7 +370,7 @@ static int ctaphid_buffer_packet(uint8_t *pkt_raw, uint8_t *cmd, uint32_t *cid, 
 			}
 		}
 		if (ret == -1) {
-			printf2(TAG_ERR, "Error, not enough memory for new CID.  return BUSY.\r\n");
+			printf2(TAG_ERR, "Error, not enough memory for new CID.  return BUSY." nl);
 			*cmd = CTAP1_ERR_CHANNEL_BUSY;
 			return HID_ERROR;
 		}
@@ -432,16 +432,16 @@ static int ctaphid_buffer_packet(uint8_t *pkt_raw, uint8_t *cmd, uint32_t *cid, 
 			// debug_log("buffer_packet done" nl);
 			ret = cid_refresh(pkt->cid);
 			if (ret != 0) {
-				printf2(TAG_ERR, "Error, refresh cid failed\r\n");
+				printf2(TAG_ERR, "Error, refresh cid failed" nl);
 				exit(1);
 			}
 		} else if (is_cont_pkt(pkt)) {
-			printf2(TAG_ERR, "ignoring unwarranted cont packet\r\n");
+			printf2(TAG_ERR, "ignoring unwarranted cont packet" nl);
 
 			// Ignore
 			return HID_IGNORE;
 		} else {
-			printf2(TAG_ERR, "BUSY\r\n");
+			printf2(TAG_ERR, "BUSY" nl);
 			*cmd = CTAP1_ERR_CHANNEL_BUSY;
 			return HID_ERROR;
 		}
@@ -514,7 +514,7 @@ uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
 			timestamp();
 			ctaphid_write(&wb, ctap_buffer, len);
 			ctaphid_write(&wb, NULL, 0);
-			printf1(TAG_TIME, "PING writeback: %" PRId32 " ms\r\n", timestamp());
+			printf1(TAG_TIME, "PING writeback: %" PRId32 " ms" nl, timestamp());
 
 			break;
 

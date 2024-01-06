@@ -17,6 +17,8 @@
 #include "log.h"
 #include APP_CONFIG
 
+#include "utils.h"
+
 #define RK_NUM  50
 
 __attribute__((weak)) struct ResidentKeyStore {
@@ -72,7 +74,7 @@ __attribute__((weak)) uint16_t device_attestation_cert_der_get_size() {
 }
 
 __attribute__((weak)) void device_reboot() {
-	printf1(TAG_RED, "REBOOT command received!\r\n");
+	printf1(TAG_RED, "REBOOT command received!" nl);
 	exit(100);
 }
 
@@ -114,7 +116,7 @@ __attribute__((weak)) uint32_t ctap_atomic_count(uint32_t amount) {
 
 __attribute__((weak)) int ctap_generate_rng(uint8_t *dst, size_t num) {
 	int i;
-	printf1(TAG_ERR, "Insecure RNG being used.\r\n");
+	printf1(TAG_ERR, "Insecure RNG being used." nl);
 	for (i = 0; i < num; i++) {
 		dst[i] = (uint8_t) rand();
 	}
@@ -122,7 +124,7 @@ __attribute__((weak)) int ctap_generate_rng(uint8_t *dst, size_t num) {
 }
 
 __attribute__((weak)) void device_wink() {
-	printf1(TAG_GREEN, "*WINK*\r\n");
+	printf1(TAG_GREEN, "*WINK*" nl);
 }
 
 static AuthenticatorState _tmp_state = {0};
@@ -153,7 +155,7 @@ __attribute__((weak)) void ctap_store_rk(int index, CTAP_residentKey *rk) {
 	if (index < RK_NUM) {
 		memmove(RK_STORE.rks + index, rk, sizeof(CTAP_residentKey));
 	} else {
-		printf1(TAG_ERR, "Out of bounds for store_rk\r\n");
+		printf1(TAG_ERR, "Out of bounds for store_rk" nl);
 	}
 
 }
@@ -165,7 +167,7 @@ __attribute__((weak)) void ctap_delete_rk(int index) {
 	if (index < RK_NUM) {
 		memmove(RK_STORE.rks + index, &rk, sizeof(CTAP_residentKey));
 	} else {
-		printf1(TAG_ERR, "Out of bounds for delete_rk\r\n");
+		printf1(TAG_ERR, "Out of bounds for delete_rk" nl);
 	}
 
 }
@@ -178,7 +180,7 @@ __attribute__((weak)) void ctap_overwrite_rk(int index, CTAP_residentKey *rk) {
 	if (index < RK_NUM) {
 		memmove(RK_STORE.rks + index, rk, sizeof(CTAP_residentKey));
 	} else {
-		printf1(TAG_ERR, "Out of bounds for store_rk\r\n");
+		printf1(TAG_ERR, "Out of bounds for store_rk" nl);
 	}
 }
 
