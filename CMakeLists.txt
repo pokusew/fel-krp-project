@@ -62,7 +62,7 @@ include_directories(
 
 		fido2
 
-		solo1/tinycbor/src
+		tinycbor/src
 
 		crypto/tiny-AES-c
 		crypto/cifra/src
@@ -73,7 +73,8 @@ include_directories(
 )
 
 link_directories(
-		# solo1/tinycbor/lib
+		# TODO: build tinycbor as a library independently and then just link it
+		# tinycbor/lib
 		crypto/salty/c-api
 )
 
@@ -99,16 +100,16 @@ file(GLOB_RECURSE SOURCES "Startup/*.*" "Src/*.*" "Middlewares/*.*" "Drivers/*.*
 		crypto/cifra/src/sha512.c
 		crypto/cifra/src/blockwise.c
 
-		solo1/tinycbor/src/cbortojson.c
-		# solo1/tinycbor/src/open_memstream.c
-		solo1/tinycbor/src/cborvalidation.c
-		solo1/tinycbor/src/cborparser_dup_string.c
-		solo1/tinycbor/src/cborpretty_stdio.c
-		solo1/tinycbor/src/cborencoder_close_container_checked.c
-		solo1/tinycbor/src/cborpretty.c
-		solo1/tinycbor/src/cborerrorstrings.c
-		solo1/tinycbor/src/cborparser.c
-		solo1/tinycbor/src/cborencoder.c
+		tinycbor/src/cbortojson.c
+		# tinycbor/src/open_memstream.c
+		tinycbor/src/cborvalidation.c
+		tinycbor/src/cborparser_dup_string.c
+		tinycbor/src/cborpretty_stdio.c
+		tinycbor/src/cborencoder_close_container_checked.c
+		tinycbor/src/cborpretty.c
+		tinycbor/src/cborerrorstrings.c
+		tinycbor/src/cborparser.c
+		tinycbor/src/cborencoder.c
 )
 
 set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/STM32F407IGHX_FLASH.ld)
