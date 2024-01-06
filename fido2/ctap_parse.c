@@ -678,7 +678,7 @@ uint8_t ctap_parse_make_credential(CTAP_makeCredential *MC, CborEncoder *encoder
 				printf1(TAG_MC, "  name: %s" nl, MC->rp.name);
 				break;
 			case MC_user:
-				printf1(TAG_MC, "CTAP_user\n");
+				printf1(TAG_MC, "CTAP_user" nl);
 
 				ret = parse_user(MC, &map);
 

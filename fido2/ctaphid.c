@@ -423,7 +423,7 @@ static int ctaphid_buffer_packet(uint8_t *pkt_raw, uint8_t *cmd, uint32_t *cid, 
 			}
 
 			if (buffer_packet(pkt) == SEQUENCE_ERROR) {
-				printf2(TAG_ERR, "Buffering sequence error\n");
+				printf2(TAG_ERR, "Buffering sequence error" nl);
 				*cmd = CTAP1_ERR_INVALID_SEQ;
 				return HID_ERROR;
 			}
@@ -508,7 +508,7 @@ uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
 			break;
 
 		case CTAPHID_PING:
-			printf1(TAG_HID, "CTAPHID_PING" nl);
+			info_log(cyan("CTAPHID_PING") nl);
 
 			wb.bcnt = len;
 			timestamp();
@@ -519,7 +519,7 @@ uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
 			break;
 
 		case CTAPHID_WINK:
-			printf1(TAG_HID, "CTAPHID_WINK" nl);
+			info_log(cyan("CTAPHID_WINK") nl);
 
 			device_wink();
 
@@ -528,7 +528,7 @@ uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
 			break;
 
 		case CTAPHID_CBOR:
-			printf1(TAG_HID, "CTAPHID_CBOR" nl);
+			info_log(cyan("CTAPHID_CBOR") nl);
 
 			if (len == 0) {
 				printf2(TAG_ERR, "Error,invalid 0 length field for cbor packet" nl);
@@ -589,12 +589,12 @@ uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
 		// 	break;
 
 		case CTAPHID_CANCEL:
-			printf1(TAG_HID, "CTAPHID_CANCEL" nl);
+			info_log(cyan("CTAPHID_CANCEL") nl);
 			is_busy = 0;
 			break;
 
 		default:
-			printf2(TAG_ERR, "error, unimplemented HID cmd: %02x", buffer_cmd());
+			info_log(red("error, unimplemented HID cmd: %02x"), buffer_cmd());
 			ctaphid_send_error(cid, CTAP1_ERR_INVALID_COMMAND);
 
 	}

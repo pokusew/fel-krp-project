@@ -4,6 +4,7 @@
 #include "log.h"
 #include "util.h"
 #include "device.h"
+#include "utils.h"
 
 #if DEBUG_LEVEL > 0
 
@@ -63,7 +64,7 @@ void LOG(uint32_t tag, const char *filename, int num, const char *fmt, ...) {
 		}
 	}
 	if (i != 0) {
-		printf2(TAG_ERR, "INVALID LOG TAG\r\n");
+		printf2(TAG_ERR, "INVALID LOG TAG" nl);
 		exit(1);
 	}
 	set_logging_tag(tag);
@@ -79,10 +80,10 @@ void LOG(uint32_t tag, const char *filename, int num, const char *fmt, ...) {
 }
 
 void LOG_HEX(uint32_t tag, uint8_t *data, int length) {
-	if (((tag & 0x7fffffff) & LOGMASK) == 0) {
-		return;
-	}
-	set_logging_tag(tag);
+	// if (((tag & 0x7fffffff) & LOGMASK) == 0) {
+	// 	return;
+	// }
+	// set_logging_tag(tag);
 	dump_hex(data, length);
 }
 

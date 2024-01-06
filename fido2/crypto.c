@@ -212,7 +212,7 @@ void crypto_ecdsa_sign(uint8_t *data, int len, uint8_t *sig, int MBEDTLS_ECP_ID)
 			if (_key_len != 32) { goto fail; }
 			break;
 		default:
-			printf2(TAG_ERR, "error, invalid ECDSA alg specifier\n");
+			printf2(TAG_ERR, "error, invalid ECDSA alg specifier" nl);
 			exit(1);
 	}
 
