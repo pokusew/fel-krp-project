@@ -1,0 +1,15 @@
+[submodule "tinycbor"]
+	path = tinycbor
+	url = https://github.com/intel/tinycbor.git
+[submodule "crypto/micro-ecc"]
+	path = crypto/micro-ecc
+	url = https://github.com/kmackay/micro-ecc.git
+[submodule "crypto/tiny-AES-c"]
+	path = crypto/tiny-AES-c
+	url = https://github.com/kokke/tiny-AES-c.git
+[submodule "crypto/cifra"]
+	path = crypto/cifra
+	url = https://github.com/solokeys/cifra.git
+[submodule "crypto/salty"]
+	path = crypto/salty
+	url = https://github.com/ycrypto/salty.git
