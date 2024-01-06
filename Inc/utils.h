@@ -10,10 +10,10 @@
 #define nl "\r\n"
 #endif
 
-#define num_min(a, b) ((a) < (b) ? (a) : (b))
-#define num_min_of_3(a, b, c) min(min(a, b), (c))
-#define num_max(a, b) ((a) > (b) ? (a) : (b))
-#define num_max_of_3(a, b, c) max(max(a, b), (c))
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#define min_of_3(a, b, c) min(min(a, b), (c))
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#define max_of_3(a, b, c) max(max(a, b), (c))
 #define is_in_range_incl(value, min_incl, max_incl) ((min_incl) <= (value) && (value) <= (max_incl))
 #define is_not_in_range_incl(value, min_incl, max_incl) ((value) < (min_incl) || (max_incl) < (value))
 #define pow2(y) (1u << (y))
