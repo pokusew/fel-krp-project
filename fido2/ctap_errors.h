@@ -9,16 +9,16 @@
 #define CTAP1_ERR_CHANNEL_BUSY              0x06
 #define CTAP1_ERR_LOCK_REQUIRED             0x0A
 #define CTAP1_ERR_INVALID_CHANNEL           0x0B
-#define CTAP2_ERR_CBOR_PARSING              0x10 // TODO: this is not in the current spec
+#define CTAP2_ERR_CBOR_PARSING              0x10 // TODO(pokusew): this is not in the current spec
 #define CTAP2_ERR_CBOR_UNEXPECTED_TYPE      0x11
 #define CTAP2_ERR_INVALID_CBOR              0x12
-#define CTAP2_ERR_INVALID_CBOR_TYPE         0x13 // TODO: this is not in the current spec
+#define CTAP2_ERR_INVALID_CBOR_TYPE         0x13 // TODO(pokusew): this is not in the current spec
 #define CTAP2_ERR_MISSING_PARAMETER         0x14
 #define CTAP2_ERR_LIMIT_EXCEEDED            0x15
 #define CTAP2_ERR_FP_DATABASE_FULL          0x17
 #define CTAP2_ERR_LARGE_BLOB_STORAGE_FULL   0x18
 #define CTAP2_ERR_CREDENTIAL_EXCLUDED       0x19
-#define CTAP2_ERR_CREDENTIAL_NOT_VALID      0x20 // TODO: this is not in the current spec
+#define CTAP2_ERR_CREDENTIAL_NOT_VALID      0x20 // TODO(pokusew): this is not in the current spec
 #define CTAP2_ERR_PROCESSING                0x21
 #define CTAP2_ERR_INVALID_CREDENTIAL        0x22
 #define CTAP2_ERR_USER_ACTION_PENDING       0x23

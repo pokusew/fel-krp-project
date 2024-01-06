@@ -45,7 +45,7 @@
 // With a packet size of 64 bytes (max for full-speed devices),
 // this means that the maximum message payload length is (64 - 7) + (128 * (64 - 5)) = 7609 bytes.
 // one initialization packet + 128 continuation packets
-// TODO: rename to CTAPHID_MAX_PAYLOAD_LENGTH
+// TODO(pokusew): rename to CTAPHID_MAX_PAYLOAD_LENGTH
 #define CTAPHID_BUFFER_SIZE ((HID_MESSAGE_SIZE - 7) + (128 * (HID_MESSAGE_SIZE - 5)))
 
 // https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-hid-init

@@ -175,8 +175,6 @@ USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_fops_FS = {
 static int8_t CUSTOM_HID_Init_FS(void) {
 	/* USER CODE BEGIN 4 */
 
-	// TODO
-
 	info_log("CUSTOM_HID_Init_FS USB address = %" PRIu8 nl, hUsbDeviceFS.dev_address);
 
 	return (USBD_OK);
@@ -190,8 +188,6 @@ static int8_t CUSTOM_HID_Init_FS(void) {
   */
 static int8_t CUSTOM_HID_DeInit_FS(void) {
 	/* USER CODE BEGIN 5 */
-
-	// TODO
 
 	info_log("CUSTOM_HID_DeInit_FS" nl);
 
@@ -218,11 +214,9 @@ static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state) {
 		return USBD_FAIL;
 	}
 
+	// we should avoid printing since we are in an interrupt context, so we could mess the logs from the normal context
 	// info_log(cyan("CUSTOM_HID_OutEvent_FS") " counter = %" PRIu8 nl, hhid->Report_buf[4]);
-
-	// TODO: process data (Report_buf)
 	RingBuffer_Write(&hidmsg_buffer, hhid->Report_buf, 64);
-	// fifo_hidmsg_add(hhid->Report_buf);
 
 	// Start next USB packet transfer once data processing is completed
 	if (USBD_CUSTOM_HID_ReceivePacket(&hUsbDeviceFS) != (uint8_t) USBD_OK) {

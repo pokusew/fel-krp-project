@@ -59,7 +59,7 @@ void authenticator_write_state(AuthenticatorState *s);
  *      #define CTAPHID_STATUS_PROCESSING   1
  *      #define CTAPHID_STATUS_UPNEEDED     2
  *
- * TODO: A timer should be set up to call `ctaphid_update_status` every 100 ms.
+ * TODO(pokusew): A timer should be set up to call `ctaphid_update_status` every 100 ms.
  *
  * *Optional* to compile and run, but will be required to be used for proper FIDO2 operation with some platforms.
  */
