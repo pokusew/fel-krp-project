@@ -1,6 +1,10 @@
 #ifndef POKUSEW_APP_H
 #define POKUSEW_APP_H
 
+#define SOLO_VERSION_MAJ 9
+#define SOLO_VERSION_MIN 8
+#define SOLO_VERSION_PATCH 7
+
 #include <stdnoreturn.h>
 #include "main.h"
 
@@ -15,13 +19,5 @@ void app_init(app_state_t *app);
 int usbhid_recv(uint8_t * msg);
 
 noreturn void app_run(app_state_t *app);
-
-#ifndef SOLO_VERSION_MAJ
-
-#define SOLO_VERSION_MAJ 9
-#define SOLO_VERSION_MIN 8
-#define SOLO_VERSION_PATCH 7
-
-#endif // SOLO_VERSION_MAJ
 
 #endif // POKUSEW_APP_H

@@ -6,18 +6,9 @@
 #include "device.h"
 #include "ctaphid.h"
 #include "ctap.h"
-#include "u2f.h"
-#include "time.h"
 #include "util.h"
 #include "log.h"
-#include "extensions.h"
-#include "version.h"
 #include "utils.h"
-
-// move custom SHA512 command out,
-// and the following headers too
-#include "sha2.h"
-#include "crypto.h"
 
 #include APP_CONFIG
 
@@ -569,34 +560,34 @@ uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
 
 			break;
 
-		case CTAPHID_MSG:
-			printf1(TAG_HID, "CTAPHID_MSG" nl);
-
-			if (len == 0) {
-				printf2(TAG_ERR, "Error, invalid 0 length field for MSG/U2F packet" nl);
-				ctaphid_send_error(cid, CTAP1_ERR_INVALID_LENGTH);
-				return 0;
-			}
-
-			if (is_busy) {
-				printf1(TAG_HID, "Channel busy for MSG" nl);
-				ctaphid_send_error(cid, CTAP1_ERR_CHANNEL_BUSY);
-				return 0;
-			}
-
-			is_busy = 1;
-			ctap_response_init(&ctap_resp);
-			u2f_request((struct u2f_request_apdu *) ctap_buffer, &ctap_resp);
-
-			wb.bcnt = (ctap_resp.length);
-			wb.cid = cid;
-			wb.cmd = cmd;
-
-			ctaphid_write(&wb, ctap_resp.data, ctap_resp.length);
-			ctaphid_write(&wb, NULL, 0);
-			is_busy = 0;
-
-			break;
+		// case CTAPHID_MSG:
+		// 	printf1(TAG_HID, "CTAPHID_MSG" nl);
+		//
+		// 	if (len == 0) {
+		// 		printf2(TAG_ERR, "Error, invalid 0 length field for MSG/U2F packet" nl);
+		// 		ctaphid_send_error(cid, CTAP1_ERR_INVALID_LENGTH);
+		// 		return 0;
+		// 	}
+		//
+		// 	if (is_busy) {
+		// 		printf1(TAG_HID, "Channel busy for MSG" nl);
+		// 		ctaphid_send_error(cid, CTAP1_ERR_CHANNEL_BUSY);
+		// 		return 0;
+		// 	}
+		//
+		// 	is_busy = 1;
+		// 	ctap_response_init(&ctap_resp);
+		// 	u2f_request((struct u2f_request_apdu *) ctap_buffer, &ctap_resp);
+		//
+		// 	wb.bcnt = (ctap_resp.length);
+		// 	wb.cid = cid;
+		// 	wb.cmd = cmd;
+		//
+		// 	ctaphid_write(&wb, ctap_resp.data, ctap_resp.length);
+		// 	ctaphid_write(&wb, NULL, 0);
+		// 	is_busy = 0;
+		//
+		// 	break;
 
 		case CTAPHID_CANCEL:
 			printf1(TAG_HID, "CTAPHID_CANCEL" nl);

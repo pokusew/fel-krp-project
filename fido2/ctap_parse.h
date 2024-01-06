@@ -1,11 +1,5 @@
-// Copyright 2019 SoloKeys Developers
-//
-// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
-// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
-// http://opensource.org/licenses/MIT>, at your option. This file may not be
-// copied, modified, or distributed except according to those terms.
-#ifndef _CTAP_PARSE_H
-#define _CTAP_PARSE_H
+#ifndef FIDO2_CTAP_PARSE_H
+#define FIDO2_CTAP_PARSE_H
 
 
 #define check_ret(r)    _check_ret(r,__LINE__, __FILE__);\
@@ -50,5 +44,4 @@ uint8_t ctap_parse_client_pin(CTAP_clientPin *CP, uint8_t *request, int length);
 
 uint8_t parse_credential_descriptor(CborValue *arr, CTAP_credentialDescriptor *cred);
 
-
-#endif
+#endif // FIDO2_CTAP_PARSE_H

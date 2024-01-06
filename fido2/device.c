@@ -1,20 +1,15 @@
-// Copyright 2019 SoloKeys Developers
-//
-// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
-// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
-// http://opensource.org/licenses/MIT>, at your option. This file may not be
-// copied, modified, or distributed except according to those terms.
-
-/** device.c
+/**
+ * @file device.c
  *
  * This contains (weak) implementations
- * to get FIDO2 working initially on a device.  They probably
- * aren't what you want to keep, but are designed to be replaced
- * with some other platform specific implementation.
+ * to get FIDO2 working initially on a device.
+ *
+ * They probably aren't what you want to keep, but are designed
+ * to be replaced with some other platform specific implementation.
  *
  * For real examples, see the STM32L4 implementation and the PC implementation of device.c.
- *
-*/
+ */
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -77,7 +72,7 @@ __attribute__((weak)) uint16_t device_attestation_cert_der_get_size() {
 }
 
 __attribute__((weak)) void device_reboot() {
-	printf1(TAG_RED, "REBOOT command recieved!\r\n");
+	printf1(TAG_RED, "REBOOT command received!\r\n");
 	exit(100);
 }
 
@@ -123,17 +118,12 @@ __attribute__((weak)) int ctap_generate_rng(uint8_t *dst, size_t num) {
 	for (i = 0; i < num; i++) {
 		dst[i] = (uint8_t) rand();
 	}
-}
-
-__attribute__((weak)) int device_is_nfc() {
-	return 0;
+	return 1;
 }
 
 __attribute__((weak)) void device_wink() {
 	printf1(TAG_GREEN, "*WINK*\r\n");
 }
-
-__attribute__((weak)) void device_set_clock_rate(DEVICE_CLOCK_RATE param) {/**/}
 
 static AuthenticatorState _tmp_state = {0};
 

@@ -1,11 +1,5 @@
-// Copyright 2019 SoloKeys Developers
-//
-// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
-// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
-// http://opensource.org/licenses/MIT>, at your option. This file may not be
-// copied, modified, or distributed except according to those terms.
-#ifndef _CRYPTO_H
-#define _CRYPTO_H
+#ifndef FIDO2_CRYPTO_H
+#define FIDO2_CRYPTO_H
 
 #include <stddef.h>
 
@@ -55,9 +49,9 @@ void crypto_ecc256_make_key_pair(uint8_t *pubkey, uint8_t *privkey);
 
 void crypto_ecc256_shared_secret(const uint8_t *pubkey, const uint8_t *privkey, uint8_t *shared_secret);
 
-#define CRYPTO_TRANSPORT_KEY2            ((uint8_t*)2)
-#define CRYPTO_TRANSPORT_KEY            ((uint8_t*)1)
-#define CRYPTO_MASTER_KEY               ((uint8_t*)0)
+#define CRYPTO_TRANSPORT_KEY2 ((uint8_t*)2)
+#define CRYPTO_TRANSPORT_KEY  ((uint8_t*)1)
+#define CRYPTO_MASTER_KEY     ((uint8_t*)0)
 
 void crypto_aes256_init(uint8_t *key, uint8_t *nonce);
 
@@ -72,5 +66,4 @@ void crypto_reset_master_secret();
 
 void crypto_load_master_secret(uint8_t *key);
 
-
-#endif
+#endif // FIDO2_CRYPTO_H

@@ -3,7 +3,6 @@
 #include "cbor.h"
 
 #include "ctap.h"
-#include "u2f.h"
 #include "ctap_parse.h"
 #include "ctap_errors.h"
 #include "cose_key.h"
@@ -795,10 +794,10 @@ uint8_t parse_credential_descriptor(CborValue *arr, CTAP_credentialDescriptor *c
 	buflen = sizeof(CredentialId);
 	ret = cbor_value_copy_byte_string(&val, (uint8_t *) &cred->credential.id, &buflen, NULL);
 
-	if (buflen == U2F_KEY_HANDLE_SIZE) {
+	/*if (buflen == U2F_KEY_HANDLE_SIZE) {
 		printf2(TAG_PARSE, "CTAP1 credential\r\n");
 		cred->type = PUB_KEY_CRED_CTAP1;
-	} else if (buflen != sizeof(CredentialId)) {
+	} else */if (buflen != sizeof(CredentialId)) {
 		printf2(TAG_ERR, "Ignoring credential is incorrect length, treating as custom\r\n");
 		cred->type = PUB_KEY_CRED_CUSTOM;
 		buflen = 256;

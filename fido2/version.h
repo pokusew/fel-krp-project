@@ -1,6 +1,5 @@
-#ifndef _VERSION_H_
-#define _VERSION_H_
-
+#ifndef FIDO2_VERSION
+#define FIDO2_VERSION
 
 #ifndef SOLO_VERSION_MAJ
 
@@ -31,8 +30,6 @@ typedef struct {
 		};
 	};
 } version_t;
-
-bool is_newer(const version_t *const newer, const version_t *const older);
 
 extern const version_t firmware_version;
 

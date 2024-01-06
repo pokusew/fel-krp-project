@@ -5,21 +5,10 @@
 #include "fifo.h"
 #include <inttypes.h>
 
-/** Return a millisecond timestamp.  Does not need to be synchronized to anything.
- *  *Optional* to compile, but will not calculate delays correctly without a correct implementation.
-*/
 uint32_t millis() {
 	return HAL_GetTick();
 }
 
-
-/** Called by HIDUSB layer to write bytes to the USB HID interface endpoint.
- *  Will write 64 bytes at a time.
- *
- *  @param msg Pointer to a 64 byte buffer containing a payload to be sent via USB HID.
- *
- *  **Required** to compile and work for FIDO application.
-*/
 void usbhid_send(uint8_t *msg) {
 	while (true) {
 		uint8_t status = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, msg, 64);

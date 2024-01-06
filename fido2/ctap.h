@@ -402,8 +402,6 @@ int8_t ctap_store_key(uint8_t index, uint8_t *key, uint16_t len);
 
 int8_t ctap_load_key(uint8_t index, uint8_t *key);
 
-uint16_t ctap_key_len(uint8_t index);
-
 #define PIN_TOKEN_SIZE      16
 extern uint8_t PIN_TOKEN[PIN_TOKEN_SIZE];
 extern uint8_t KEY_AGREEMENT_PUB[64];

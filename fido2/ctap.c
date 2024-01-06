@@ -5,7 +5,6 @@
 #include "cbor.h"
 
 #include "ctap.h"
-#include "u2f.h"
 #include "ctaphid.h"
 #include "ctap_parse.h"
 #include "ctap_errors.h"
@@ -15,11 +14,8 @@
 #include "log.h"
 #include "device.h"
 #include APP_CONFIG
-#include "wallet.h"
-#include "extensions.h"
 
 #include "device.h"
-#include "data_migration.h"
 
 uint8_t PIN_TOKEN[PIN_TOKEN_SIZE];
 uint8_t KEY_AGREEMENT_PUB[64];
@@ -324,14 +320,10 @@ ctap_generate_cose_key(CborEncoder *cose_key, uint8_t *hmac_input, int len, uint
 	}
 	switch (algtype) {
 		case COSE_ALG_ES256:
-			if (device_is_nfc() == NFC_IS_ACTIVE) { device_set_clock_rate(DEVICE_LOW_POWER_FAST); }
 			crypto_ecc256_derive_public_key(hmac_input, len, x, y);
-			if (device_is_nfc() == NFC_IS_ACTIVE) { device_set_clock_rate(DEVICE_LOW_POWER_IDLE); }
 			break;
 		case COSE_ALG_EDDSA:
-			if (device_is_nfc() == NFC_IS_ACTIVE) { device_set_clock_rate(DEVICE_LOW_POWER_FAST); }
 			crypto_ed25519_derive_public_key(hmac_input, len, x);
-			if (device_is_nfc() == NFC_IS_ACTIVE) { device_set_clock_rate(DEVICE_LOW_POWER_IDLE); }
 			break;
 		default:
 			printf2(TAG_ERR, "Error, COSE alg %d not supported\r\n", algtype);
@@ -545,9 +537,9 @@ static int ctap_make_extensions(CTAP_extensions *ext, uint8_t *ext_encoder_buf, 
 }
 
 static unsigned int get_credential_id_size(int type) {
-	if (type == PUB_KEY_CRED_CTAP1) {
-		return U2F_KEY_HANDLE_SIZE;
-	}
+	// if (type == PUB_KEY_CRED_CTAP1) {
+	// 	return U2F_KEY_HANDLE_SIZE;
+	// }
 	if (type == PUB_KEY_CRED_CUSTOM) {
 		return getAssertionState.customCredIdSize;
 	}
@@ -835,9 +827,9 @@ int ctap_authenticate_credential(struct rpId *rp, CTAP_credentialDescriptor *des
 			// crypto_sha256_final(rpIdHash);
 			// return u2f_authenticate_credential((struct u2f_key_handle *)&desc->credential.id, U2F_KEY_HANDLE_SIZE,rpIdHash);
 			break;
-		case PUB_KEY_CRED_CUSTOM:
-			return is_extension_request(getAssertionState.customCredId, getAssertionState.customCredIdSize);
-			break;
+			// case PUB_KEY_CRED_CUSTOM:
+			// 	return is_extension_request(getAssertionState.customCredId, getAssertionState.customCredIdSize);
+			// 	break;
 		default:
 			printf1(TAG_ERR, "PUB_KEY_CRED_UNKNOWN %x\r\n", desc->type);
 			break;
@@ -1991,9 +1983,7 @@ uint8_t ctap_client_pin(CborEncoder *encoder, uint8_t *request, int length) {
 			ret = cbor_encode_int(&map, RESP_keyAgreement);
 			check_ret(ret);
 
-			if (device_is_nfc() == NFC_IS_ACTIVE) { device_set_clock_rate(DEVICE_LOW_POWER_FAST); }
 			crypto_ecc256_compute_public_key(KEY_AGREEMENT_PRIV, KEY_AGREEMENT_PUB);
-			if (device_is_nfc() == NFC_IS_ACTIVE) { device_set_clock_rate(DEVICE_LOW_POWER_IDLE); }
 
 			ret = ctap_add_cose_key(&map, KEY_AGREEMENT_PUB, KEY_AGREEMENT_PUB + 32, PUB_KEY_CRED_PUB_KEY,
 									COSE_ALG_ECDH_ES_HKDF_256);
@@ -2226,11 +2216,13 @@ static void ctap_state_init() {
 	dump_hex1(TAG_STOR, STATE.PIN_SALT, sizeof STATE.PIN_SALT);
 }
 
-/** Overwrite master secret from external source.
+/**
+ * Overwrite master secret from external source.
+ *
  * @param keybytes an array of KEY_SPACE_BYTES length.
  *
  * This function should only be called from a privilege mode.
-*/
+ */
 void ctap_load_external_keys(uint8_t *keybytes) {
 	memmove(STATE.key_space, keybytes, KEY_SPACE_BYTES);
 	authenticator_write_state(&STATE);
@@ -2240,6 +2232,7 @@ void ctap_load_external_keys(uint8_t *keybytes) {
 #include "version.h"
 
 void ctap_init() {
+
 	printf1(TAG_ERR, "Current firmware version address: %p\r\n", &firmware_version);
 	printf1(TAG_ERR, "Current firmware version: %d.%d.%d.%d (%02x.%02x.%02x.%02x)\r\n",
 			firmware_version.major, firmware_version.minor, firmware_version.patch, firmware_version.reserved,
@@ -2258,7 +2251,7 @@ void ctap_init() {
 		authenticator_write_state(&STATE);
 	}
 
-	do_migration_if_required(&STATE);
+	// do_migration_if_required(&STATE);
 
 	crypto_load_master_secret(STATE.key_space);
 
@@ -2277,11 +2270,6 @@ void ctap_init() {
 	}
 
 	ctap_reset_key_agreement();
-
-#ifdef BRIDGE_TO_WALLET
-	wallet_init();
-#endif
-
 
 }
 

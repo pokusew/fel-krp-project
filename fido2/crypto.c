@@ -1,16 +1,10 @@
-// Copyright 2019 SoloKeys Developers
-//
-// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
-// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
-// http://opensource.org/licenses/MIT>, at your option. This file may not be
-// copied, modified, or distributed except according to those terms.
-/*
+/**
  *  Wrapper for crypto implementation on device.
  *
  *  Can be replaced with different crypto implementation by
- *  defining EXTERNAL_SOLO_CRYPTO
- *
- * */
+ *  defining EXTERNAL_SOLO_CRYPTO.
+ */
+
 #ifndef EXTERNAL_SOLO_CRYPTO
 
 #include <stdio.h>
@@ -392,4 +386,4 @@ void crypto_ed25519_sign(uint8_t *data1, int len1, uint8_t *data2, int len2, uin
 #endif
 }
 
-#endif
+#endif // EXTERNAL_SOLO_CRYPTO

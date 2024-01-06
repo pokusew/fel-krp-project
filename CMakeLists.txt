@@ -60,7 +60,6 @@ include_directories(
 		Middlewares/ST/STM32_USB_Device_Library/Class/CustomHID/Inc
 
 		fido2
-		fido2/extensions
 		solo1/tinycbor/src
 		solo1/crypto/tiny-AES-c
 		solo1/crypto/cifra/src
@@ -76,14 +75,13 @@ add_definitions(-DDEBUG -DUSE_HAL_DRIVER -DSTM32F407xx -DAES256=1 -DCHIP=STM32L4
 
 file(GLOB_RECURSE SOURCES "Startup/*.*" "Src/*.*" "Middlewares/*.*" "Drivers/*.*"
 
-		fido2/apdu.c fido2/util.c fido2/u2f.c fido2/test_power.c
-		fido2/stubs.c fido2/log.c fido2/ctaphid.c fido2/ctap.c
-		fido2/ctap_parse.c fido2/crypto.c
+		fido2/util.c
+		fido2/log.c
+		fido2/ctaphid.c
+		fido2/ctap.c
+		fido2/ctap_parse.c
+		fido2/crypto.c
 		fido2/version.c
-		fido2/data_migration.c
-		fido2/extensions/extensions.c fido2/extensions/solo.c
-		fido2/extensions/wallet.c
-
 		fido2/device.c
 
 		solo1/crypto/sha256/sha256.c solo1/crypto/micro-ecc/uECC.c solo1/crypto/tiny-AES-c/aes.c
