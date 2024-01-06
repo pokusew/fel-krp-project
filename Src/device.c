@@ -53,11 +53,18 @@ int ctap_generate_rng(uint8_t *dst, size_t num) {
 }
 
 int usbhid_recv(uint8_t *msg) {
-	if (fifo_hidmsg_size()) {
-		fifo_hidmsg_take(msg);
+	__disable_irq();
+	size_t size = RingBuffer_GetDataLength(&hidmsg_buffer);
+	assert(size % 64 == 0);
+	if (size > 0) {
+		// debug_log("%" PRIu32 nl, size);
+		size_t read = RingBuffer_Read(&hidmsg_buffer, msg, 64);
+		assert(read == 64);
 		// printf1(TAG_DUMP2,">> ");
 		// dump_hex1(TAG_DUMP2,msg, HID_PACKET_SIZE);
+		__enable_irq();
 		return 64;
 	}
+	__enable_irq();
 	return 0;
 }

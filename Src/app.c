@@ -63,12 +63,11 @@ noreturn void app_run(app_state_t *app) {
 
 		}
 
-		if (usbhid_recv(hidmsg) > 0)
-		{
+		if (usbhid_recv(hidmsg) > 0) {
+			// TODO: remove after debugging
+			print_bytes(hidmsg, 64);
 			ctaphid_handle_packet(hidmsg);
-		}
-		else
-		{
+		} else {
 		}
 		// ctaphid_check_timeouts();
 

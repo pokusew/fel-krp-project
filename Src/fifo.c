@@ -1,114 +1,65 @@
-// Copyright 2019 SoloKeys Developers
-//
-// Licensed under the Apache License, Version 2.0, <LICENSE-APACHE or
-// http://apache.org/licenses/LICENSE-2.0> or the MIT license <LICENSE-MIT or
-// http://opensource.org/licenses/MIT>, at your option. This file may not be
-// copied, modified, or distributed except according to those terms.
-#include <string.h>
-#include <stdint.h>
-#include <stdio.h>
 #include "fifo.h"
-#include "log.h"
+#include <memory.h>
 
+// FIFO_CREATE(debug,4096,1)
+// FIFO_CREATE(hidmsg,100,64)
+// FIFO_CREATE(test,10,100)
 
-FIFO_CREATE(debug,4096,1)
+RingBuffer hidmsg_buffer;
 
-FIFO_CREATE(hidmsg,100,64)
+// https://github.com/cnoviello/mastering-stm32/blob/master/nucleo-f103RB/Middlewares/RingBuffer/ringbuffer.c
 
-#if TEST_FIFO
-FIFO_CREATE(test,10,100)
-void fifo_test()
-{
-    int ret;
-    uint8_t data[10][100];
-    uint8_t verif[10][100];
+size_t RingBuffer_GetFreeSpace(RingBuffer *buf) {
+	if (buf->tail == buf->head) {
+		return RING_BUFFER_LENGTH - 1;
+	}
 
-    printf1(TAG_GREEN,"init\r\n");
-    for (int i = 0; i < 10; i++)
-    {
-        memset(data[i],i,100);
-    }
-
-    for (int i = 0; i < 10; i++)
-    {
-        printf1(TAG_GREEN,"rhead: %d, whead: %d\r\n", fifo_test_rhead(), fifo_test_whead());
-        ret = fifo_test_add(data[i]);
-        printf1(TAG_GREEN,"%d\r\n",i);
-        if (ret != 0)
-        {
-            printf1(TAG_GREEN,"fifo_test_add fail\r\n");
-            goto fail;
-        }
-    }
-
-    for (int i = 0; i < 10; i++)
-    {
-        printf1(TAG_GREEN,"rhead: %d, whead: %d\r\n", fifo_test_rhead(), fifo_test_whead());
-        ret = fifo_test_take(verif[i]);
-        printf1(TAG_GREEN,"%d\r\n",i );
-        if (ret != 0)
-        {
-            printf1(TAG_GREEN,"fifo_test_take fail\r\n");
-            goto fail;
-        }
-
-        if (memcmp(verif[i], data[i], 100) != 0)
-        {
-            printf1(TAG_GREEN,"fifo_test_take result fail\r\n");
-            dump_hex1(TAG_GREEN,data[i],100);
-            dump_hex1(TAG_GREEN,verif[i],100);
-            goto fail;
-        }
-    }
-
-    for (int i = 0; i < 10; i++)
-    {
-        printf1(TAG_GREEN,"rhead: %d, whead: %d\r\n", fifo_test_rhead(), fifo_test_whead());
-        ret = fifo_test_add(data[i]);
-        if (ret != 0)
-        {
-            printf1(TAG_GREEN,"fifo_test_add 2 fail\r\n");
-            goto fail;
-        }
-    }
-
-    ret = fifo_test_add(data[0]);
-    if (ret == 0)
-    {
-        printf1(TAG_GREEN,"fifo_test_add should have failed\r\n");
-        goto fail;
-    }
-
-
-
-    for (int i = 0; i < 10; i++)
-    {
-        printf1(TAG_GREEN,"rhead: %d, whead: %d\r\n", fifo_test_rhead(), fifo_test_whead());
-        ret = fifo_test_take(verif[i]);
-        if (ret != 0)
-        {
-            printf1(TAG_GREEN,"fifo_test_take fail\r\n");
-            goto fail;
-        }
-
-        if (memcmp(verif[i], data[i], 100) != 0)
-        {
-            printf1(TAG_GREEN,"fifo_test_take result fail\r\n");
-            goto fail;
-        }
-    }
-
-    ret = fifo_test_take(verif[0]);
-    if (ret == 0)
-    {
-        printf1(TAG_GREEN,"fifo_test_take should have failed\r\n");
-        goto fail;
-    }
-
-    printf1(TAG_GREEN,"test pass!\r\n");
-    return ;
-    fail:
-    while(1)
-        ;
+	if (buf->head > buf->tail) {
+		return RING_BUFFER_LENGTH - ((buf->head - buf->tail) + 1);
+	} else {
+		return (buf->tail - buf->head) - 1;
+	}
 }
-#endif
+
+size_t RingBuffer_GetDataLength(RingBuffer *buf) {
+	return RING_BUFFER_LENGTH - (RingBuffer_GetFreeSpace(buf) + 1);
+}
+
+
+void RingBuffer_Init(RingBuffer *buf) {
+	buf->head = buf->tail = 0;
+	memset(buf->buf, 0, RING_BUFFER_LENGTH);
+}
+
+size_t RingBuffer_Read(RingBuffer *buf, uint8_t *data, const size_t len) {
+
+	size_t counter = 0;
+
+	while (buf->tail != buf->head && counter < len) {
+		data[counter++] = buf->buf[buf->tail];
+		buf->tail = (buf->tail + 1) % RING_BUFFER_LENGTH;
+	}
+
+	return counter;
+
+}
+
+RingBuffer_Status RingBuffer_Write(RingBuffer *buf, const uint8_t *data, const size_t len) {
+
+	size_t counter = 0;
+	size_t free_space = RingBuffer_GetFreeSpace(buf);
+
+	if (free_space == 0) {
+		return RING_BUFFER_FULL;
+	} else if (free_space < len) {
+		return RING_BUFFER_NO_SUFFICIENT_SPACE;
+	}
+
+	while (counter < len) {
+		buf->buf[buf->head] = data[counter++];
+		buf->head = (buf->head + 1) % RING_BUFFER_LENGTH;
+	}
+
+	return RING_BUFFER_OK;
+
+}

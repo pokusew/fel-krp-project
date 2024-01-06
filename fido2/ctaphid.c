@@ -155,14 +155,17 @@ static int is_cont_pkt(CTAPHID_PACKET *pkt) {
 
 static int buffer_packet(CTAPHID_PACKET *pkt) {
 	if (pkt->pkt.init.cmd & TYPE_INIT) {
+		debug_log("buffer_packet INIT" nl);
 		ctap_buffer_bcnt = ctaphid_packet_len(pkt);
 		int pkt_len = (ctap_buffer_bcnt < CTAPHID_INIT_PAYLOAD_SIZE) ? ctap_buffer_bcnt : CTAPHID_INIT_PAYLOAD_SIZE;
 		ctap_buffer_cmd = pkt->pkt.init.cmd;
 		ctap_buffer_cid = pkt->cid;
 		ctap_buffer_offset = pkt_len;
 		ctap_packet_seq = -1;
-		memmove(ctap_buffer, pkt->pkt.init.payload, pkt_len);
+		// debug_log("memmove init %p %p %d" nl, ctap_buffer, pkt->pkt.init.payload, pkt_len);
+		memcpy(ctap_buffer, pkt->pkt.init.payload, pkt_len);
 	} else {
+		debug_log("buffer_packet CONT" nl);
 		int leftover = ctap_buffer_bcnt - ctap_buffer_offset;
 		int diff = leftover - CTAPHID_CONT_PAYLOAD_SIZE;
 		ctap_packet_seq++;
@@ -172,10 +175,19 @@ static int buffer_packet(CTAPHID_PACKET *pkt) {
 
 		if (diff <= 0) {
 			// only move the leftover amount
-			memmove(ctap_buffer + ctap_buffer_offset, pkt->pkt.cont.payload, leftover);
+			// debug_log(
+			// 	"memmove leftover %p %p %d" nl,
+			// 	ctap_buffer + ctap_buffer_offset, pkt->pkt.init.payload, leftover
+			// );
+			memcpy(ctap_buffer + ctap_buffer_offset, pkt->pkt.cont.payload, leftover);
 			ctap_buffer_offset += leftover;
 		} else {
-			memmove(ctap_buffer + ctap_buffer_offset, pkt->pkt.cont.payload, CTAPHID_CONT_PAYLOAD_SIZE);
+			// debug_log(
+			// 	"memmove cont_payload_size %p %p %d" nl,
+			// 	ctap_buffer + ctap_buffer_offset, pkt->pkt.init.payload,
+			// 	CTAPHID_CONT_PAYLOAD_SIZE
+			// );
+			memcpy(ctap_buffer + ctap_buffer_offset, pkt->pkt.cont.payload, CTAPHID_CONT_PAYLOAD_SIZE);
 			ctap_buffer_offset += CTAPHID_CONT_PAYLOAD_SIZE;
 		}
 	}
@@ -425,6 +437,9 @@ static int ctaphid_buffer_packet(uint8_t *pkt_raw, uint8_t *cmd, uint32_t *cid, 
 				*cmd = CTAP1_ERR_INVALID_SEQ;
 				return HID_ERROR;
 			}
+			// TODO: weird race conditions in buffer_packet above (memcpy seems to fix it?)
+			// HAL_Delay(200);
+			// debug_log("buffer_packet done" nl);
 			ret = cid_refresh(pkt->cid);
 			if (ret != 0) {
 				printf2(TAG_ERR, "Error, refresh cid failed\r\n");
@@ -455,6 +470,8 @@ extern void _check_ret(CborError ret, int line, const char *filename);
 
 uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
 
+	debug_log(nl nl "ctaphid_handle_packet" nl);
+
 	uint8_t cmd = 0;
 	uint32_t cid;
 	int len = 0;
@@ -471,10 +488,12 @@ uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
 	wb.cmd = cmd;
 
 	if (bufstatus == HID_IGNORE) {
+		debug_log("bufstatus == HID_IGNORE" nl);
 		return 0;
 	}
 
 	if (bufstatus == HID_ERROR) {
+		debug_log("bufstatus == HID_ERROR" nl);
 		cid_del(cid);
 		if (cmd == CTAP1_ERR_INVALID_SEQ) {
 			buffer_reset();
@@ -484,6 +503,7 @@ uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
 	}
 
 	if (bufstatus == BUFFERING) {
+		debug_log("bufstatus == BUFFERING" nl);
 		active_cid_timestamp = millis();
 		return 0;
 	}
@@ -504,7 +524,7 @@ uint8_t ctaphid_handle_packet(uint8_t *pkt_raw) {
 			timestamp();
 			ctaphid_write(&wb, ctap_buffer, len);
 			ctaphid_write(&wb, NULL, 0);
-			printf1(TAG_TIME, "PING writeback: %d ms\r\n", timestamp());
+			printf1(TAG_TIME, "PING writeback: %" PRId32 " ms\r\n", timestamp());
 
 			break;
 
