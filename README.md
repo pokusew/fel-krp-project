@@ -45,6 +45,13 @@ If you have all the tools installed, you should be able to open, build and run t
 You can read more in this [CLion's Embedded development with STM32CubeMX projects][CLion-Embedded-Development]
 guide.
 
+Also, it is possible to build, flash and start the whole project from the command line.
+Building is done via `cmake` since this project is a standard [CMake] project (see [CMakeLists.txt](./CMakeLists.txt)).
+Flashing can be done for example using `openocd` like this (run from the project root):
+```bash
+openocd -s /usr/local/share/openocd/scripts -f stm3240g_eval_stlink.cfg -c "tcl_port disabled" -c "gdb_port disabled" -c "tcl_port disabled" -c "program \"cmake-build-debug/fel-krp-project.elf\"" -c reset -c shutdown
+```
+
 
 ## SVD file for the MCU
 
@@ -77,3 +84,5 @@ For more information, see the [README in the svd dir](./svd/README.md).
 [OpenOCD]: https://openocd.org/pages/getting-openocd.html
 
 [xPack OpenOCD Releases]: https://github.com/xpack-dev-tools/openocd-xpack/releases
+
+[CMake]: https://cmake.org/
