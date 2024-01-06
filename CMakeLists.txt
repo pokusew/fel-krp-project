@@ -18,19 +18,20 @@ project(fel-krp-project C CXX ASM)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 11)
 
-#Uncomment for hardware floating point
-#add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING)
-#add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
-#add_link_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+# Uncomment for hardware floating point
+# salty: required by salty (crypto/salty)
+add_compile_definitions(ARM_MATH_CM4;ARM_MATH_MATRIX_CHECK;ARM_MATH_ROUNDING)
+add_compile_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
+add_link_options(-mfloat-abi=hard -mfpu=fpv4-sp-d16)
 
-#Uncomment for software floating point
-#add_compile_options(-mfloat-abi=soft)
+# Uncomment for software floating point
+# add_compile_options(-mfloat-abi=soft)
 
 add_compile_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork)
 add_compile_options(-ffunction-sections -fdata-sections -fno-common -fmessage-length=0)
 
 # uncomment to mitigate c++17 absolute addresses warnings
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-register")
 
 # Enable assembler files preprocessing
 add_compile_options($<$<COMPILE_LANGUAGE:ASM>:-x$<SEMICOLON>assembler-with-cpp>)
@@ -60,18 +61,26 @@ include_directories(
 		Middlewares/ST/STM32_USB_Device_Library/Class/CustomHID/Inc
 
 		fido2
+
 		solo1/tinycbor/src
-		solo1/crypto/tiny-AES-c
-		solo1/crypto/cifra/src
-		solo1/crypto/cifra/src/ext
-		solo1/crypto/salty/c-api
-		solo1/crypto/sha256
 
-		solo1/crypto/micro-ecc
+		crypto/tiny-AES-c
+		crypto/cifra/src
+		crypto/cifra/src/ext
+		crypto/salty/c-api
+		crypto/sha256
+		crypto/micro-ecc
+)
 
+link_directories(
+		# solo1/tinycbor/lib
+		crypto/salty/c-api
 )
 
 add_definitions(-DDEBUG -DUSE_HAL_DRIVER -DSTM32F407xx -DAES256=1 -DCHIP=STM32L432xx -DAPP_CONFIG="app.h" -DDEBUG_LEVEL=1)
+
+# for crypto/micro-ecc/uECC.c
+add_definitions(-DuECC_PLATFORM=5 -DuECC_OPTIMIZATION_LEVEL=4 -DuECC_SQUARE_FUNC=1 -DuECC_SUPPORT_COMPRESSED_POINT=0)
 
 file(GLOB_RECURSE SOURCES "Startup/*.*" "Src/*.*" "Middlewares/*.*" "Drivers/*.*"
 
@@ -84,13 +93,14 @@ file(GLOB_RECURSE SOURCES "Startup/*.*" "Src/*.*" "Middlewares/*.*" "Drivers/*.*
 		fido2/version.c
 		fido2/device.c
 
-		solo1/crypto/sha256/sha256.c solo1/crypto/micro-ecc/uECC.c solo1/crypto/tiny-AES-c/aes.c
-		solo1/crypto/cifra/src/sha512.c solo1/crypto/cifra/src/blockwise.c
-
-		solo1/crypto/micro-ecc/uECC.c
+		crypto/sha256/sha256.c
+		crypto/micro-ecc/uECC.c
+		crypto/tiny-AES-c/aes.c
+		crypto/cifra/src/sha512.c
+		crypto/cifra/src/blockwise.c
 
 		solo1/tinycbor/src/cbortojson.c
-#		solo1/tinycbor/src/open_memstream.c
+		# solo1/tinycbor/src/open_memstream.c
 		solo1/tinycbor/src/cborvalidation.c
 		solo1/tinycbor/src/cborparser_dup_string.c
 		solo1/tinycbor/src/cborpretty_stdio.c
@@ -103,13 +113,18 @@ file(GLOB_RECURSE SOURCES "Startup/*.*" "Src/*.*" "Middlewares/*.*" "Drivers/*.*
 
 set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/STM32F407IGHX_FLASH.ld)
 
-
-
 add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map)
 add_link_options(-mcpu=cortex-m4 -mthumb -mthumb-interwork)
 add_link_options(-T ${LINKER_SCRIPT})
 
+# salty: required in order to successfully link salty
+# taken from https://github.com/solokeys/solo1/blob/master/targets/stm32l432/build/application.mk#L55-L56
+add_link_options(-specs=nano.specs -specs=nosys.specs -lnosys -Wl,-Bstatic -lsalty)
+
 add_executable(${PROJECT_NAME}.elf ${SOURCES} ${LINKER_SCRIPT})
+
+# salty
+target_link_libraries(${PROJECT_NAME}.elf salty)
 
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
 set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
