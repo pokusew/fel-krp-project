@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
 
 #include "device.h"
 #include "ctaphid.h"
@@ -327,7 +326,7 @@ static int ctaphid_buffer_packet(uint8_t *pkt_raw, uint8_t *cmd, uint32_t *cid, 
 
 	printf1(TAG_HID, "ctaphid_buffer_packet" nl);
 	printf1(TAG_HID, "  CID: 0x%08" PRIx32 nl, pkt->cid);
-	printf1(TAG_HID, "  cmd: 0x%02" PRIx8 nl, pkt->pkt.init.cmd);
+	printf1(TAG_HID, "  cmd: 0x%02" wPRIx8 nl, pkt->pkt.init.cmd);
 	if (!is_cont_pkt(pkt)) {
 		printf1(TAG_HID, "  length: %d" nl, ctaphid_packet_len(pkt));
 	}

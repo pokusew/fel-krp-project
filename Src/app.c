@@ -1,6 +1,5 @@
 #include <stdbool.h>
 // see https://en.cppreference.com/w/c/types/integer
-#include <inttypes.h>
 #include "ctaphid.h"
 #include "ctap.h"
 
@@ -42,9 +41,9 @@ noreturn void app_run(app_state_t *app) {
 		// (*counter)++;
 		// uint8_t status = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, report, 64);
 		// if (status == USBD_OK) {
-		// 	debug_log("sent counter = %" PRIu8 nl, *counter);
+		// 	debug_log("sent counter = %" wPRIu8 nl, *counter);
 		// } else {
-		// 	debug_log("sending counter = %"PRIu8 " failed with status = %" PRIu8 nl, *counter, status);
+		// 	debug_log("sending counter = %"wPRIu8 " failed with status = %" wPRIu8 nl, *counter, status);
 		// }
 
 		// HAL_Delay(5000);

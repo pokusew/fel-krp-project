@@ -3,7 +3,6 @@
 #include "usbd_custom_hid_if.h"
 #include "device.h"
 #include "fifo.h"
-#include <inttypes.h>
 
 uint32_t millis() {
 	return HAL_GetTick();
@@ -25,7 +24,7 @@ void usbhid_send(uint8_t *msg) {
 			continue;
 		}
 
-		debug_log("solo usbhid_send fail status = %" PRIu8 nl, status);
+		debug_log("solo usbhid_send fail status = %" wPRIu8 nl, status);
 		exit(1);
 	}
 }

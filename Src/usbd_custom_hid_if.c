@@ -24,7 +24,6 @@
 /* USER CODE BEGIN INCLUDE */
 #include "utils.h"
 #include "fifo.h"
-#include <inttypes.h>
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -175,7 +174,7 @@ USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_fops_FS = {
 static int8_t CUSTOM_HID_Init_FS(void) {
 	/* USER CODE BEGIN 4 */
 
-	info_log("CUSTOM_HID_Init_FS USB address = %" PRIu8 nl, hUsbDeviceFS.dev_address);
+	info_log("CUSTOM_HID_Init_FS USB address = %" wPRIu8 nl, hUsbDeviceFS.dev_address);
 
 	return (USBD_OK);
 
@@ -215,7 +214,7 @@ static int8_t CUSTOM_HID_OutEvent_FS(uint8_t event_idx, uint8_t state) {
 	}
 
 	// we should avoid printing since we are in an interrupt context, so we could mess the logs from the normal context
-	// info_log(cyan("CUSTOM_HID_OutEvent_FS") " counter = %" PRIu8 nl, hhid->Report_buf[4]);
+	// info_log(cyan("CUSTOM_HID_OutEvent_FS") " counter = %" wPRIu8 nl, hhid->Report_buf[4]);
 	RingBuffer_Write(&hidmsg_buffer, hhid->Report_buf, 64);
 
 	// Start next USB packet transfer once data processing is completed

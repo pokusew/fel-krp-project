@@ -6,6 +6,19 @@
 
 #include "terminal.h"
 
+// PRI*8 does not work correctly with -specs=nano.specs (which is currently needed because of salty)
+// see https://answers.launchpad.net/gcc-arm-embedded/+question/665299
+// see https://sourceware.org/legacy-ml/newlib/2016/msg00000.html
+// for more info about -specs=nano.specs see https://metebalci.com/blog/demystifying-arm-gnu-toolchain-specs-nano-and-nosys/
+// we could probably change salty build to not depend on nano libc and the full libc, see https://github.com/rust-lang/compiler-builtins/issues/353#issuecomment-698038631
+#include <inttypes.h>
+#define wPRId8 PRId16
+#define wPRIi8 PRIi16
+#define wPRIo8 PRIo16
+#define wPRIu8 PRIu16
+#define wPRIx8 PRIx16
+#define wPRIX8 PRIX16
+
 #ifndef nl
 #define nl "\r\n"
 #endif
