@@ -2,5 +2,10 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/crypto/cifra" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/crypto/micro-ecc" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/crypto/salty" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/crypto/tiny-AES-c" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/tinycbor" vcs="Git" />
   </component>
 </project>
