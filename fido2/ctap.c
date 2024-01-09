@@ -354,10 +354,9 @@ void ctap_flush_state() {
 
 static uint32_t auth_data_update_count(CTAP_authDataHeader *authData) {
 	uint32_t count = ctap_atomic_count(0);
-	if (count == 0)     // count 0 will indicate invalid token
-	{
+	// count 0 will indicate invalid token
+	if (count == 0) {
 		count = ctap_atomic_count(0);
-
 	}
 	uint8_t *byte = (uint8_t *) &authData->signCount;
 
@@ -562,9 +561,14 @@ static int ctap2_user_presence_test() {
 	}
 }
 
-static int
-ctap_make_auth_data(struct rpId *rp, CborEncoder *map, uint8_t *auth_data_buf, uint32_t *len, CTAP_credInfo *credInfo,
-					CTAP_extensions *extensions) {
+static int ctap_make_auth_data(
+	struct rpId *rp,
+	CborEncoder *map,
+	uint8_t *auth_data_buf,
+	uint32_t *len,
+	CTAP_credInfo *credInfo,
+	CTAP_extensions *extensions
+) {
 	CborEncoder cose_key;
 
 	unsigned int auth_data_sz = sizeof(CTAP_authDataHeader);
@@ -668,8 +672,13 @@ ctap_make_auth_data(struct rpId *rp, CborEncoder *map, uint8_t *auth_data_buf, u
 		printf1(TAG_GREEN, "MADE credId: ");
 		dump_hex1(TAG_GREEN, (uint8_t *) &authData->attest.id, sizeof(CredentialId));
 
-		ctap_generate_cose_key(&cose_key, (uint8_t *) &authData->attest.id, sizeof(CredentialId),
-							   credInfo->publicKeyCredentialType, credInfo->COSEAlgorithmIdentifier);
+		ctap_generate_cose_key(
+			&cose_key,
+			(uint8_t *) &authData->attest.id,
+			sizeof(CredentialId),
+			credInfo->publicKeyCredentialType,
+			credInfo->COSEAlgorithmIdentifier
+		);
 
 		auth_data_sz = sizeof(CTAP_authData) + cbor_encoder_get_buffer_size(&cose_key, cose_key_buf);
 
@@ -918,8 +927,14 @@ uint8_t ctap_make_credential(CborEncoder *encoder, uint8_t *request, int length)
 
 	uint32_t auth_data_sz = sizeof(auth_data_buf);
 
-	ret = ctap_make_auth_data(&MC.rp, &map, auth_data_buf, &auth_data_sz,
-							  &MC.credInfo, &MC.extensions);
+	ret = ctap_make_auth_data(
+		&MC.rp,
+		&map,
+		auth_data_buf,
+		&auth_data_sz,
+		&MC.credInfo,
+		&MC.extensions
+	);
 	check_retr(ret);
 
 	{
@@ -942,8 +957,16 @@ uint8_t ctap_make_credential(CborEncoder *encoder, uint8_t *request, int length)
 	}
 
 	crypto_ecc256_load_attestation_key();
-	int sigder_sz = ctap_calculate_signature(auth_data_buf, auth_data_sz, MC.clientDataHash, auth_data_buf, sigbuf,
-											 sigder, COSE_ALG_ES256);
+	int sigder_sz = ctap_calculate_signature(
+		auth_data_buf,
+		auth_data_sz,
+		MC.clientDataHash,
+		auth_data_buf,
+		sigbuf,
+
+		sigder,
+		COSE_ALG_ES256
+	);
 	printf1(TAG_MC, "der sig [%d]: ", sigder_sz);
 	dump_hex1(TAG_MC, sigder, sigder_sz);
 
@@ -952,6 +975,7 @@ uint8_t ctap_make_credential(CborEncoder *encoder, uint8_t *request, int length)
 
 	ret = cbor_encoder_close_container(encoder, &map);
 	check_ret(ret);
+
 	return CTAP1_ERR_SUCCESS;
 }
 
