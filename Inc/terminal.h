@@ -97,8 +97,8 @@
 #define green(text) CSI fg_green ";" bold "m" text rst
 #define yellow_s CSI fg_bright_yellow ";" bold "m"
 #define yellow(text) CSI fg_bright_yellow ";" bold "m" text rst
-#define blue_s CSI fg_blue ";" bold "m"
-#define blue(text) CSI fg_blue ";" bold "m" text rst
+#define blue_s CSI fg_bright_blue ";" bold "m"
+#define blue(text) CSI fg_bright_blue ";" bold "m" text rst
 #define magenta_s CSI fg_magenta ";" bold "m"
 #define magenta(text) CSI fg_magenta ";" bold "m" text rst
 #define cyan_s CSI fg_cyan ";" bold "m"
