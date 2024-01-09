@@ -6,10 +6,11 @@
 #define SOLO_VERSION_PATCH 7
 
 #include <stdnoreturn.h>
+#include <stdbool.h>
 #include "main.h"
 
 typedef struct app_state {
-
+	bool blue_led;
 } app_state_t;
 
 extern app_state_t *main_app;

@@ -1,21 +1,58 @@
-#include <stdbool.h>
-// see https://en.cppreference.com/w/c/types/integer
+#include "app.h"
 #include "ctaphid.h"
 #include "ctap.h"
-
-
-#include "app.h"
 #include "utils.h"
-#include "usb_device.h"
-#include "usbd_custom_hid_if.h"
+#include "util.h"
+#include "log.h"
+#include "flash.h"
+#include "device.h"
+#include "memory_layout.h"
+
 
 void app_init(app_state_t *app) {
+	app->blue_led = true;
+}
+
+// LED status indicators:
+// Green  (unused)
+// Orange (unused)
+// Blue   toggle using UART debug char l
+// Red    ErrorHandler
+
+static void app_test_flash() {
+
+	info_log(cyan("app_test_flash") nl);
+
+	timestamp();
+
+	uint32_t counter_num_erases_sector = flash_128KB_sector_to_addr(COUNTER_NUM_ERASES_SECTOR);
+	uint32_t counter_data_sector = flash_128KB_sector_to_addr(COUNTER_DATA_SECTOR);
+	uint32_t state_1_sector = flash_128KB_sector_to_addr(STATE1_SECTOR);
+	uint32_t state_2_sector = flash_128KB_sector_to_addr(STATE2_SECTOR);
+
+	info_log("counter_num_erases_sector = 0x%08" PRIx32 nl, counter_num_erases_sector);
+	info_log("counter_data_sector       = 0x%08" PRIx32 nl, counter_data_sector);
+	info_log("state_1_sector            = 0x%08" PRIx32 nl, state_1_sector);
+	info_log("state_2_sector            = 0x%08" PRIx32 nl, state_2_sector);
+
+	// TODO
+
+	info_log("done in %" PRIu32 " ms" nl, timestamp());
+
+}
+
+static void app_test_ctap_atomic_count() {
+	info_log(cyan("app_test_ctap_atomic_count") nl);
+
+	timestamp();
+
+	ctap_atomic_count(0);
+
+	info_log("done in %" PRIu32 " ms" nl, timestamp());
 
 }
 
 noreturn void app_run(app_state_t *app) {
-
-	// STARTUP
 
 	info_log(cyan("app_run") nl);
 
@@ -29,48 +66,43 @@ noreturn void app_run(app_state_t *app) {
 	info_log(cyan("running main loop") nl);
 
 	int debug_uart_rx;
-
-	bool on = true;
-
-	uint8_t report[64] = {0xA1, 0xB2, 0xC3, 0xD4, 0x00};
-	uint8_t *const counter = &report[4];
 	uint8_t hidmsg[64];
 
 	while (true) {
 
-		// (*counter)++;
-		// uint8_t status = USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, report, 64);
-		// if (status == USBD_OK) {
-		// 	debug_log("sent counter = %" wPRIu8 nl, *counter);
-		// } else {
-		// 	debug_log("sending counter = %"wPRIu8 " failed with status = %" wPRIu8 nl, *counter, status);
-		// }
-
-		// HAL_Delay(5000);
-
 		if ((debug_uart_rx = Debug_UART_Get_Byte()) != -1) {
 
-			if (debug_uart_rx == 'r') {
-				if (on) {
+			if (debug_uart_rx == 'l') {
+				if (app->blue_led) {
 					HAL_GPIO_WritePin(LED4_Blue_GPIO_Port, LED4_Blue_Pin, GPIO_PIN_RESET);
-					on = false;
+					app->blue_led = false;
 				} else {
 					HAL_GPIO_WritePin(LED4_Blue_GPIO_Port, LED4_Blue_Pin, GPIO_PIN_SET);
-					on = true;
+					app->blue_led = true;
 				}
+			}
+
+			if (debug_uart_rx == 'f') {
+				app_test_flash();
+			}
+
+			if (debug_uart_rx == 'c') {
+				app_test_ctap_atomic_count();
 			}
 
 		}
 
 		if (usbhid_recv(hidmsg) > 0) {
-			// TODO: remove after debugging
-			print_bytes(hidmsg, 64);
-			ctaphid_handle_packet(hidmsg);
-		} else {
-		}
-		// ctaphid_check_timeouts();
 
-		// HAL_Delay(1000);
+			// TODO: remove after debugging
+			dump_hex(hidmsg, 64);
+
+			ctaphid_handle_packet(hidmsg);
+
+		}
+
+		// TODO
+		// ctaphid_check_timeouts();
 
 	}
 
