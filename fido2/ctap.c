@@ -369,12 +369,12 @@ static uint32_t auth_data_update_count(CTAP_authDataHeader *authData) {
 }
 
 static void ctap_increment_rk_store() {
-	STATE.rk_stored++;
+	STATE.num_rk_stored++;
 	ctap_flush_state();
 }
 
 static void ctap_decrement_rk_store() {
-	STATE.rk_stored--;
+	STATE.num_rk_stored--;
 	ctap_flush_state();
 }
 
@@ -644,7 +644,7 @@ static int ctap_make_auth_data(
 			memmove(rk.rpId, rp->id, rp_id_size);
 			rk.rpIdSize = rp_id_size;
 
-			unsigned int index = STATE.rk_stored;
+			unsigned int index = STATE.num_rk_stored;
 			unsigned int i;
 			for (i = 0; i < index; i++) {
 				int raw_i = load_nth_valid_rk(i, &rk2);
@@ -1077,7 +1077,7 @@ static int cred_cmp_func(const void *_a, const void *_b) {
 // Return 1 if existing info found, 0 otherwise
 static int add_existing_user_info(CTAP_credentialDescriptor *cred) {
 	CTAP_residentKey rk;
-	int index = STATE.rk_stored;
+	int index = STATE.num_rk_stored;
 	int i;
 	for (i = 0; i < index; i++) {
 		load_nth_valid_rk(i, &rk);
@@ -1338,11 +1338,11 @@ uint8_t ctap_cred_metadata(CborEncoder *encoder) {
 	check_ret(ret);
 	ret = cbor_encode_int(&map, 1);
 	check_ret(ret);
-	ret = cbor_encode_int(&map, STATE.rk_stored);
+	ret = cbor_encode_int(&map, STATE.num_rk_stored);
 	check_ret(ret);
 	ret = cbor_encode_int(&map, 2);
 	check_ret(ret);
-	int remaining_rks = ctap_rk_size() - STATE.rk_stored;
+	int remaining_rks = ctap_rk_size() - STATE.num_rk_stored;
 	ret = cbor_encode_int(&map, remaining_rks);
 	check_ret(ret);
 	ret = cbor_encoder_close_container(encoder, &map);
@@ -1582,7 +1582,7 @@ uint8_t ctap_cred_mgmt(CborEncoder *encoder, uint8_t *request, int length) {
 	}
 	ret = ctap_cred_mgmt_pinauth(&CM);
 	check_retr(ret);
-	if (STATE.rk_stored == 0 && CM.cmd != CM_cmdMetadata) {
+	if (STATE.num_rk_stored == 0 && CM.cmd != CM_cmdMetadata) {
 		printf2(TAG_ERR, "No resident keys" nl);
 		return 0;
 	}
@@ -2229,13 +2229,12 @@ static void ctap_state_init() {
 	// set to 0xff instead of 0x00 to be easier on flash
 	memset(&STATE, 0xff, sizeof(AuthenticatorState));
 	// fresh RNG for key
-	ctap_generate_rng(STATE.key_space, KEY_SPACE_BYTES);
+	ctap_generate_rng(STATE.master_keys, KEY_SPACE_BYTES);
 
 	STATE.is_initialized = INITIALIZED_MARKER;
 	STATE.remaining_tries = PIN_LOCKOUT_ATTEMPTS;
 	STATE.is_pin_set = 0;
-	STATE.rk_stored = 0;
-	STATE.data_version = STATE_VERSION;
+	STATE.num_rk_stored = 0;
 
 	ctap_reset_rk();
 
@@ -2257,9 +2256,9 @@ static void ctap_state_init() {
  * This function should only be called from a privilege mode.
  */
 void ctap_load_external_keys(uint8_t *keybytes) {
-	memmove(STATE.key_space, keybytes, KEY_SPACE_BYTES);
+	memmove(STATE.master_keys, keybytes, KEY_SPACE_BYTES);
 	authenticator_write_state(&STATE);
-	crypto_load_master_secret(STATE.key_space);
+	crypto_load_master_secret(STATE.master_keys);
 }
 
 #include "version.h"
@@ -2284,29 +2283,14 @@ void ctap_init() {
 	if (is_init) {
 		printf1(TAG_STOR, "Auth state is initialized" nl);
 		debug_log(
-			"is_initialized=%d" nl
-			"is_pin_set=%d" nl
-			"remaining_tries=%d" nl
-			"rk_stored=%d" nl
-			"data_version=%d" nl,
-		// // Pin information
-		// 	uint8_t is_initialized;
-		// 	uint8_t is_pin_set;
-		// 	uint8_t PIN_CODE_HASH[32];
-		// 	uint8_t PIN_SALT[PIN_SALT_LEN];
-		// 	int _reserved;
-		// 	int8_t remaining_tries;
-		//
-		// 	uint16_t rk_stored;
-		//
-		// 	uint16_t key_lens[MAX_KEYS];
-		// 	uint8_t key_space[KEY_SPACE_BYTES];
-		// 	uint8_t data_version;
-			STATE.is_initialized,
+			"is_pin_set=%" wPRIu8 nl
+			"remaining_tries=%d" wPRId8 nl
+			"num_rk_stored=%d" PRIu16 nl
+			"is_initialized=%" PRIu32 nl,
 			STATE.is_pin_set,
 			STATE.remaining_tries,
-			STATE.rk_stored,
-			STATE.data_version
+			STATE.num_rk_stored,
+			STATE.is_initialized
 		);
 	} else {
 		ctap_state_init();
@@ -2315,7 +2299,7 @@ void ctap_init() {
 
 	// do_migration_if_required(&STATE);
 
-	crypto_load_master_secret(STATE.key_space);
+	crypto_load_master_secret(STATE.master_keys);
 
 	if (ctap_is_pin_set()) {
 		info_log("pin remaining_tries=%" wPRId8 nl, STATE.remaining_tries);
@@ -2431,7 +2415,7 @@ void ctap_reset() {
 	ctap_reset_state();
 	ctap_reset_key_agreement();
 
-	crypto_load_master_secret(STATE.key_space);
+	crypto_load_master_secret(STATE.master_keys);
 }
 
 void lock_device_permanently() {

@@ -4,34 +4,31 @@
 #include "ctap.h"
 
 #define KEY_SPACE_BYTES     128
-#define MAX_KEYS            (1)
 #define PIN_SALT_LEN        (32)
-#define STATE_VERSION        (1)
 
-#define BACKUP_MARKER       0x5A
+#define EMPTY_MARKER        0xFF
 #define INITIALIZED_MARKER  0xA5
-
-#define ERR_NO_KEY_SPACE    (-1)
-#define ERR_KEY_SPACE_TAKEN (-2)
-#define ERR_KEY_SPACE_EMPTY (-2)
+#define INVALID_MARKER      0xDD
 
 typedef struct {
-	// Pin information
-	uint8_t is_initialized;
 
+	// PIN information
 	uint8_t is_pin_set;
 	uint8_t PIN_CODE_HASH[32];
 	uint8_t PIN_SALT[PIN_SALT_LEN];
-
-	int _reserved;
 	int8_t remaining_tries;
 
-	uint16_t rk_stored;
+	// number of stored client-side discoverable credentials
+	// aka resident credentials aka resident keys (RK)
+	uint16_t num_rk_stored;
 
-	uint16_t key_lens[MAX_KEYS];
-	uint8_t key_space[KEY_SPACE_BYTES];
+	// master keys data
+	uint8_t master_keys[KEY_SPACE_BYTES];
 
-	uint8_t data_version;
+	uint32_t is_invalid;
+	// note: in order for the data loss prevention logic to work, is_initialized must be the last field
+	uint32_t is_initialized;
+
 } AuthenticatorState;
 
 extern AuthenticatorState STATE;
