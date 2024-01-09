@@ -174,7 +174,9 @@ USBD_CUSTOM_HID_ItfTypeDef USBD_CustomHID_fops_FS = {
 static int8_t CUSTOM_HID_Init_FS(void) {
 	/* USER CODE BEGIN 4 */
 
+	// the print here could mess the logs from the normal context since we are in an interrupt context
 	info_log("CUSTOM_HID_Init_FS USB address = %" wPRIu8 nl, hUsbDeviceFS.dev_address);
+	HAL_GPIO_WritePin(LED2_Orange_GPIO_Port, LED2_Orange_Pin, GPIO_PIN_SET);
 
 	return (USBD_OK);
 
@@ -188,7 +190,11 @@ static int8_t CUSTOM_HID_Init_FS(void) {
 static int8_t CUSTOM_HID_DeInit_FS(void) {
 	/* USER CODE BEGIN 5 */
 
-	info_log("CUSTOM_HID_DeInit_FS" nl);
+	// Note:
+	//   CUSTOM_HID_DeInit_FS is not called immediately when the device is disconnected.
+	//   It is only called before a new connection if there was a previous connection.
+	// info_log("CUSTOM_HID_DeInit_FS" nl);
+	HAL_GPIO_WritePin(LED2_Orange_GPIO_Port, LED2_Orange_Pin, GPIO_PIN_RESET);
 
 	return (USBD_OK);
 
