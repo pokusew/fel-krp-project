@@ -6,9 +6,12 @@
 #include "flash.h"
 #include "memory_layout.h"
 #include "log.h"
+#include "stm32f4xx_ll_tim.h"
 
 uint32_t millis() {
-	return HAL_GetTick();
+	// while the flash is being erased, uwTick (HAL_GetTick) is not updated correctly
+	// return HAL_GetTick();
+	return LL_TIM_GetCounter(TIM2) / 1000;
 }
 
 void usbhid_send(uint8_t *msg) {
