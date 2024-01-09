@@ -2230,6 +2230,8 @@ static void ctap_state_init() {
 	memset(&STATE, 0xff, sizeof(AuthenticatorState));
 	// fresh RNG for key
 	ctap_generate_rng(STATE.master_keys, KEY_SPACE_BYTES);
+	debug_log("generated master_keys: ");
+	dump_hex(STATE.master_keys, KEY_SPACE_BYTES);
 
 	STATE.is_initialized = INITIALIZED_MARKER;
 	STATE.remaining_tries = PIN_LOCKOUT_ATTEMPTS;
@@ -2244,7 +2246,7 @@ static void ctap_state_init() {
 	}
 
 	debug_log("generated PIN SALT: ");
-	dump_hex1(TAG_STOR, STATE.PIN_SALT, sizeof(STATE.PIN_SALT));
+	dump_hex(STATE.PIN_SALT, sizeof(STATE.PIN_SALT));
 
 }
 
@@ -2281,17 +2283,23 @@ void ctap_init() {
 	device_set_status(CTAPHID_STATUS_IDLE);
 
 	if (is_init) {
-		printf1(TAG_STOR, "Auth state is initialized" nl);
 		debug_log(
-			"is_pin_set=%" wPRIu8 nl
-			"remaining_tries=%d" wPRId8 nl
-			"num_rk_stored=%d" PRIu16 nl
-			"is_initialized=%" PRIu32 nl,
+			"auth state is initialized" nl
+			"  is_pin_set = %" wPRIu8 nl
+			"  remaining_tries = %" wPRId8 nl
+			"  num_rk_stored = %" PRIu16 nl
+			"  is_initialized = 0x%08" PRIx32 nl
+			"  is_invalid = 0x%08" PRIx32 nl,
 			STATE.is_pin_set,
 			STATE.remaining_tries,
 			STATE.num_rk_stored,
-			STATE.is_initialized
+			STATE.is_initialized,
+			STATE.is_invalid
 		);
+		debug_log("  master_keys = ");
+		dump_hex(STATE.master_keys, KEY_SPACE_BYTES);
+		debug_log("  PIN_SALT = ");
+		dump_hex(STATE.PIN_SALT, sizeof(STATE.PIN_SALT));
 	} else {
 		ctap_state_init();
 		authenticator_write_state(&STATE);

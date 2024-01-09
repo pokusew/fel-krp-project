@@ -15,15 +15,23 @@
 
 // To simplify the design, let's use only the 7 128-KB sectors.
 
-#define STATE2_SECTOR 11
-#define STATE1_SECTOR 10
+#define STATE_BACKUP_SECTOR 11
+#define STATE_SECTOR 10
+#define STATE_SECTOR_NUM_SLOTS (SECTOR_128KB_SIZE / sizeof(AuthenticatorState))
+static_assert(
+	(STATE_SECTOR_NUM_SLOTS * sizeof(AuthenticatorState) + sizeof(uint32_t) <= SECTOR_128KB_SIZE),
+	"not enough space for magic in STATE_SECTOR"
+);
+#define MAGIC_ADDR (flash_128KB_sector_to_addr(STATE_SECTOR + 1) - 4)
+#define MAGIC (0xD7E60002u)
 
 #define COUNTER_COUNTS_PER_DATA_SECTOR (SECTOR_128KB_SIZE / 4)
 #define COUNTER_DATA_SECTOR 9
 #define COUNTER_NUM_ERASES_SECTOR 8
 
 #include "assert.h"
-static_assert(sizeof(AuthenticatorState) == 208, "sizeof(AuthenticatorState) must be 208 bytes");
+static_assert(sizeof(AuthenticatorState) == 208, "sizeof(AuthenticatorState) must be 204 bytes");
+static_assert(sizeof(AuthenticatorState) % sizeof(uint32_t) == 0, "sizeof(AuthenticatorState) must be divisible by 4");
 
 // Storage of FIDO2 resident keys
 #define RK_SECTOR 8

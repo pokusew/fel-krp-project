@@ -65,50 +65,110 @@ int usbhid_recv(uint8_t *msg) {
 	return 0;
 }
 
-static int authenticator_is_backup_initialized(void) {
-	debug_log(yellow("authenticator_is_backup_initialized") nl);
-	uint8_t header[16];
-	uint32_t *ptr = (uint32_t *) flash_128KB_sector_to_addr(STATE2_SECTOR);
-	memmove(header, ptr, 16);
-	AuthenticatorState *state = (AuthenticatorState *) header;
-	return state->is_initialized == INITIALIZED_MARKER;
+int authenticator_read_state(AuthenticatorState *a) {
+
+	debug_log(yellow("authenticator_read_state") nl);
+
+	// invalid .... invalid INITIALIZED empty ... empty
+	const AuthenticatorState *storage = (AuthenticatorState *) flash_128KB_sector_to_addr(STATE_SECTOR);
+
+	const AuthenticatorState *state = &storage[0];
+	const AuthenticatorState *end = state + STATE_SECTOR_NUM_SLOTS;
+
+	while (state != end) {
+
+		if (state->is_invalid == INVALID_MARKER) {
+			state++;
+			continue;
+		}
+
+		if (state->is_initialized == INITIALIZED_MARKER) {
+			size_t index = state - &storage[0];
+			debug_log(yellow("initialized from index = %d") nl, index);
+			memmove(a, state, sizeof(AuthenticatorState));
+			return 1;
+		}
+
+		break;
+
+	}
+
+	size_t index = state - &storage[0];
+	debug_log(yellow("not initialized, index = %d") nl, index);
+	return 0;
+
 }
 
-// int authenticator_read_state(AuthenticatorState *a) {
-// 	debug_log(yellow("authenticator_read_state") nl);
-// 	uint32_t *ptr = (uint32_t *) flash_128KB_sector_to_addr(STATE1_SECTOR);
-// 	memmove(a, ptr, sizeof(AuthenticatorState));
-//
-// 	if (a->is_initialized != INITIALIZED_MARKER) {
-//
-// 		if (authenticator_is_backup_initialized()) {
-// 			debug_log("Warning: memory corruption detected. Restoring from backup..." nl);
-// 			ptr = (uint32_t *) flash_128KB_sector_to_addr(STATE2_SECTOR);
-// 			memmove(a, ptr, sizeof(AuthenticatorState));
-// 			authenticator_write_state(a);
-// 			debug_log(yellow("initialized from backup") nl);
-// 			return 1;
-// 		}
-//
-// 		debug_log(yellow("not initialized") nl);
-// 		return 0;
-// 	}
-//
-// 	debug_log(yellow("initialized from primary") nl);
-// 	return 1;
-// }
-//
-//
-// void authenticator_write_state(AuthenticatorState *a) {
-// 	debug_log(yellow("authenticator_write_state pin=%d") nl, a->is_pin_set);
-// 	timestamp();
-// 	flash_erase_sector(STATE1_SECTOR);
-// 	flash_write(flash_128KB_sector_to_addr(STATE1_SECTOR), (uint8_t *) a, sizeof(AuthenticatorState));
-//
-// 	flash_erase_sector(STATE2_SECTOR);
-// 	flash_write(flash_128KB_sector_to_addr(STATE2_SECTOR), (uint8_t *) a, sizeof(AuthenticatorState));
-// 	debug_log(green("authenticator_write_state done in %" PRId32 " ms") nl, timestamp());
-// }
+static int find_empty_state(const AuthenticatorState *storage, const size_t size) {
+
+	debug_log("find_empty_state" nl);
+
+	const AuthenticatorState *state = &storage[0];
+
+	for (int i = 0; i < size; ++i, ++state) {
+
+		if (state->is_initialized == EMPTY_MARKER && state->is_invalid == EMPTY_MARKER) {
+			return i;
+		}
+
+	}
+
+	return -1;
+
+}
+
+
+void authenticator_write_state(AuthenticatorState *a) {
+
+	debug_log(yellow("authenticator_write_state pin=%d") nl, a->is_pin_set);
+	timestamp();
+
+	// invalid .... invalid INITIALIZED >>EMPTY<< ... empty
+	AuthenticatorState *storage = (AuthenticatorState *) flash_128KB_sector_to_addr(STATE_SECTOR);
+
+	int empty_state_index = find_empty_state(storage, STATE_SECTOR_NUM_SLOTS);
+
+	if (empty_state_index == -1) {
+
+		debug_log("empty_state_index == -1" nl);
+
+		// TODO: use STATE_BACKUP_SECTOR to avoid data loss if power is lost
+
+		flash_erase_sector(STATE_SECTOR);
+		// restore magic which is at the very end (4 last bytes) of the STATE_SECTOR
+		const uint32_t correct_magic = MAGIC;
+		flash_write(MAGIC_ADDR, (uint8_t *) &correct_magic, sizeof(uint32_t));
+		// write the new state at the start of the STATE_SECTOR
+		flash_write(flash_128KB_sector_to_addr(STATE_SECTOR), (uint8_t *) a, sizeof(AuthenticatorState));
+
+		debug_log(green("authenticator_write_state done in %" PRId32 " ms") nl, timestamp());
+		return;
+
+	}
+
+	debug_log("empty_state_index == %d" nl, empty_state_index);
+
+	// do the following sequence to avoid data loss/corruption on power loss etc.
+	// 1. write the new state (is_initialized will be written as the last byte > this will prevent data corruption)
+	flash_write(
+		flash_128KB_sector_to_addr(STATE_SECTOR) + (empty_state_index * sizeof(AuthenticatorState)),
+		(uint8_t *) a,
+		sizeof(AuthenticatorState)
+	);
+	// 2. then mark the previous state as invalid
+	int prev_state_index = empty_state_index - 1;
+	AuthenticatorState *prev_state = &storage[prev_state_index];
+	uint32_t *prev_is_invalid_marker = &prev_state->is_invalid;
+	const uint32_t marker = INVALID_MARKER;
+	flash_write(
+		(uint32_t) prev_is_invalid_marker,
+		(uint8_t *) &marker,
+		sizeof(uint32_t)
+	);
+
+	debug_log(green("authenticator_write_state done in %" PRId32 " ms") nl, timestamp());
+
+}
 
 uint32_t ctap_atomic_count(uint32_t amount) {
 
