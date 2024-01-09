@@ -7,6 +7,7 @@
 #include "flash.h"
 #include "device.h"
 #include "memory_layout.h"
+#include "stm32f4xx_ll_tim.h"
 
 
 void app_init(app_state_t *app) {
@@ -18,6 +19,24 @@ void app_init(app_state_t *app) {
 // Orange (unused)
 // Blue   toggle using UART debug char l
 // Red    ErrorHandler
+
+static void app_test_time() {
+
+	info_log(cyan("app_test_time") nl);
+
+	info_log(
+		"millis = %" PRIu32 ", HAL_GetTick = %" PRIu32 ", TIM2 = %" PRIu32 nl,
+		millis(), HAL_GetTick(), LL_TIM_GetCounter(TIM2) / 1000
+	);
+	// HAL_Delay(1000);
+	// while the flash is being erased, uwTick (HAL_GetTick) is not updated correctly
+	// flash_erase_sector(STATE1_SECTOR);
+	info_log(
+		"millis = %" PRIu32 ", HAL_GetTick = %" PRIu32 ", TIM2 = %" PRIu32 nl,
+		millis(), HAL_GetTick(), LL_TIM_GetCounter(TIM2) / 1000
+	);
+
+}
 
 static void app_test_flash() {
 
@@ -88,6 +107,10 @@ noreturn void app_run(app_state_t *app) {
 
 			if (debug_uart_rx == 'c') {
 				app_test_ctap_atomic_count();
+			}
+
+			if (debug_uart_rx == 't') {
+				app_test_time();
 			}
 
 		}
