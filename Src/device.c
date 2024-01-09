@@ -121,8 +121,9 @@ uint32_t ctap_atomic_count(uint32_t amount) {
 
 	if (num_erases == 0xffffffff) {
 		debug_log("num_erases == 0xffffffff -> erasing COUNTER_NUM_ERASES_SECTOR" nl);
-		num_erases = 1;
-		flash_erase_sector(COUNTER_NUM_ERASES_SECTOR);
+		num_erases = 0;
+		// erase is not necessary when the WORD (4 bytes) (which we want to write to) are 0xffffffff
+		// flash_erase_sector(COUNTER_NUM_ERASES_SECTOR);
 		flash_write(flash_128KB_sector_to_addr(COUNTER_NUM_ERASES_SECTOR), (uint8_t *) &num_erases, 4);
 	}
 
