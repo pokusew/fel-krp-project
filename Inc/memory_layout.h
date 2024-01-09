@@ -1,6 +1,7 @@
 #ifndef POKUSEW_MEMORY_LAYOUT_H
 #define POKUSEW_MEMORY_LAYOUT_H
 
+#include "flash.h"
 #include "storage.h"
 
 // STM32F407IGH6 has 1024 KB of Flash memory
@@ -14,20 +15,21 @@
 
 // To simplify the design, let's use only the 7 128-KB sectors.
 
-#define STATE2_SECTOR 10
-#define STATE1_SECTOR 9
+#define STATE2_SECTOR 11
+#define STATE1_SECTOR 10
 
 #define COUNTER_COUNTS_PER_DATA_SECTOR (SECTOR_128KB_SIZE / 4)
-#define COUNTER_DATA_SECTOR 8
-#define COUNTER_NUM_ERASES_SECTOR 7
+#define COUNTER_DATA_SECTOR 9
+#define COUNTER_NUM_ERASES_SECTOR 8
 
 #include "assert.h"
-static_assert(sizeof(AuthenticatorState) <= (128 * 1024), "AuthenticatorState does not fit into 128 KB");
+static_assert(sizeof(AuthenticatorState) == 208, "sizeof(AuthenticatorState) must be 208 bytes");
 
 // Storage of FIDO2 resident keys
-#define RK_NUM_PAGES        10
-#define RK_START_PAGE_INCL  (PAGES - 14)
-#define RK_END_PAGE_EXCL    (PAGES - 14 + RK_NUM_PAGES) // not included
-
+#define RK_SECTOR 8
+#define RK_NUM_KEYS (SECTOR_128KB_SIZE / RK_STORAGE_SIZE)
+#define RK_STORAGE_SIZE 512
+static_assert(sizeof(CTAP_residentKey) <= RK_STORAGE_SIZE, "sizeof(AuthenticatorState) must be <= 512 bytes");
+static_assert(RK_STORAGE_SIZE * RK_NUM_KEYS == SECTOR_128KB_SIZE, "sizeof(AuthenticatorState) must be <= 412 bytes");
 
 #endif // POKUSEW_MEMORY_LAYOUT_H
