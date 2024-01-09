@@ -1114,7 +1114,7 @@ int ctap_filter_invalid_credentials(CTAP_getAssertion *GA) {
 		}
 	}
 
-	// No allowList, so use all matching RK's matching rpId
+	// No allowList, so use all matching RKs matching rpId
 	if (!GA->credLen) {
 		crypto_sha256_init();
 		crypto_sha256_update(GA->rp.id, GA->rp.size);
@@ -1131,8 +1131,11 @@ int ctap_filter_invalid_credentials(CTAP_getAssertion *GA) {
 			printf1(TAG_GREEN, "rpIdHash%d: ", i);
 			dump_hex1(TAG_GREEN, rk.id.rpIdHash, 32);
 
-			int protection_status =
-				check_credential_metadata(&rk.id, getAssertionState.user_verified, 0);
+			int protection_status = check_credential_metadata(
+				&rk.id,
+				getAssertionState.user_verified,
+				0
+			);
 
 			if (protection_status != 0) {
 				printf1(TAG_GREEN, "skipping protected rk credential." nl);
@@ -1142,7 +1145,7 @@ int ctap_filter_invalid_credentials(CTAP_getAssertion *GA) {
 			if (memcmp(rk.id.rpIdHash, rpIdHash, 32) == 0) {
 				printf1(TAG_GA, "RK %d is a rpId match!" nl, i);
 				if (count >= ALLOW_LIST_MAX_SIZE) {
-					printf2(TAG_ERR, "not enough ram allocated for matching RK's (%d).  Skipping." nl, count);
+					printf2(TAG_ERR, "not enough ram allocated for matching RKs (%d). Skipping." nl, count);
 					break;
 				}
 				GA->creds[count].type = PUB_KEY_CRED_PUB_KEY;
