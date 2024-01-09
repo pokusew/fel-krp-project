@@ -307,67 +307,52 @@ uint32_t ctap_atomic_count(uint32_t amount) {
 	return last_counter;
 }
 
-//
-// void ctap_reset_rk(void) {
-// 	int i;
-// 	printf1(TAG_GREEN, "resetting RK \r\n");
-// 	for (i = 0; i < RK_NUM_PAGES; i++) {
-// 		flash_erase_page(RK_START_PAGE + i);
-// 	}
-// }
-//
-// static_assert(sizeof(CTAP_residentKey) == 409, "ff");
-// static_assert(sizeof(AuthenticatorState) == 208, "ff");
-//
-//
-// uint32_t ctap_rk_size(void) {
-// 	return RK_NUM_PAGES * (PAGE_SIZE / sizeof(CTAP_residentKey));
-// }
-//
-// void ctap_store_rk(int index, CTAP_residentKey *rk) {
-// 	ctap_overwrite_rk(index, rk);
-// }
-//
-// void ctap_delete_rk(int index) {
-// 	CTAP_residentKey rk;
-// 	memset(&rk, 0xff, sizeof(CTAP_residentKey));
-// 	ctap_overwrite_rk(index, &rk);
-// }
-//
-// void ctap_load_rk(int index, CTAP_residentKey *rk) {
-// 	int byte_offset_into_page = (sizeof(CTAP_residentKey) * (index % (PAGE_SIZE / sizeof(CTAP_residentKey))));
-// 	int page_offset = (index) / (PAGE_SIZE / sizeof(CTAP_residentKey));
-//
-// 	uint32_t addr = flash_addr(page_offset + RK_START_PAGE) + byte_offset_into_page;
-//
-// 	printf1(TAG_GREEN, "reading RK %d @ %04x\r\n", index, addr);
-// 	if (page_offset < RK_NUM_PAGES) {
-// 		uint32_t *ptr = (uint32_t *) addr;
-// 		memmove((uint8_t *) rk, ptr, sizeof(CTAP_residentKey));
-// 	} else {
-// 		printf2(TAG_ERR, "Out of bounds reading index %d for rk\n", index);
-// 	}
-// }
-//
-// void ctap_overwrite_rk(int index, CTAP_residentKey *rk) {
-// 	uint8_t tmppage[PAGE_SIZE];
-//
-// 	int byte_offset_into_page = (sizeof(CTAP_residentKey) * (index % (PAGE_SIZE / sizeof(CTAP_residentKey))));
-// 	int page_offset = (index) / (PAGE_SIZE / sizeof(CTAP_residentKey));
-//
-// 	printf1(TAG_GREEN, "overwriting RK %d @ page %d @ addr 0x%08x-0x%08x\r\n",
-// 			index, RK_START_PAGE + page_offset,
-// 			flash_addr(RK_START_PAGE + page_offset) + byte_offset_into_page,
-// 			flash_addr(RK_START_PAGE + page_offset) + byte_offset_into_page + sizeof(CTAP_residentKey)
-// 	);
-// 	if (page_offset < RK_NUM_PAGES) {
-// 		memmove(tmppage, (uint8_t *) flash_addr(RK_START_PAGE + page_offset), PAGE_SIZE);
-//
-// 		memmove(tmppage + byte_offset_into_page, rk, sizeof(CTAP_residentKey));
-// 		flash_erase_page(RK_START_PAGE + page_offset);
-// 		flash_write(flash_addr(RK_START_PAGE + page_offset), tmppage, PAGE_SIZE);
-// 	} else {
-// 		printf2(TAG_ERR, "Out of bounds reading index %d for rk\n", index);
-// 	}
-// 	printf1(TAG_GREEN, "4\r\n");
-// }
+void ctap_reset_rk(void) {
+	debug_log(yellow("ctap_reset_rk") nl);
+	flash_erase_sector(RK_SECTOR);
+}
+
+uint32_t ctap_rk_size(void) {
+	return RK_NUM_KEYS;
+}
+
+void ctap_store_rk(int index, CTAP_residentKey *rk) {
+	debug_log(yellow("ctap_store_rk index = %d") nl, index);
+	ctap_overwrite_rk(index, rk);
+}
+
+void ctap_delete_rk(int index) {
+	debug_log(yellow("ctap_delete_rk index = %d") nl, index);
+	CTAP_residentKey rk;
+	memset(&rk, 0xff, sizeof(CTAP_residentKey));
+	ctap_overwrite_rk(index, &rk);
+}
+
+void ctap_load_rk(int index, CTAP_residentKey *rk) {
+	uint32_t addr = flash_128KB_sector_to_addr(RK_SECTOR) + (index * RK_STORAGE_SIZE);
+	debug_log(yellow("ctap_load_rk index = %d, addr = %" PRIx32) nl, index, addr);
+	uint32_t *ptr = (uint32_t *) addr;
+	memmove((uint8_t *) rk, ptr, sizeof(CTAP_residentKey));
+}
+
+static uint8_t rk_storage_tmp[RK_STORAGE_SIZE * RK_NUM_KEYS];
+
+void ctap_overwrite_rk(int index, CTAP_residentKey *rk) {
+
+	debug_log(yellow("ctap_overwrite_rk index = %d") nl, index);
+
+	// TODO: implement efficient storage similar to authenticator state and counter storage
+
+	timestamp();
+
+	memmove(rk_storage_tmp, (uint8_t *) flash_128KB_sector_to_addr(RK_SECTOR), sizeof(rk_storage_tmp));
+
+	flash_erase_sector(RK_SECTOR);
+
+	memmove(rk_storage_tmp + (index * RK_STORAGE_SIZE), rk, sizeof(CTAP_residentKey));
+
+	flash_write(flash_128KB_sector_to_addr(RK_SECTOR), rk_storage_tmp, sizeof(rk_storage_tmp));
+
+	debug_log(green("ctap_overwrite_rk done in %" PRId32 " ms") nl, timestamp());
+
+}

@@ -122,12 +122,14 @@ static void app_flash_info() {
 	uint32_t counter_num_erases_sector = flash_128KB_sector_to_addr(COUNTER_NUM_ERASES_SECTOR);
 	uint32_t counter_data_sector = flash_128KB_sector_to_addr(COUNTER_DATA_SECTOR);
 	uint32_t state_sector = flash_128KB_sector_to_addr(STATE_SECTOR);
-	uint32_t state_backup_sector = flash_128KB_sector_to_addr(STATE_BACKUP_SECTOR);
+	// uint32_t state_backup_sector = flash_128KB_sector_to_addr(STATE_BACKUP_SECTOR);
+	uint32_t rk_sector = flash_128KB_sector_to_addr(RK_SECTOR);
 
 	info_log("counter_num_erases_sector = 0x%08" PRIx32 nl, counter_num_erases_sector);
 	info_log("counter_data_sector       = 0x%08" PRIx32 nl, counter_data_sector);
 	info_log("state_sector              = 0x%08" PRIx32 nl, state_sector);
-	info_log("state_backup_sector       = 0x%08" PRIx32 nl, state_backup_sector);
+	// info_log("state_backup_sector       = 0x%08" PRIx32 nl, state_backup_sector);
+	info_log("rk_sector                 = 0x%08" PRIx32 nl, rk_sector);
 
 	info_log("done in %" PRIu32 " ms" nl, timestamp());
 
@@ -165,10 +167,11 @@ static void app_delete_data() {
 
 	timestamp();
 
-	flash_erase_sector(STATE_SECTOR);
-	// flash_erase_sector(STATE_BACKUP_SECTOR);
 	flash_erase_sector(COUNTER_NUM_ERASES_SECTOR);
 	flash_erase_sector(COUNTER_DATA_SECTOR);
+	flash_erase_sector(STATE_SECTOR);
+	// flash_erase_sector(STATE_BACKUP_SECTOR);
+	flash_erase_sector(RK_SECTOR);
 
 	info_log("done in %" PRIu32 " ms" nl, timestamp());
 

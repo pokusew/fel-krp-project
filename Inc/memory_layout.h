@@ -15,7 +15,7 @@
 
 // To simplify the design, let's use only the 7 128-KB sectors.
 
-#define STATE_BACKUP_SECTOR 11
+// #define STATE_BACKUP_SECTOR TODO
 #define STATE_SECTOR 10
 #define STATE_SECTOR_NUM_SLOTS (SECTOR_128KB_SIZE / sizeof(AuthenticatorState))
 static_assert(
@@ -23,7 +23,7 @@ static_assert(
 	"not enough space for magic in STATE_SECTOR"
 );
 #define MAGIC_ADDR (flash_128KB_sector_to_addr(STATE_SECTOR + 1) - 4)
-#define MAGIC (0xD7E60002u)
+#define MAGIC (0xD7E60004u)
 
 #define COUNTER_COUNTS_PER_DATA_SECTOR (SECTOR_128KB_SIZE / 4)
 #define COUNTER_DATA_SECTOR 9
@@ -34,10 +34,11 @@ static_assert(sizeof(AuthenticatorState) == 208, "sizeof(AuthenticatorState) mus
 static_assert(sizeof(AuthenticatorState) % sizeof(uint32_t) == 0, "sizeof(AuthenticatorState) must be divisible by 4");
 
 // Storage of FIDO2 resident keys
-#define RK_SECTOR 8
-#define RK_NUM_KEYS (SECTOR_128KB_SIZE / RK_STORAGE_SIZE)
+#define RK_SECTOR 11
+// #define RK_NUM_KEYS (SECTOR_128KB_SIZE / RK_STORAGE_SIZE)
+#define RK_NUM_KEYS 20
 #define RK_STORAGE_SIZE 512
 static_assert(sizeof(CTAP_residentKey) <= RK_STORAGE_SIZE, "sizeof(AuthenticatorState) must be <= 512 bytes");
-static_assert(RK_STORAGE_SIZE * RK_NUM_KEYS == SECTOR_128KB_SIZE, "sizeof(AuthenticatorState) must be <= 412 bytes");
+static_assert(RK_STORAGE_SIZE * RK_NUM_KEYS <= SECTOR_128KB_SIZE, "RKs do not fit");
 
 #endif // POKUSEW_MEMORY_LAYOUT_H
