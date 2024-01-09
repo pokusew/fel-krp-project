@@ -7,6 +7,7 @@
 #include "memory_layout.h"
 #include "log.h"
 #include "stm32f4xx_ll_tim.h"
+#include "rng.h"
 
 uint32_t millis() {
 	// while the flash is being erased, uwTick (HAL_GetTick) is not updated correctly
@@ -35,18 +36,20 @@ void usbhid_send(uint8_t *msg) {
 	}
 }
 
-static uint8_t r = 0;
-
 int ctap_generate_rng(uint8_t *dst, size_t num) {
+
 	debug_log(blue("ctap_generate_rng %d") nl, num);
-	// rng_get_bytes(dst, num);
-	// return 1;
-	// TODO: use STM32's HW generator
-	int i;
-	for (i = 0; i < num; i++) {
-		dst[i] = ++r;
-	}
+	rng_get_bytes(dst, num);
 	return 1;
+
+	// deterministic testing generator:
+	// static uint8_t r = 0;
+	// int i;
+	// for (i = 0; i < num; i++) {
+	// 	dst[i] = ++r;
+	// }
+	// return 1;
+
 }
 
 int usbhid_recv(uint8_t *msg) {

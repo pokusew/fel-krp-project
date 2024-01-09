@@ -12,6 +12,7 @@
 // supported using UART debug chars:
 // l - toggle the Blue LED
 // t - app_test_time
+// g - app_test_rng
 // f - app_flash_info
 // c - app_test_ctap_atomic_count
 // s - app_test_state_persistence
@@ -26,6 +27,8 @@
 static void ensure_flash_initialized();
 
 static void app_test_time();
+
+static void app_test_rng();
 
 static void app_flash_info();
 
@@ -90,6 +93,23 @@ static void app_test_time() {
 		"millis = %" PRIu32 ", HAL_GetTick = %" PRIu32 ", TIM2 = %" PRIu32 nl,
 		millis(), HAL_GetTick(), LL_TIM_GetCounter(TIM2) / 1000
 	);
+
+}
+
+static void app_test_rng() {
+
+	info_log(cyan("app_test_rng") nl);
+
+	timestamp();
+
+	uint8_t random_test_buffer[16];
+
+	ctap_generate_rng(random_test_buffer, sizeof(random_test_buffer));
+
+	info_log("generated ");
+	dump_hex(random_test_buffer, sizeof(random_test_buffer));
+
+	info_log("done in %" PRIu32 " ms" nl, timestamp());
 
 }
 
@@ -202,6 +222,10 @@ noreturn void app_run(app_state_t *app) {
 
 			if (debug_uart_rx == 't') {
 				app_test_time();
+			}
+
+			if (debug_uart_rx == 'g') {
+				app_test_rng();
 			}
 
 			if (debug_uart_rx == 's') {
