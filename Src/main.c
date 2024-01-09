@@ -45,6 +45,8 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc3;
 
+RNG_HandleTypeDef hrng;
+
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart3;
@@ -70,6 +72,8 @@ static void MX_FSMC_Init(void);
 static void MX_USART3_UART_Init(void);
 
 static void MX_TIM2_Init(void);
+
+static void MX_RNG_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -127,6 +131,7 @@ int main(void) {
 	MX_FSMC_Init();
 	MX_USB_DEVICE_Init();
 	MX_TIM2_Init();
+	MX_RNG_Init();
 	/* USER CODE BEGIN 2 */
 
 	main_app = &app;
@@ -236,6 +241,30 @@ static void MX_ADC3_Init(void) {
 	/* USER CODE BEGIN ADC3_Init 2 */
 
 	/* USER CODE END ADC3_Init 2 */
+
+}
+
+/**
+  * @brief RNG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_RNG_Init(void) {
+
+	/* USER CODE BEGIN RNG_Init 0 */
+
+	/* USER CODE END RNG_Init 0 */
+
+	/* USER CODE BEGIN RNG_Init 1 */
+
+	/* USER CODE END RNG_Init 1 */
+	hrng.Instance = RNG;
+	if (HAL_RNG_Init(&hrng) != HAL_OK) {
+		Error_Handler();
+	}
+	/* USER CODE BEGIN RNG_Init 2 */
+
+	/* USER CODE END RNG_Init 2 */
 
 }
 
