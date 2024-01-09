@@ -70,6 +70,7 @@ static void buffer_reset();
 static void ctaphid_write(CTAPHID_WRITE_BUFFER *wb, void *_data, int len);
 
 void ctaphid_init() {
+	debug_log("ctaphid_init" nl);
 	state = IDLE;
 	buffer_reset();
 	//ctap_reset_state();

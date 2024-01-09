@@ -2196,9 +2196,12 @@ uint8_t ctap_request(uint8_t *pkt_raw, int length, CTAP_RESPONSE *resp) {
 
 
 static void ctap_state_init() {
-	// Set to 0xff instead of 0x00 to be easier on flash
+
+	debug_log("ctap_state_init" nl);
+
+	// set to 0xff instead of 0x00 to be easier on flash
 	memset(&STATE, 0xff, sizeof(AuthenticatorState));
-	// Fresh RNG for key
+	// fresh RNG for key
 	ctap_generate_rng(STATE.key_space, KEY_SPACE_BYTES);
 
 	STATE.is_initialized = INITIALIZED_MARKER;
@@ -2210,12 +2213,13 @@ static void ctap_state_init() {
 	ctap_reset_rk();
 
 	if (ctap_generate_rng(STATE.PIN_SALT, sizeof(STATE.PIN_SALT)) != 1) {
-		printf2(TAG_ERR, "Error, rng failed" nl);
+		error_log(red("ctap_generate_rng failed") nl);
 		exit(1);
 	}
 
-	printf1(TAG_STOR, "Generated PIN SALT: ");
-	dump_hex1(TAG_STOR, STATE.PIN_SALT, sizeof STATE.PIN_SALT);
+	debug_log("generated PIN SALT: ");
+	dump_hex1(TAG_STOR, STATE.PIN_SALT, sizeof(STATE.PIN_SALT));
+
 }
 
 /**
@@ -2235,11 +2239,15 @@ void ctap_load_external_keys(uint8_t *keybytes) {
 
 void ctap_init() {
 
-	printf1(TAG_ERR, "Current firmware version address: %p" nl, &firmware_version);
-	printf1(TAG_ERR, "Current firmware version: %d.%d.%d.%d (%02x.%02x.%02x.%02x)" nl,
-			firmware_version.major, firmware_version.minor, firmware_version.patch, firmware_version.reserved,
-			firmware_version.major, firmware_version.minor, firmware_version.patch, firmware_version.reserved
+	debug_log("ctap_init" nl);
+
+	// info_log("current firmware version address: %p" nl, &firmware_version);
+	info_log(
+		"current firmware version: %d.%d.%d.%d (%02x.%02x.%02x.%02x)" nl,
+		firmware_version.major, firmware_version.minor, firmware_version.patch, firmware_version.reserved,
+		firmware_version.major, firmware_version.minor, firmware_version.patch, firmware_version.reserved
 	);
+
 	crypto_ecc256_init();
 
 	int is_init = authenticator_read_state(&STATE);
@@ -2248,6 +2256,31 @@ void ctap_init() {
 
 	if (is_init) {
 		printf1(TAG_STOR, "Auth state is initialized" nl);
+		debug_log(
+			"is_initialized=%d" nl
+			"is_pin_set=%d" nl
+			"remaining_tries=%d" nl
+			"rk_stored=%d" nl
+			"data_version=%d" nl,
+		// // Pin information
+		// 	uint8_t is_initialized;
+		// 	uint8_t is_pin_set;
+		// 	uint8_t PIN_CODE_HASH[32];
+		// 	uint8_t PIN_SALT[PIN_SALT_LEN];
+		// 	int _reserved;
+		// 	int8_t remaining_tries;
+		//
+		// 	uint16_t rk_stored;
+		//
+		// 	uint16_t key_lens[MAX_KEYS];
+		// 	uint8_t key_space[KEY_SPACE_BYTES];
+		// 	uint8_t data_version;
+			STATE.is_initialized,
+			STATE.is_pin_set,
+			STATE.remaining_tries,
+			STATE.rk_stored,
+			STATE.data_version
+		);
 	} else {
 		ctap_state_init();
 		authenticator_write_state(&STATE);
@@ -2258,16 +2291,17 @@ void ctap_init() {
 	crypto_load_master_secret(STATE.key_space);
 
 	if (ctap_is_pin_set()) {
-		printf1(TAG_STOR, "attempts_left: %d" nl, STATE.remaining_tries);
+		info_log("pin remaining_tries=%" wPRId8 nl, STATE.remaining_tries);
 	} else {
-		printf1(TAG_STOR, "pin not set." nl);
+		info_log("pin not set" nl);
 	}
+
 	if (ctap_device_locked()) {
-		printf1(TAG_ERR, "DEVICE LOCKED!" nl);
+		error_log(red("DEVICE LOCKED!") nl);
 	}
 
 	if (ctap_generate_rng(PIN_TOKEN, PIN_TOKEN_SIZE) != 1) {
-		printf2(TAG_ERR, "Error, rng failed" nl);
+		error_log(red("ctap_generate_rng failed") nl);
 		exit(1);
 	}
 
@@ -2438,12 +2472,14 @@ static void ctap_reset_key_agreement() {
 }
 
 void ctap_reset() {
+	debug_log("ctap_reset" nl);
+
 	ctap_state_init();
 
 	authenticator_write_state(&STATE);
 
 	if (ctap_generate_rng(PIN_TOKEN, PIN_TOKEN_SIZE) != 1) {
-		printf2(TAG_ERR, "Error, rng failed" nl);
+		error_log(red("ctap_generate_rng failed") nl);
 		exit(1);
 	}
 
