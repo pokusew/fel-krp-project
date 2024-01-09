@@ -359,8 +359,12 @@ void ctap_response_init(CTAP_RESPONSE *resp);
 
 uint8_t ctap_request(uint8_t *pkt_raw, int length, CTAP_RESPONSE *resp);
 
-// Encodes R,S signature to 2 der sequence of two integers.  Sigder must be at least 72 bytes.
-// @return length of der signature
+/**
+ * Encodes R,S signature to 2 der sequence of two integers. Sigder must be at least 72 bytes.
+ * @param in_sigbuf
+ * @param out_sigder
+ * @return length of der signature
+ */
 int ctap_encode_der_sig(uint8_t const *const in_sigbuf, uint8_t *const out_sigder);
 
 // Run ctap related power-up procedures (init pinToken, generate shared secret)
@@ -397,7 +401,7 @@ int8_t ctap_device_locked();
 
 int8_t ctap_device_boot_locked();
 
-#define PIN_TOKEN_SIZE      16
+#define PIN_TOKEN_SIZE 16
 extern uint8_t PIN_TOKEN[PIN_TOKEN_SIZE];
 extern uint8_t KEY_AGREEMENT_PUB[64];
 
