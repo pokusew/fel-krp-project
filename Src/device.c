@@ -38,6 +38,7 @@ void usbhid_send(uint8_t *msg) {
 static uint8_t r = 0;
 
 int ctap_generate_rng(uint8_t *dst, size_t num) {
+	debug_log(blue("ctap_generate_rng %d") nl, num);
 	// rng_get_bytes(dst, num);
 	// return 1;
 	// TODO: use STM32's HW generator
