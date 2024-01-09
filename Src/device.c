@@ -159,7 +159,7 @@ uint32_t ctap_atomic_count(uint32_t amount) {
 	}
 
 	info_log(
-		"num_erases=%" PRIu32 ", last_counter=%" PRIu32 ", offset=%d",
+		"num_erases=%" PRIu32 ", last_counter=%" PRIu32 ", offset=%d" nl,
 		num_erases,
 		last_counter,
 		offset
@@ -168,8 +168,8 @@ uint32_t ctap_atomic_count(uint32_t amount) {
 	if (last_counter == 0) {
 		info_log(yellow(
 			"last_counter == 0"
-			"-> power interrupted during previous count (or initialization), restoring..."
-		));
+			"-> power interrupted during previous count (or initialization), restoring..." nl
+				 ));
 
 		// restore counter value
 		last_counter = num_erases * COUNTER_COUNTS_PER_DATA_SECTOR + 1;
@@ -194,8 +194,8 @@ uint32_t ctap_atomic_count(uint32_t amount) {
 	if ((last_counter / COUNTER_COUNTS_PER_DATA_SECTOR) > num_erases) {
 		info_log(yellow(
 			"detected invalid num_erases value"
-			" (probably due to the previous power interruption), restoring..."
-		));
+			" (probably due to the previous power interruption), restoring..." nl
+				 ));
 		// restore num_erases
 		num_erases = last_counter / COUNTER_COUNTS_PER_DATA_SECTOR;
 		flash_erase_sector(COUNTER_NUM_ERASES_SECTOR);

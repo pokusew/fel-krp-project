@@ -42,7 +42,7 @@ void flash_write(uint32_t addr, uint8_t *data, size_t size) {
 
 	// TODO: for some reason FLASH_TYPEPROGRAM_DOUBLEWORD does not work (too low voltage?)
 
-	debug_log("flash_write addr=%" PRIu32 "size=%d" nl, addr, size);
+	debug_log("flash_write addr=0x%08" PRIx32 " size=%d" nl, addr, size);
 
 	flash_unlock();
 

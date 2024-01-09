@@ -61,11 +61,14 @@ static void app_test_flash() {
 }
 
 static void app_test_ctap_atomic_count() {
+
 	info_log(cyan("app_test_ctap_atomic_count") nl);
 
 	timestamp();
 
-	ctap_atomic_count(0);
+	uint32_t counter = ctap_atomic_count(0);
+
+	info_log("counter = %" PRIu32 nl, counter);
 
 	info_log("done in %" PRIu32 " ms" nl, timestamp());
 
