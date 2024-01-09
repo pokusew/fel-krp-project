@@ -74,6 +74,21 @@ static void app_test_ctap_atomic_count() {
 
 }
 
+static void app_test_delete_data() {
+
+	info_log(cyan("app_test_delete_data") nl);
+
+	timestamp();
+
+	flash_erase_sector(STATE1_SECTOR);
+	flash_erase_sector(STATE2_SECTOR);
+	flash_erase_sector(COUNTER_NUM_ERASES_SECTOR);
+	flash_erase_sector(COUNTER_DATA_SECTOR);
+
+	info_log("done in %" PRIu32 " ms" nl, timestamp());
+
+}
+
 noreturn void app_run(app_state_t *app) {
 
 	info_log(cyan("app_run") nl);
@@ -114,6 +129,10 @@ noreturn void app_run(app_state_t *app) {
 
 			if (debug_uart_rx == 't') {
 				app_test_time();
+			}
+
+			if (debug_uart_rx == 'd') {
+				app_test_delete_data();
 			}
 
 		}
