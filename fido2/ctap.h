@@ -371,8 +371,13 @@ void ctap_reset_state();
 
 uint8_t ctap_add_pin_if_verified(uint8_t *pinTokenEnc, uint8_t *platform_pubkey, uint8_t *pinHashEnc);
 
-uint8_t
-ctap_update_pin_if_verified(uint8_t *pinEnc, int len, uint8_t *platform_pubkey, uint8_t *pinAuth, uint8_t *pinHashEnc);
+uint8_t ctap_update_pin_if_verified(
+	uint8_t *pinEnc,
+	int len,
+	uint8_t *platform_pubkey,
+	uint8_t *pinAuth,
+	uint8_t *pinHashEnc
+);
 
 void ctap_update_pin(uint8_t *pin, int len);
 
@@ -392,22 +397,10 @@ int8_t ctap_device_locked();
 
 int8_t ctap_device_boot_locked();
 
-// Key storage API
-
-// Return length of key at index.  0 if not exist.
-uint16_t ctap_key_len(uint8_t index);
-
-// See error codes in storage.h
-int8_t ctap_store_key(uint8_t index, uint8_t *key, uint16_t len);
-
-int8_t ctap_load_key(uint8_t index, uint8_t *key);
-
 #define PIN_TOKEN_SIZE      16
 extern uint8_t PIN_TOKEN[PIN_TOKEN_SIZE];
 extern uint8_t KEY_AGREEMENT_PUB[64];
 
 void lock_device_permanently();
-
-void ctap_load_external_keys(uint8_t *keybytes);
 
 #endif // FIDO2_CTAP_H
