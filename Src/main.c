@@ -97,6 +97,15 @@ int main(void) {
 
 	/* USER CODE BEGIN Init */
 
+	// OpenOCD (debugger) configures clock in a way that is incompatible with SystemClock_Config function
+	// see https://www.eevblog.com/forum/microcontrollers/stm32-clock-gets-modified-when-debugger-is-connected/
+	// Workaround:
+	//   Disable PLL and switch to HSI (8 MHz), correct PLL setting will take place inside SystemClock_Config()
+	if ((RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_PLL) {
+		RCC->CFGR &= (uint32_t) (~RCC_CFGR_SW);
+		while ((RCC->CFGR & RCC_CFGR_SWS) != RCC_CFGR_SWS_HSI);
+	}
+
 	/* USER CODE END Init */
 
 	/* Configure the system clock */
