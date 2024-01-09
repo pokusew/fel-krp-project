@@ -143,6 +143,7 @@ __attribute__((weak)) void authenticator_write_state(AuthenticatorState *s) {
 }
 
 __attribute__((weak)) void ctap_reset_rk() {
+	debug_log("ctap_reset_rk" nl);
 	memset(&RK_STORE, 0xff, sizeof(RK_STORE));
 }
 
@@ -152,6 +153,7 @@ __attribute__((weak)) uint32_t ctap_rk_size() {
 
 
 __attribute__((weak)) void ctap_store_rk(int index, CTAP_residentKey *rk) {
+	debug_log("ctap_store_rk index = %d" nl, index);
 	if (index < RK_NUM) {
 		memmove(RK_STORE.rks + index, rk, sizeof(CTAP_residentKey));
 	} else {
@@ -161,6 +163,7 @@ __attribute__((weak)) void ctap_store_rk(int index, CTAP_residentKey *rk) {
 }
 
 __attribute__((weak)) void ctap_delete_rk(int index) {
+	debug_log("ctap_delete_rk index = %d" nl, index);
 	CTAP_residentKey rk;
 	memset(&rk, 0xff, sizeof(CTAP_residentKey));
 
@@ -173,10 +176,12 @@ __attribute__((weak)) void ctap_delete_rk(int index) {
 }
 
 __attribute__((weak)) void ctap_load_rk(int index, CTAP_residentKey *rk) {
+	debug_log("ctap_load_rk index = %d" nl, index);
 	memmove(rk, RK_STORE.rks + index, sizeof(CTAP_residentKey));
 }
 
 __attribute__((weak)) void ctap_overwrite_rk(int index, CTAP_residentKey *rk) {
+	debug_log("ctap_overwrite_rk index = %d" nl, index);
 	if (index < RK_NUM) {
 		memmove(RK_STORE.rks + index, rk, sizeof(CTAP_residentKey));
 	} else {
