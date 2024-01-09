@@ -11,7 +11,8 @@
 // 4*16+64+7*128 = 1024
 
 void flash_erase_sector(uint8_t sector);
-void flash_write(uint32_t addr, uint8_t * data, size_t size);
+
+void flash_write(uint32_t addr, uint8_t *data, size_t size);
 
 #define SECTOR_128KB_SIZE (128 * 1024) // size in bytes
 
