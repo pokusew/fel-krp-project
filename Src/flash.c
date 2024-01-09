@@ -28,7 +28,7 @@ void flash_erase_sector(uint8_t sector) {
 		.Banks = 0, // does not apply to sectors erase
 		.Sector = sector,
 		.NbSectors = 1,
-		// TODO: FLASH_VOLTAGE_RANGE_4 does not work (too low voltage?)
+		// note: FLASH_VOLTAGE_RANGE_4 cannot be used in our case because we don't have the external Vpp
 		.VoltageRange = FLASH_VOLTAGE_RANGE_3,
 	};
 
@@ -40,7 +40,7 @@ void flash_erase_sector(uint8_t sector) {
 
 void flash_write(uint32_t addr, uint8_t *data, size_t size) {
 
-	// TODO: for some reason FLASH_TYPEPROGRAM_DOUBLEWORD does not work (too low voltage?)
+	// note: FLASH_TYPEPROGRAM_DOUBLEWORD cannot be used because it requires FLASH_VOLTAGE_RANGE_4 (the external Vpp)
 
 	debug_log("flash_write addr=0x%08" PRIx32 " size=%d" nl, addr, size);
 
