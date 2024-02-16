@@ -4,9 +4,7 @@ A working [FIDO2] USB hardware external authenticator (also called “security k
 
 Running on the **[STM3240G-EVAL]** board with the **[STM32F407IGH6]** MCU.
 
-Written in C. Using STM32CubeF4 (see [GitHub repo](https://github.com/STMicroelectronics/STM32CubeF4),
-see [product page with docs on st.com](https://www.st.com/en/embedded-software/stm32cubef4.html#documentation),
-see [UM1725 Description of STM32F4 HAL and low-layer drivers][UM1725]).
+Written in **C**. Uses [STM32CubeF4](#stm32cubef4).
 
 See the full 👉 [Project Description].
 
@@ -19,8 +17,10 @@ See the full 👉 [Project Description].
 
 - [Development](#development)
   - [Build from the Command Line](#build-from-the-command-line)
-- [SVD file for the MCU](#svd-file-for-the-mcu)
+  - [SVD file for the MCU](#svd-file-for-the-mcu)
+- [STM32CubeF4](#stm32cubef4)
 - [STM32CubeMX](#stm32cubemx)
+  - [Customization](#customization)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -55,7 +55,7 @@ openocd -s /usr/local/share/openocd/scripts -f stm3240g_eval_stlink.cfg -c "tcl_
 ```
 
 
-## SVD file for the MCU
+### SVD file for the MCU
 
 CLion and other IDEs support SVD files for describing the layout of registers for debugging.
 
@@ -63,6 +63,20 @@ CLion and other IDEs support SVD files for describing the layout of registers fo
 so you don't need to download it yourselves.
 
 For more information, see the [README in the svd dir](./svd/README.md).
+
+
+## STM32CubeF4
+
+We use the **STM32CubeF4** package via the [STM32CubeMX] generator.
+
+**Relevant resources:**
+* see [STM32CubeF4 GitHub repo][STM32CubeF4-GitHub]
+* see [product page with docs on st.com][STM32CubeF4-Product-Page]
+* see [UM1725 Description of STM32F4 HAL and low-layer drivers][UM1725]
+* see [UM1734 STM32Cube USB device library][UM1734]
+  * In this project, we use the USB device library and its **Custom HID** class.
+    Unfortunately, its customizability is limited, so we had to change some of the hardcoded template values.
+    See more info [below](#customization).
 
 
 ## STM32CubeMX
@@ -81,6 +95,9 @@ This project was created by [STM32CubeMX]. Here is the procedure we used:
 	   Under Root_ option.
 	4. The other fields should be okay with the default values.
 
+
+### Customization
+
 We tried to maintain compatibility with the STM32CubeMX as much as we could (so that the project could be modified in
 STM32CubeMX while the custom code remained in place). This was somehow possible until we implemented USB support.
 The generated USB middleware is very hard to customize, and some required changes must be made in the automatically
@@ -98,7 +115,13 @@ some of our custom changes.
 
 [STM32F407IGH6]: https://www.st.com/en/microcontrollers-microprocessors/stm32f407ig.html
 
+[STM32CubeF4-GitHub]: https://github.com/STMicroelectronics/STM32CubeF4
+
+[STM32CubeF4-Product-Page]: https://www.st.com/en/embedded-software/stm32cubef4.html#documentation
+
 [UM1725]: https://www.st.com/resource/en/user_manual/um1725-description-of-stm32f4-hal-and-lowlayer-drivers-stmicroelectronics.pdf
+
+[UM1734]: https://www.st.com/resource/en/user_manual/um1734-stm32cube-usb-device-library-stmicroelectronics.pdf
 
 [STM32CubeMX]: https://www.st.com/en/development-tools/stm32cubemx.html
 
