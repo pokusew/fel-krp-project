@@ -1,6 +1,6 @@
 # FIDO2 USB Security Key
 
-See the [Project Proposal].
+A working [FIDO2] USB hardware external authenticator (also called “security key”) 🔑 implemented on STM32F4.
 
 Running on the **[STM3240G-EVAL]** board with the **[STM32F407IGH6]** MCU.
 
@@ -8,22 +8,21 @@ Written in C. Using STM32CubeF4 (see [GitHub repo](https://github.com/STMicroele
 see [product page with docs on st.com](https://www.st.com/en/embedded-software/stm32cubef4.html#documentation),
 see [UM1725 Description of STM32F4 HAL and low-layer drivers][UM1725]).
 
+See the full 👉 [Project Description].
 
-## STM32CubeMX
 
-**Note:** _This section is here only for future reference. You don't need to download STM32CubeMX and don't need to
-follow steps in this section._
+## Content
 
-This project was created by [STM32CubeMX]. Here is the procedure we used:
-1. _New Project_ > _Board Selector_ > **STM3240G-EVAL** > _Start Project_ > _Initialize all peripherals with their
-   default Mode?_
-   **Yes**
-2. Then in the _Project Manager_ tab:
-	1. Fill in the _Project Name._
-	2. Change the _Application structure_ to **Basic**. Keep the _Do not generate the main()_ unchecked.
-	3. Change the _Toolchain / IDE_ to STM32CubeIDE (so that the project is compatible with CLion). **Check** _Generate
-	   Under Root_ option.
-	4. The other fields should be okay with the default values.
+<!-- **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)* -->
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [Development](#development)
+  - [Build from the Command Line](#build-from-the-command-line)
+- [SVD file for the MCU](#svd-file-for-the-mcu)
+- [STM32CubeMX](#stm32cubemx)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 
 ## Development
@@ -45,6 +44,9 @@ If you have all the tools installed, you should be able to open, build and run t
 You can read more in this [CLion's Embedded development with STM32CubeMX projects][CLion-Embedded-Development]
 guide.
 
+
+### Build from the Command Line
+
 Also, it is possible to build, flash and start the whole project from the command line.
 Building is done via `cmake` since this project is a standard [CMake] project (see [CMakeLists.txt](./CMakeLists.txt)).
 Flashing can be done for example using `openocd` like this (run from the project root):
@@ -63,9 +65,34 @@ so you don't need to download it yourselves.
 For more information, see the [README in the svd dir](./svd/README.md).
 
 
+## STM32CubeMX
+
+**Note:** _This section is here only for future reference. You don't need to download STM32CubeMX and don't need to
+follow steps in this section._
+
+This project was created by [STM32CubeMX]. Here is the procedure we used:
+1. _New Project_ > _Board Selector_ > **STM3240G-EVAL** > _Start Project_ > _Initialize all peripherals with their
+   default Mode?_
+   **Yes**
+2. Then in the _Project Manager_ tab:
+	1. Fill in the _Project Name._
+	2. Change the _Application structure_ to **Basic**. Keep the _Do not generate the main()_ unchecked.
+	3. Change the _Toolchain / IDE_ to STM32CubeIDE (so that the project is compatible with CLion). **Check** _Generate
+	   Under Root_ option.
+	4. The other fields should be okay with the default values.
+
+We tried to maintain compatibility with the STM32CubeMX as much as we could (so that the project could be modified in
+STM32CubeMX while the custom code remained in place). This was somehow possible until we implemented USB support.
+The generated USB middleware is very hard to customize, and some required changes must be made in the automatically
+generated code. So for now, one must carefully diff the changes using git after using STM32CubeMX to avoid losing
+some of our custom changes.
+
+
 <!-- links references -->
 
-[Project Proposal]: https://docs.google.com/document/d/1BrdMIrTAtqBxYBKOv0oa9b2yFZZl3MrpsmLCvSa47Ak/edit
+[FIDO2]: https://fidoalliance.org/specifications/
+
+[Project Description]: https://docs.google.com/document/d/1BrdMIrTAtqBxYBKOv0oa9b2yFZZl3MrpsmLCvSa47Ak/edit
 
 [STM3240G-EVAL]: https://www.st.com/en/evaluation-tools/stm3240g-eval.html
 
