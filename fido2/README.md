@@ -2,7 +2,7 @@
 
 This implementation originally comes from the [SoloKeys Solo 1] project.
 
-However, some of the parts have been rewritten / refactored / modified / fixed,
+However, **some of the parts have been rewritten / refactored / modified / fixed**,
 so it is could be used with our hardware (for example, different flash memory layout).
 Additionally, some fixes
 such as [Replace `defined(STM32L432xx)` with `defined(STM32L432xx) || defined(STM32F407xx)`][STM32-defined-fix]
