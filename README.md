@@ -6,7 +6,9 @@ Running on the **[STM3240G-EVAL]** board with the **[STM32F407IGH6]** MCU.
 
 Written in **C**. Uses [STM32CubeF4](#stm32cubef4).
 
-See the full 👉 [Project Description].
+See the full 👉 **[Project Description].**
+
+_Note: This project was created a semestral project in the CTU FEE (ČVUT FEL) B4M38KRP (Computer Interfaces) course._
 
 
 ## Content
