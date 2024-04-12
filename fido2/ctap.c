@@ -1814,20 +1814,25 @@ static int trailing_zeros(uint8_t *buf, int indx) {
 	return c;
 }
 
-uint8_t
-ctap_update_pin_if_verified(uint8_t *pinEnc, int len, uint8_t *platform_pubkey, uint8_t *pinAuth, uint8_t *pinHashEnc) {
+uint8_t ctap_update_pin_if_verified(
+	uint8_t *pinEnc,
+	int len,
+	uint8_t *platform_pubkey,
+	uint8_t *pinAuth,
+	uint8_t *pinHashEnc
+) {
 	uint8_t shared_secret[32];
 	uint8_t hmac[32];
 	int ret;
 
-//    Validate incoming data packet len
+	// Validate incoming data packet len
 	if (len < 64) {
 		return CTAP1_ERR_OTHER;
 	}
 
-//    Validate device's state
-	if (ctap_is_pin_set())  // Check first, prevent SCA
-	{
+	// Validate device's state
+	// Check first, prevent SCA
+	if (ctap_is_pin_set()) {
 		if (ctap_device_locked()) {
 			return CTAP2_ERR_PIN_BLOCKED;
 		}
@@ -1836,7 +1841,7 @@ ctap_update_pin_if_verified(uint8_t *pinEnc, int len, uint8_t *platform_pubkey, 
 		}
 	}
 
-//    calculate shared_secret
+	// calculate shared_secret
 	crypto_ecc256_shared_secret(platform_pubkey, KEY_AGREEMENT_PRIV, shared_secret);
 
 	crypto_sha256_init();
@@ -1857,18 +1862,17 @@ ctap_update_pin_if_verified(uint8_t *pinEnc, int len, uint8_t *platform_pubkey, 
 		return CTAP2_ERR_PIN_AUTH_INVALID;
 	}
 
-//     decrypt new PIN with shared secret
+	// decrypt new PIN with shared secret
 	crypto_aes256_init(shared_secret, NULL);
 
-	while ((len & 0xf) != 0) // round up to nearest  AES block size multiple
-	{
+	// round up to nearest AES block size multiple
+	while ((len & 0xf) != 0) {
 		len++;
 	}
 
 	crypto_aes256_decrypt(pinEnc, len);
 
-//      validate new PIN (length)
-
+	// validate new PIN (length)
 	ret = trailing_zeros(pinEnc, NEW_PIN_ENC_MIN_SIZE - 1);
 	ret = NEW_PIN_ENC_MIN_SIZE - ret;
 
@@ -1880,8 +1884,7 @@ ctap_update_pin_if_verified(uint8_t *pinEnc, int len, uint8_t *platform_pubkey, 
 		dump_hex1(TAG_CP, pinEnc, ret);
 	}
 
-//    validate device's state, decrypt and compare pinHashEnc (user provided current PIN hash) with stored PIN_CODE_HASH
-
+	// validate device's state, decrypt and compare pinHashEnc (user provided current PIN hash) with stored PIN_CODE_HASH
 	if (ctap_is_pin_set()) {
 		if (ctap_device_locked()) {
 			return CTAP2_ERR_PIN_BLOCKED;
@@ -1910,7 +1913,7 @@ ctap_update_pin_if_verified(uint8_t *pinEnc, int len, uint8_t *platform_pubkey, 
 		}
 	}
 
-//      set new PIN (update and store PIN_CODE_HASH)
+	// set new PIN (update and store PIN_CODE_HASH)
 	ctap_update_pin(pinEnc, ret);
 
 	return 0;
@@ -2029,8 +2032,13 @@ uint8_t ctap_client_pin(CborEncoder *encoder, uint8_t *request, int length) {
 				return CTAP2_ERR_MISSING_PARAMETER;
 			}
 
-			ret = ctap_update_pin_if_verified(CP.newPinEnc, CP.newPinEncSize, (uint8_t *) &CP.keyAgreement.pubkey,
-											  CP.pinAuth, NULL);
+			ret = ctap_update_pin_if_verified(
+				CP.newPinEnc,
+				CP.newPinEncSize,
+				(uint8_t *) &CP.keyAgreement.pubkey,
+				CP.pinAuth,
+				NULL
+			);
 			check_retr(ret);
 			break;
 		case CP_cmdChangePin:
