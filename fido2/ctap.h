@@ -355,9 +355,22 @@ struct _getAssertionState {
 	uint8_t customCredIdSize;
 };
 
+typedef struct ctap_state {
+
+	CTAP_RESPONSE ctap_resp;
+
+} ctap_state_t;
+
 void ctap_response_init(CTAP_RESPONSE *resp);
 
-uint8_t ctap_request(uint8_t *pkt_raw, int length, CTAP_RESPONSE *resp);
+uint8_t ctap_request(
+	ctap_state_t *state,
+	uint16_t request_data_length,
+	uint8_t *request_data,
+	uint8_t *response_status_code,
+	uint16_t *response_data_length,
+	uint8_t **response_data
+);
 
 /**
  * Encodes R,S signature to 2 der sequence of two integers. Sigder must be at least 72 bytes.
@@ -368,7 +381,7 @@ uint8_t ctap_request(uint8_t *pkt_raw, int length, CTAP_RESPONSE *resp);
 int ctap_encode_der_sig(uint8_t const *const in_sigbuf, uint8_t *const out_sigder);
 
 // Run ctap related power-up procedures (init pinToken, generate shared secret)
-void ctap_init();
+void ctap_init(ctap_state_t *state);
 
 // Resets state between different accesses of different applications
 void ctap_reset_state();

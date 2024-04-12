@@ -183,8 +183,12 @@ noreturn void app_run(app_state_t *app) {
 
 	ensure_flash_initialized();
 
-	ctaphid_init(&app->ctaphid);
-	ctap_init();
+	ctap_init(&app->ctap);
+	ctaphid_init(
+		&app->ctaphid,
+		(ctaphid_cbor_handler_t) ctap_request,
+		&app->ctap
+	);
 
 	if (app->blue_led) {
 		HAL_GPIO_WritePin(LED4_Blue_GPIO_Port, LED4_Blue_Pin, GPIO_PIN_RESET);

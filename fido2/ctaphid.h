@@ -129,6 +129,15 @@ typedef struct ctaphid_channel_buffer {
 	int offset;
 } ctaphid_channel_buffer_t;
 
+typedef void (*ctaphid_cbor_handler_t)(
+	void *context,
+	uint16_t request_data_length,
+	uint8_t *request_data,
+	uint8_t *response_status_code,
+	uint16_t *response_data_length,
+	uint8_t **response_data
+);
+
 typedef struct ctaphid_state {
 
 	// Channel IDs (CIDs) are generated in ascending order starting with 1, 2, 3, ... (0xFFFFFFFF - 1).
@@ -144,11 +153,12 @@ typedef struct ctaphid_state {
 
 	ctaphid_write_buffer_t wb;
 
-	CTAP_RESPONSE ctap_resp;
+	ctaphid_cbor_handler_t ctap_handler;
+	void *ctap_handler_context;
 
 } ctaphid_state_t;
 
-void ctaphid_init(ctaphid_state_t *state);
+void ctaphid_init(ctaphid_state_t *state, ctaphid_cbor_handler_t ctap_handler, void *ctap_handler_context);
 
 uint8_t ctaphid_handle_packet(ctaphid_state_t *state, ctaphid_packet_t *pkt);
 

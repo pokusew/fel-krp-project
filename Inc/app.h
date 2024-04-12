@@ -12,6 +12,7 @@
 
 typedef struct app_state {
 	bool blue_led;
+	ctap_state_t ctap;
 	ctaphid_state_t ctaphid;
 } app_state_t;
 

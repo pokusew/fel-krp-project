@@ -2108,21 +2108,30 @@ void ctap_response_init(CTAP_RESPONSE *resp) {
 }
 
 
-uint8_t ctap_request(uint8_t *pkt_raw, int length, CTAP_RESPONSE *resp) {
+uint8_t ctap_request(
+	ctap_state_t *state,
+	uint16_t request_data_length,
+	uint8_t *request_data,
+	uint8_t *response_status_code,
+	uint16_t *response_data_length,
+	uint8_t **response_data
+) {
+	ctap_response_init(&state->ctap_resp);
+	CTAP_RESPONSE *resp = &state->ctap_resp;
 	CborEncoder encoder;
 	memset(&encoder, 0, sizeof(CborEncoder));
 	uint8_t status = 0;
-	uint8_t cmd = *pkt_raw;
-	pkt_raw++;
-	length--;
+	uint8_t cmd = *request_data;
+	request_data++;
+	request_data_length--;
 
 	uint8_t *buf = resp->data;
 
 	cbor_encoder_init(&encoder, buf, resp->data_size, 0);
 
-	printf1(TAG_CTAP, "cbor input structure: %d bytes" nl, length);
+	printf1(TAG_CTAP, "cbor input structure: %d bytes" nl, request_data_length);
 	printf1(TAG_DUMP, "cbor req: ");
-	dump_hex1(TAG_DUMP, pkt_raw, length);
+	dump_hex1(TAG_DUMP, request_data, request_data_length);
 
 	switch (cmd) {
 		case CTAP_MAKE_CREDENTIAL:
@@ -2142,9 +2151,9 @@ uint8_t ctap_request(uint8_t *pkt_raw, int length, CTAP_RESPONSE *resp) {
 
 	switch (cmd) {
 		case CTAP_MAKE_CREDENTIAL:
-			printf1(TAG_CTAP, magenta("CTAP_MAKE_CREDENTIAL") nl);
+			info_log(magenta("CTAP_MAKE_CREDENTIAL") nl);
 			timestamp();
-			status = ctap_make_credential(&encoder, pkt_raw, length);
+			status = ctap_make_credential(&encoder, request_data, request_data_length);
 			printf1(TAG_TIME, "make_credential time: %d ms" nl, timestamp());
 
 			resp->length = cbor_encoder_get_buffer_size(&encoder, buf);
@@ -2152,9 +2161,9 @@ uint8_t ctap_request(uint8_t *pkt_raw, int length, CTAP_RESPONSE *resp) {
 
 			break;
 		case CTAP_GET_ASSERTION:
-			printf1(TAG_CTAP, magenta("CTAP_GET_ASSERTION") nl);
+			info_log(magenta("CTAP_GET_ASSERTION") nl);
 			timestamp();
-			status = ctap_get_assertion(&encoder, pkt_raw, length);
+			status = ctap_get_assertion(&encoder, request_data, request_data_length);
 			printf1(TAG_TIME, "get_assertion time: %d ms" nl, timestamp());
 
 			resp->length = cbor_encoder_get_buffer_size(&encoder, buf);
@@ -2163,10 +2172,10 @@ uint8_t ctap_request(uint8_t *pkt_raw, int length, CTAP_RESPONSE *resp) {
 			dump_hex1(TAG_DUMP, buf, resp->length);
 			break;
 		case CTAP_CANCEL:
-			printf1(TAG_CTAP, magenta("CTAP_CANCEL") nl);
+			info_log(magenta("CTAP_CANCEL") nl);
 			break;
 		case CTAP_GET_INFO:
-			printf1(TAG_CTAP, magenta("CTAP_GET_INFO") nl);
+			info_log(magenta("CTAP_GET_INFO") nl);
 			status = ctap_get_info(&encoder);
 
 			resp->length = cbor_encoder_get_buffer_size(&encoder, buf);
@@ -2175,21 +2184,21 @@ uint8_t ctap_request(uint8_t *pkt_raw, int length, CTAP_RESPONSE *resp) {
 
 			break;
 		case CTAP_CLIENT_PIN:
-			printf1(TAG_CTAP, magenta("CTAP_CLIENT_PIN") nl);
-			status = ctap_client_pin(&encoder, pkt_raw, length);
+			info_log(magenta("CTAP_CLIENT_PIN") nl);
+			status = ctap_client_pin(&encoder, request_data, request_data_length);
 
 			resp->length = cbor_encoder_get_buffer_size(&encoder, buf);
 			dump_hex1(TAG_DUMP, buf, resp->length);
 			break;
 		case CTAP_RESET:
-			printf1(TAG_CTAP, magenta("CTAP_RESET") nl);
+			info_log(magenta("CTAP_RESET") nl);
 			status = ctap2_user_presence_test();
 			if (status == CTAP1_ERR_SUCCESS) {
 				ctap_reset();
 			}
 			break;
 		case GET_NEXT_ASSERTION:
-			printf1(TAG_CTAP, magenta("CTAP_NEXT_ASSERTION") nl);
+			info_log(magenta("CTAP_NEXT_ASSERTION") nl);
 			if (getAssertionState.lastcmd == CTAP_GET_ASSERTION) {
 				status = ctap_get_next_assertion(&encoder);
 				resp->length = cbor_encoder_get_buffer_size(&encoder, buf);
@@ -2204,8 +2213,8 @@ uint8_t ctap_request(uint8_t *pkt_raw, int length, CTAP_RESPONSE *resp) {
 			break;
 		case CTAP_CBOR_CRED_MGMT:
 		case CTAP_CBOR_CRED_MGMT_PRE:
-			printf1(TAG_CTAP, magenta("CTAP_CBOR_CRED_MGMT_PRE") nl);
-			status = ctap_cred_mgmt(&encoder, pkt_raw, length);
+			info_log(magenta("CTAP_CBOR_CRED_MGMT_PRE") nl);
+			status = ctap_cred_mgmt(&encoder, request_data, request_data_length);
 
 			resp->length = cbor_encoder_get_buffer_size(&encoder, buf);
 
@@ -2213,10 +2222,11 @@ uint8_t ctap_request(uint8_t *pkt_raw, int length, CTAP_RESPONSE *resp) {
 			break;
 		default:
 			status = CTAP1_ERR_INVALID_COMMAND;
-			printf2(TAG_ERR, "error, invalid cmd: 0x%02x" nl, cmd);
+			error_log(red("error: invalid cmd: 0x%02" wPRIx8) nl, cmd);
 	}
 
 	done:
+
 	device_set_status(CTAPHID_STATUS_IDLE);
 	getAssertionState.lastcmd = cmd;
 
@@ -2224,9 +2234,19 @@ uint8_t ctap_request(uint8_t *pkt_raw, int length, CTAP_RESPONSE *resp) {
 		resp->length = 0;
 	}
 
-	printf1(TAG_CTAP, "cbor output structure: %d bytes.  Return 0x%02x" nl, resp->length, status);
+	debug_log(
+		"cbor output structure length %" PRIu16 " bytes, status code 0x%02" wPRIx8 nl,
+		resp->length,
+		status
+	);
 
+	*response_status_code = status;
+	*response_data = resp->data;
+	*response_data_length = resp->length;
+
+	// TODO: return value is no longer used (status code is returned via the response_status_code reference)
 	return status;
+
 }
 
 
@@ -2273,7 +2293,7 @@ void ctap_load_external_keys(uint8_t *keybytes) {
 
 #include "version.h"
 
-void ctap_init() {
+void ctap_init(ctap_state_t *state) {
 
 	debug_log("ctap_init" nl);
 

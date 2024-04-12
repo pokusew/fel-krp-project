@@ -4,7 +4,6 @@
 
 #include "device.h"
 #include "ctaphid.h"
-#include "ctap.h"
 #include "util.h"
 #include "log.h"
 #include "utils.h"
@@ -17,7 +16,11 @@ static void buffer_reset(ctaphid_channel_buffer_t *buffer);
 
 static void ctaphid_write(ctaphid_write_buffer_t *wb, const uint8_t *data, size_t len);
 
-void ctaphid_init(ctaphid_state_t *state) {
+void ctaphid_init(
+	ctaphid_state_t *state,
+	ctaphid_cbor_handler_t ctap_handler,
+	void *ctap_handler_context
+) {
 
 	debug_log("ctaphid_init" nl);
 
@@ -35,6 +38,9 @@ void ctaphid_init(ctaphid_state_t *state) {
 	}
 
 	buffer_reset(&state->buffer);
+
+	state->ctap_handler = ctap_handler;
+	state->ctap_handler_context = ctap_handler_context;
 
 }
 
@@ -485,18 +491,22 @@ uint8_t ctaphid_handle_packet(ctaphid_state_t *state, ctaphid_packet_t *pkt) {
 				return 0;
 			}
 
-			// TODO: decouple the CTAP layer by means of a callback, move state->ctap_resp to the CTAP layer
-			ctap_response_init(&state->ctap_resp);
-			response_status_code = ctap_request(
-				state->buffer.payload,
+			uint16_t response_data_length;
+			uint8_t *response_data;
+
+			state->ctap_handler(
+				state->ctap_handler_context,
 				state->buffer.bcnt,
-				&state->ctap_resp
+				state->buffer.payload,
+				&response_status_code,
+				&response_data_length,
+				&response_data
 			);
 
-			state->wb.bcnt = (state->ctap_resp.length + 1);
+			state->wb.bcnt = response_data_length + 1;
 
 			ctaphid_write(&state->wb, &response_status_code, 1);
-			ctaphid_write(&state->wb, state->ctap_resp.data, state->ctap_resp.length);
+			ctaphid_write(&state->wb, response_data, response_data_length);
 			ctaphid_write(&state->wb, NULL, 0);
 			info_log(cyan("CBOR response generated in %" PRId32 " ms") nl, timestamp_diff(handling_start));
 
