@@ -3,6 +3,8 @@
 
 #include "storage.h"
 
+typedef uint32_t millis_t;
+
 /**
  * Return a millisecond timestamp.
  * Does not need to be synchronized to anything.

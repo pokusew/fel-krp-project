@@ -88,6 +88,7 @@ file(GLOB_RECURSE SOURCES "Startup/*.*" "Src/*.*" "Middlewares/*.*" "Drivers/*.*
 		fido2/util.c
 		fido2/log.c
 		fido2/ctaphid.c
+		fido2/linked_list.c
 		fido2/ctap.c
 		fido2/ctap_parse.c
 		fido2/crypto.c

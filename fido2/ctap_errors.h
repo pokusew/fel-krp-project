@@ -1,4 +1,7 @@
+// 8.2. Status codes
 // https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#error-responses
+// also see the error codes in 11.2.9.1.6. CTAPHID_ERROR (0x3F)
+// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-hid-error
 #define CTAP1_ERR_SUCCESS                   0x00
 #define CTAP2_OK                            CTAP1_ERR_SUCCESS
 #define CTAP1_ERR_INVALID_COMMAND           0x01

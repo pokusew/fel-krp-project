@@ -8,9 +8,11 @@
 #include <stdnoreturn.h>
 #include <stdbool.h>
 #include "main.h"
+#include "ctaphid.h"
 
 typedef struct app_state {
 	bool blue_led;
+	ctaphid_state_t ctaphid;
 } app_state_t;
 
 extern app_state_t *main_app;

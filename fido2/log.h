@@ -60,6 +60,8 @@ void set_logging_mask(uint32_t mask);
 
 uint32_t timestamp();
 
+uint32_t timestamp_diff(uint32_t start);
+
 #else
 
 #define set_logging_mask(mask)

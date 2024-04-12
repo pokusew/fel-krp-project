@@ -81,7 +81,8 @@ __attribute__((weak)) void device_reboot() {
 __attribute__((weak)) void device_set_status(uint32_t status) {
 	static uint32_t __device_status = 0;
 	if (status != CTAPHID_STATUS_IDLE && __device_status != status) {
-		ctaphid_update_status(status);
+		// TODO: implement device_set_status, ctaphid_update_status
+		// ctaphid_update_status(status);
 	}
 	__device_status = status;
 }

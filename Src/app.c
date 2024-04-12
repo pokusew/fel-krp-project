@@ -183,7 +183,7 @@ noreturn void app_run(app_state_t *app) {
 
 	ensure_flash_initialized();
 
-	ctaphid_init();
+	ctaphid_init(&app->ctaphid);
 	ctap_init();
 
 	if (app->blue_led) {
@@ -243,10 +243,12 @@ noreturn void app_run(app_state_t *app) {
 
 		if (usbhid_recv(hidmsg) > 0) {
 
+			debug_log(nl nl);
+
 			// TODO: remove after debugging
 			dump_hex(hidmsg, 64);
 
-			ctaphid_handle_packet(hidmsg);
+			ctaphid_handle_packet(&app->ctaphid, (ctaphid_packet_t *) hidmsg);
 
 		}
 
