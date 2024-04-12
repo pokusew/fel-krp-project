@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-void dump_hex(uint8_t *buf, int size);
+void dump_hex(const uint8_t *buf, int size);
 
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))

@@ -79,7 +79,7 @@ void LOG(uint32_t tag, const char *filename, int num, const char *fmt, ...) {
 	va_end(args);
 }
 
-void LOG_HEX(uint32_t tag, uint8_t *data, int length) {
+void LOG_HEX(uint32_t tag, const uint8_t *data, int length) {
 	// if (((tag & 0x7fffffff) & LOGMASK) == 0) {
 	// 	return;
 	// }
