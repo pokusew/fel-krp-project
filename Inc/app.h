@@ -8,6 +8,7 @@
 #include <stdnoreturn.h>
 #include <stdbool.h>
 #include "main.h"
+#include "ctap.h"
 #include "ctaphid.h"
 
 typedef struct app_state {

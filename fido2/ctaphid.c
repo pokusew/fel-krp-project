@@ -1,12 +1,11 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-#include "device.h"
 #include "ctaphid.h"
 #include "util.h"
 #include "log.h"
 #include "utils.h"
+#include "device.h"
 
 #include APP_CONFIG
 

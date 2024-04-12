@@ -1,7 +1,10 @@
 #ifndef FIDO2_CTAPHID_H
 #define FIDO2_CTAPHID_H
 
-#include "device.h"
+#include <stdint.h>
+#include <assert.h>
+
+#include "time.h"
 #include "linked_list.h"
 #include "ctap_errors.h"
 

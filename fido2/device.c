@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "device.h"
 #include "ctaphid.h"
 #include "log.h"
 #include APP_CONFIG

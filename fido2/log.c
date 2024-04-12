@@ -95,9 +95,4 @@ uint32_t timestamp() {
 	return diff;
 }
 
-uint32_t timestamp_diff(uint32_t start) {
-	uint32_t now = millis();
-	return now - start;
-}
-
 #endif
