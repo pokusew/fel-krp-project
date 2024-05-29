@@ -1,0 +1,89 @@
+#
+# GitHub Actions Workflow
+#   reference: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+#
+
+name: "Build and Test"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    name: "Build and Test"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # https://github.com/actions/runner-images?tab=readme-ov-file#available-images
+        os: [ macos-12 ]
+        buildtype: [ debug ]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        # https://github.com/actions/checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      # Python currently not needed
+      # - name: Setup Python
+      #   # https://github.com/actions/setup-python
+      #   uses: actions/setup-python@v5
+      #   with:
+      #     python-version: '3.x'
+
+      # Rust and CMake are already installed in the macos-12 runner
+      # see https://github.com/actions/runner-images/blob/main/images/macos/macos-12-Readme.md
+
+      - name: Upgrade Bash on macOS
+        if: startsWith(matrix.os, 'macos')
+        run: brew install bash
+
+      - name: Install Arm GNU Toolchain using brew
+        if: startsWith(matrix.os, 'macos')
+        run: brew install --cask gcc-arm-embedded
+
+      - name: Add Rust thumbv7em-none-eabihf target
+        run: rustup target add thumbv7em-none-eabihf
+
+      - name: Build salty C API
+        working-directory: crypto/salty/c-api
+        run: make build
+
+      - name: Configue project
+        id: configure
+        run: cmake -DCMAKE_BUILD_TYPE=${{ matrix.buildtype }} -B build
+
+      - name: Build
+        id: build
+        run: cmake --build build
+
+      - name: Create temp dir for test outputs
+        id: test-dir
+        run: mkdir -p temp
+
+      - name: Upload test outputs
+        if: always()
+        # https://github.com/actions/upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-outputs-${{ matrix.os }}-${{ matrix.buildtype }}
+          path: |
+            temp/
+
+      - name: Upload build outputs
+        if: always()
+        # https://github.com/actions/upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-outputs-${{ matrix.os }}-${{ matrix.buildtype }}
+          path: |
+            build/fel-krp-project.bin
+            build/fel-krp-project.hex
+            build/fel-krp-project.elf
