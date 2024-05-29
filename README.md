@@ -18,7 +18,12 @@ _Note: This project was created a semestral project in the CTU FEE (ČVUT FEL) B
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 - [Development](#development)
+  - [Requirements](#requirements)
+  - [Cloning the Project](#cloning-the-project)
+  - [Building the External Dependencies](#building-the-external-dependencies)
+    - [salty](#salty)
   - [Build from the Command Line](#build-from-the-command-line)
+  - [Using IDE](#using-ide)
   - [SVD file for the MCU](#svd-file-for-the-mcu)
 - [STM32CubeF4](#stm32cubef4)
 - [STM32CubeMX](#stm32cubemx)
@@ -29,32 +34,89 @@ _Note: This project was created a semestral project in the CTU FEE (ČVUT FEL) B
 
 ## Development
 
-**Use JetBrains [CLion] (free for non-commercial use for students) for development.**
-The project is already imported and fully configured, use _File > Open..._ to just open it.
 
-**But before** opening, you'll probably need to install a few things in your system:
-1. [Arm GNU Toolchain]
-	* Download _AArch32 bare-metal target (arm-none-eabi)_ from the Arm website [here][Arm GNU Toolchain].
-	* On macOS, `brew install --cask gcc-arm-embedded` can be used.
-2. [OpenOCD]
-	* Download prebuilt binary from [xPack OpenOCD Releases].
-	* Note, that the packages in apt repository in Ubuntu are outdated.
-	* On macOS, `brew install open-ocd` can be used.
+### Requirements
 
-If you have all the tools installed, you should be able to open, build and run the project from CLion.
+- [CMake] _(tested with version 3.27.8 and 3.29.3)_
+  * Note: CLion has a bundled CMake so there is no need to install it.
 
-You can read more in this [CLion's Embedded development with STM32CubeMX projects][CLion-Embedded-Development]
-guide.
+- [Arm GNU Toolchain] _(tested with Version 13.2.Rel1)_
+  * Download _AArch32 bare-metal target (arm-none-eabi)_ from the Arm website [here][Arm GNU Toolchain].
+  * On macOS, `brew install --cask gcc-arm-embedded` can be used.
+
+- [OpenOCD] _(tested with version 0.12.0)_
+  * Download prebuilt binary from [xPack OpenOCD Releases].
+  * Note, that the packages in apt repository in Ubuntu are outdated.
+  * On macOS, `brew install open-ocd` can be used.
+
+
+### Cloning the Project
+
+The project uses [Git submodules] to manage some of the external dependencies (see [.gitmodules](./.gitmodules)).
+
+There are two options how to get the contents of the submodules:
+
+**When cloning the project**, you can use:
+```bash
+git clone --recurse-submodules https://github.com/pokusew/fel-krp-project.git
+```
+
+**If you already cloned the project** and forgot `--recurse-submodules`, you can use:
+```bash
+git submodule update --init --recursive
+```
+
+
+### Building the External Dependencies
+
+Currently, some of the external dependencies (specifically [salty](#salty)) need to be built manually
+before we can build the project. In the future, we plan to integrate all dependencies
+into the main project build process.
+
+
+#### salty
+
+salty is an implementation of Ed25519 signatures for microcontrollers.
+It is written in [Rust], but it also provides a C API.
+
+In order to build it, you need a working [Rust] installation with the `thumbv7em-none-eabihf` target:
+```bash
+rustup target add thumbv7em-none-eabihf
+```
+
+Then from the project root run the following commands:
+```bash
+cd crypto/salty/c-api
+cargo clean
+make build
+```
 
 
 ### Build from the Command Line
 
-Also, it is possible to build, flash and start the whole project from the command line.
+It is possible to build, flash and start the whole project from the command line.
+
 Building is done via `cmake` since this project is a standard [CMake] project (see [CMakeLists.txt](./CMakeLists.txt)).
+```bash
+cmake -DCMAKE_BUILD_TYPE=debug -B cmake-build-debug-arm
+cmake --build cmake-build-debug-arm
+```
+
 Flashing can be done for example using `openocd` like this (run from the project root):
 ```bash
 openocd -s /usr/local/share/openocd/scripts -f stm3240g_eval_stlink.cfg -c "tcl_port disabled" -c "gdb_port disabled" -c "tcl_port disabled" -c "program \"cmake-build-debug/fel-krp-project.elf\"" -c reset -c shutdown
 ```
+
+
+### Using IDE
+
+**Use JetBrains [CLion] (free for non-commercial use for students) for development.**
+The project is already imported and fully configured, use _File > Open..._ to just open it.
+
+If you have all the [tools](#requirements) installed, you should be able to open, build and run the project from CLion.
+
+You can read more in this [CLion's Embedded development with STM32CubeMX projects][CLion-Embedded-Development]
+guide.
 
 
 ### SVD file for the MCU
@@ -138,3 +200,7 @@ some of our custom changes.
 [xPack OpenOCD Releases]: https://github.com/xpack-dev-tools/openocd-xpack/releases
 
 [CMake]: https://cmake.org/
+
+[Git submodules]: https://git-scm.com/docs/gitsubmodules
+
+[Rust]: https://www.rust-lang.org/
