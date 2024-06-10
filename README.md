@@ -8,7 +8,8 @@ Written in **C**. Uses [STM32CubeF4](#stm32cubef4).
 
 See the full 👉 **[Project Description].**
 
-_Note: This project was created a semestral project in the CTU FEE (ČVUT FEL) B4M38KRP (Computer Interfaces) course._
+_Note: This project was originally created as a semestral project in the B4M38KRP (Computer Interfaces) course
+and later extended as a part of my pre-thesis project (B4MSVP) at CTU FEE (ČVUT FEL)._
 
 
 ## Content
