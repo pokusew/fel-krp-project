@@ -174,7 +174,7 @@ some of our custom changes.
 
 [FIDO2]: https://fidoalliance.org/specifications/
 
-[Project Description]: https://docs.google.com/document/d/1BrdMIrTAtqBxYBKOv0oa9b2yFZZl3MrpsmLCvSa47Ak/edit
+[Project Description]: https://github.com/pokusew/fel-krp-project/raw/main/docs/FIDO2_USB_Security_Key_SVP_Final_Report.pdf
 
 [STM3240G-EVAL]: https://www.st.com/en/evaluation-tools/stm3240g-eval.html
 
