@@ -99,7 +99,7 @@ It is possible to build, flash and start the whole project from the command line
 
 Building is done via `cmake` since this project is a standard [CMake] project (see [CMakeLists.txt](./CMakeLists.txt)).
 ```bash
-cmake -DCMAKE_BUILD_TYPE=debug -B cmake-build-debug-arm
+cmake -DEMBEDDED_BUILD=ON -DCMAKE_BUILD_TYPE=Debug -B cmake-build-debug-arm
 cmake --build cmake-build-debug-arm
 ```
 

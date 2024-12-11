@@ -13,14 +13,14 @@ on:
 
 jobs:
   build:
-    name: "Build and Test"
+    name: "Build (embedded)"
 
     strategy:
       fail-fast: false
       matrix:
         # https://github.com/actions/runner-images?tab=readme-ov-file#available-images
-        os: [ macos-12 ]
-        buildtype: [ debug ]
+        os: [ macos-latest ]
+        buildtype: [ Debug ]
 
     runs-on: ${{ matrix.os }}
 
@@ -58,24 +58,11 @@ jobs:
 
       - name: Configue project
         id: configure
-        run: cmake -DCMAKE_BUILD_TYPE=${{ matrix.buildtype }} -B build
+        run: cmake -DEMBEDDED_BUILD=ON -DCMAKE_BUILD_TYPE=${{ matrix.buildtype }} -B build
 
       - name: Build
         id: build
         run: cmake --build build
-
-      - name: Create temp dir for test outputs
-        id: test-dir
-        run: mkdir -p temp
-
-      - name: Upload test outputs
-        if: always()
-        # https://github.com/actions/upload-artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-outputs-${{ matrix.os }}-${{ matrix.buildtype }}
-          path: |
-            temp/
 
       - name: Upload build outputs
         if: always()
@@ -87,3 +74,52 @@ jobs:
             build/fel-krp-project.bin
             build/fel-krp-project.hex
             build/fel-krp-project.elf
+
+  test:
+    name: "Unit tests on host"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # https://github.com/actions/runner-images?tab=readme-ov-file#available-images
+        os: [ macos-latest ]
+        buildtype: [ Debug ]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        # https://github.com/actions/checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Upgrade Bash on macOS
+        if: startsWith(matrix.os, 'macos')
+        run: brew install bash
+
+      - name: Configue project
+        id: configure
+        run: cmake -DEMBEDDED_BUILD=OFF -DCMAKE_BUILD_TYPE=${{ matrix.buildtype }} -B build
+
+      - name: Build
+        id: build
+        run: cmake --build build
+
+      - name: Create log dir for test outputs
+        id: test-dir
+        run: mkdir -p log
+
+      - name: Test
+        id: test
+        run: ctest --extra-verbose --test-dir build |& tee log/ctest-output.txt
+
+      - name: Upload test outputs
+        if: always()
+        # https://github.com/actions/upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-outputs-${{ matrix.os }}-${{ matrix.buildtype }}
+          path: |
+            log/
+            build/

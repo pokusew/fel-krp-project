@@ -35,6 +35,8 @@ Desktop.ini
 # CMake build outputs
 /cmake-build-*
 /build/
+/build-*/
+/log/
 
 # https://github.com/solokeys/solo1
 /solo1
