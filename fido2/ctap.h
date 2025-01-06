@@ -46,8 +46,11 @@
 #define CM_pinProtocol            0x03
 #define CM_pinAuth                0x04
 
+// 6.5.5. authenticatorClientPIN (0x06) Command Definition
+// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authnrClientPin-cmd-dfn
 #define CP_pinProtocol            0x01
 #define CP_subCommand             0x02
+// The authenticatorClientPIN subCommands are:
 #define CP_cmdGetRetries      0x01
 #define CP_cmdGetKeyAgreement 0x02
 #define CP_cmdSetPin          0x03
@@ -59,6 +62,9 @@
 #define CP_pinHashEnc             0x06
 #define CP_getKeyAgreement        0x07
 #define CP_getRetries             0x08
+
+// On success, authenticator returns the following structure in its response:
+
 
 #define EXT_HMAC_SECRET_COSE_KEY    0x01
 #define EXT_HMAC_SECRET_SALT_ENC    0x02

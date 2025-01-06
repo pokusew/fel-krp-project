@@ -126,6 +126,14 @@ if (EMBEDDED_BUILD)
 			tinycbor/src/cborencoder.c
 	)
 
+	# TINYCBOR_HEADERS = src/cbor.h src/cborjson.h src/tinycbor-version.h
+	#TINYCBOR_FREESTANDING_SOURCES = \
+	#	src/cborerrorstrings.c \
+	#	src/cborencoder.c \
+	#	src/cborencoder_close_container_checked.c \
+	#	src/cborparser.c \
+	#	src/cborpretty.c \
+
 	set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/STM32F407IGHX_FLASH.ld)
 
 	add_link_options(-Wl,-gc-sections,--print-memory-usage,-Map=${PROJECT_BINARY_DIR}/${PROJECT_NAME}.map)

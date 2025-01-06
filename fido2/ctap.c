@@ -13,7 +13,7 @@
 #include "util.h"
 #include "log.h"
 #include "device.h"
-#include APP_CONFIG
+// #include APP_CONFIG
 
 #include "utils.h"
 
