@@ -49,7 +49,7 @@
 #define CTAP2_ERR_UP_REQUIRED               0x3B
 #define CTAP2_ERR_UV_BLOCKED                0x3C
 #define CTAP2_ERR_INTEGRITY_FAILURE         0x3D
-#define CTAP2_ERR_INVALID_SUBCOMMAND        0x3D
+#define CTAP2_ERR_INVALID_SUBCOMMAND        0x3E
 #define CTAP2_ERR_UV_INVALID                0x3F
 #define CTAP2_ERR_UNAUTHORIZED_PERMISSION   0x40
 #define CTAP1_ERR_OTHER                     0x7F
