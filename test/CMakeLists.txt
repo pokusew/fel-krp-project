@@ -47,15 +47,15 @@ target_include_directories(
 		../tinycbor/src
 )
 
-add_library(
-		ctap
-		STATIC
-		../fido2/ctap.c
-)
-target_link_libraries(
-		ctap
-		tinycbor
-)
+# add_library(
+# 		ctap
+# 		STATIC
+# 		../fido2/ctap.c
+# )
+# target_link_libraries(
+# 		ctap
+# 		tinycbor
+# )
 
 add_library(
 		core_ctap_parse
@@ -65,7 +65,7 @@ add_library(
 target_include_directories(
 		core_ctap_parse
 		INTERFACE
-		../core/ctap_parse.h
+		../core
 )
 target_include_directories(
 		core_ctap_parse
@@ -75,6 +75,11 @@ target_include_directories(
 target_link_libraries(
 		core_ctap_parse
 		tinycbor
+)
+target_compile_definitions(
+		core_ctap_parse
+		PRIVATE
+		LIONKEY_LOG=1
 )
 
 add_executable(
@@ -107,6 +112,16 @@ add_executable(
 )
 target_link_libraries(
 		ctap_parse
+		GTest::gtest_main
+		core_ctap_parse
+)
+
+add_executable(
+		test_ctap_parse_client_pin
+		src/ctap_parse_client_pin_test.cpp
+)
+target_link_libraries(
+		test_ctap_parse_client_pin
 		GTest::gtest_main
 		core_ctap_parse
 )

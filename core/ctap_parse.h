@@ -19,9 +19,8 @@
 
 #if LIONKEY_LOG & 0x1
 
-void lionkey_cbor_error_log(CborError err, int line, const char *filename) {
-	printf("CborError: 0x%x at %s:%d: %s" nl, err, filename, line, cbor_error_string(err));
-}
+#define lionkey_cbor_error_log(err, line, filename) \
+	printf("CborError: 0x%x (%d) (%s) at %s:%d" nl, err, err, cbor_error_string(err), filename, line)
 
 #else
 #define lionkey_cbor_error_log(err, line, filename) ((void) 0)
