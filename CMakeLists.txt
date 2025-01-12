@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.26)
 
 option(EMBEDDED_BUILD "Build the embedded targets" ON)
+option(SANITIZERS "Enable sanitizers" OFF)
 
 if (EMBEDDED_BUILD)
 	# Note: A more standard way of specifying the variables for cross-compilation
@@ -17,6 +18,72 @@ if (EMBEDDED_BUILD)
 	set(SIZE arm-none-eabi-size)
 	set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 endif ()
+
+if ((NOT EMBEDDED_BUILD) AND SANITIZERS)
+	message("Enabling sanitizers ...")
+	# # https://clang.llvm.org/docs/AddressSanitizer.html
+	## https://clang.llvm.org/docs/MemorySanitizer.html
+	## https://clang.llvm.org/docs/LeakSanitizer.html
+	## https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html
+	## -fsanitize=address -fsanitize=undefined
+	## ASAN_OPTIONS=detect_leaks=1
+	#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pedantic -Wall -std=c99 -O0 -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -g")
+	## set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pedantic -Wall -std=c99 -O3")
+	#set(CMAKE_CXX_STANDARD 11)
+	## set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -O2 -pipe -DONLINE_JUDGE")
+	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -Wall -O0 -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -g")
+	## set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -pthread") # -march=native
+
+	message("current CMAKE_C_FLAGS = ${CMAKE_C_FLAGS}")
+	message("current CMAKE_CXX_FLAGS = ${CMAKE_CXX_FLAGS}")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined")
+	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address,undefined")
+	# set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} -fsanitize=address,undefined")
+	set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=address,undefined")
+
+
+	# if buildtype == 'debug' and get_option('debug_with_sanitizers')
+	#  # Sanitizers with Meson:
+	#  #   Sanitizers can be enabled using the Meson `b_sanitize` option
+	#  #   (https://mesonbuild.com/Builtin-options.html#base-options),
+	#  #   BUT it cannot be done conditionally based on the `buildtype` option values
+	#  #   (https://stackoverflow.com/questions/59422411/meson-conditional-address-sanitization).
+	#  #   So we have to do it manually (and we have to ignore
+	#  #   the "Consider using the built-in option for ..." warning).
+	#  # Sanitizers:
+	#  #   Sanitizers are typically mutually exclusive, see https://stackoverflow.com/a/50367940:
+	#  #     ...you can combine only Asan+UBsan+Lsan, via -fsanitize=address,undefined,leak
+	#  #   -fsanitize: https://clang.llvm.org/docs/UsersManual.html#cmdoption-f-no-sanitize
+	#  #     note: when using the -fsanitize directly,
+	#  #           it must also be provided when linking (i.e., both with c_args and c_link_args)
+	#  #   https://clang.llvm.org/docs/AddressSanitizer.html
+	#  #   https://clang.llvm.org/docs/MemorySanitizer.html
+	#  #   https://clang.llvm.org/docs/LeakSanitizer.html
+	#  #   https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html
+	#  additional_debug_link_args = [
+	#    '-fsanitize=address,undefined', # leak not supported on macOS (TODO: add conditionally)
+	#  ]
+	#  additional_debug_args = additional_debug_link_args + [
+	#    # to get nicer stack traces in error messages add -fno-omit-frame-pointer
+	#    # (these flags are needed only during compilation, not linking)
+	#    '-fno-omit-frame-pointer',
+	#    '-mno-omit-leaf-frame-pointer',
+	#  ]
+	#  add_project_arguments(additional_debug_args, language : ['cpp', 'c'])
+	#  add_project_link_arguments(additional_debug_link_args, language : ['cpp', 'c'])
+	#endif
+
+	# https://stackoverflow.com/questions/44320465/whats-the-proper-way-to-enable-addresssanitizer-in-cmake-that-works-in-xcode
+	# CMAKE_EXE_LINKER_FLAGS
+	# CMAKE_EXE_LINKER_FLAGS_DEBUG
+	# CMAKE_SHARED_LINKER_FLAGS
+	# CMAKE_SHARED_LINKER_FLAGS_DEBUG
+	# https://github.com/alandefreitas/moderncpp/blob/master/cmake/functions/sanitizers.cmake
+	# https://alandefreitas.github.io/moderncpp/cmake-functions/sanitizers/
+endif ()
+
 
 # project settings
 project(fel-krp-project C CXX ASM)
