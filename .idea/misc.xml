@@ -7,6 +7,7 @@
   <component name="CidrRootsConfiguration">
     <excludeRoots>
       <file path="$PROJECT_DIR$/build-ci" />
+      <file path="$PROJECT_DIR$/cmake-build-test" />
     </excludeRoots>
   </component>
 </project>
