@@ -129,3 +129,4 @@ target_link_libraries(
 # enable CTest (CMake's test runner) to discover the tests
 include(GoogleTest)
 gtest_discover_tests(hello_test)
+gtest_discover_tests(test_ctap_parse_client_pin)
