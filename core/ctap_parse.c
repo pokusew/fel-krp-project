@@ -1,7 +1,7 @@
 #include "ctap_parse.h"
 #include <cbor.h>
 
-uint8_t parse_fixed_byte_string(const CborValue *value, uint8_t *buffer, size_t expected_length) {
+uint8_t parse_fixed_byte_string(const CborValue *value, uint8_t *buffer, size_t expected_length, CborValue *next) {
 
 	CborError err;
 
@@ -13,7 +13,7 @@ uint8_t parse_fixed_byte_string(const CborValue *value, uint8_t *buffer, size_t 
 	size_t length = expected_length;
 	// If the byte string does not fit into the buffer of the given length
 	// the cbor_value_copy_byte_string returns an error and does NOT update the length value.
-	cbor_decoding_check(cbor_value_copy_byte_string(value, buffer, &length, NULL));
+	cbor_decoding_check(cbor_value_copy_byte_string(value, buffer, &length, next));
 	// On success, the cbor_value_copy_byte_string updates the length value to the number
 	// of bytes copied to the buffer. From the described contract, it is clear that the following must hold:
 	// length <= expected_length
@@ -32,7 +32,8 @@ uint8_t parse_byte_string(
 	uint8_t *buffer,
 	size_t *length,
 	size_t min_length,
-	size_t max_length
+	size_t max_length,
+	CborValue *next
 ) {
 
 	assert(min_length <= max_length);
@@ -51,7 +52,7 @@ uint8_t parse_byte_string(
 	}
 
 	*length = actual_length;
-	cbor_decoding_check(cbor_value_copy_byte_string(value, buffer, length, NULL));
+	cbor_decoding_check(cbor_value_copy_byte_string(value, buffer, length, next));
 	assert(*length == actual_length);
 
 	return CTAP2_OK;
@@ -89,7 +90,7 @@ uint8_t parse_cose_key(CborValue *it, COSE_Key *cose) {
 		}
 		cbor_decoding_check(cbor_value_get_int_checked(&map, &key));
 		// advance to the corresponding value
-		cbor_decoding_check(cbor_value_advance(&map));
+		cbor_decoding_check(cbor_value_advance_fixed(&map));
 		// parse the value according to the key
 		switch (key) {
 			case COSE_KEY_LABEL_KTY:
@@ -98,9 +99,22 @@ uint8_t parse_cose_key(CborValue *it, COSE_Key *cose) {
 					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
 				}
 				cbor_decoding_check(cbor_value_get_int_checked(&map, &cose->kty));
+				cbor_decoding_check(cbor_value_advance_fixed(&map));
 				break;
 			case COSE_KEY_LABEL_ALG:
 				printf("COSE_KEY_LABEL_ALG" nl);
+				if (!cbor_value_is_integer(&map)) {
+					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+				}
+				int alg;
+				cbor_decoding_check(cbor_value_get_int_checked(&map, &alg));
+				// 6.5.6.
+				// getPublicKey()
+				// 3 (alg) = -25 (although this is not the algorithm actually used)
+				if (alg != -25) {
+					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+				}
+				cbor_decoding_check(cbor_value_advance_fixed(&map));
 				break;
 			case COSE_KEY_LABEL_CRV:
 				printf("COSE_KEY_LABEL_CRV" nl);
@@ -108,29 +122,30 @@ uint8_t parse_cose_key(CborValue *it, COSE_Key *cose) {
 					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
 				}
 				cbor_decoding_check(cbor_value_get_int_checked(&map, &cose->crv));
+				cbor_decoding_check(cbor_value_advance_fixed(&map));
 				break;
 			case COSE_KEY_LABEL_X:
 				printf("COSE_KEY_LABEL_X" nl);
-				if ((ret = parse_fixed_byte_string(&map, cose->pubkey.x, 32)) != CTAP2_OK) {
+				if ((ret = parse_fixed_byte_string(&map, cose->pubkey.x, 32, &map)) != CTAP2_OK) {
 					return ret;
 				}
-				pubkey_x_parsed = 1;
+				pubkey_x_parsed = true;
 				break;
 			case COSE_KEY_LABEL_Y:
 				printf("COSE_KEY_LABEL_Y" nl);
-				if ((ret = parse_fixed_byte_string(&map, cose->pubkey.y, 32)) != CTAP2_OK) {
+				if ((ret = parse_fixed_byte_string(&map, cose->pubkey.y, 32, &map)) != CTAP2_OK) {
 					return ret;
 				}
-				pubkey_y_parsed = 1;
+				pubkey_y_parsed = true;
 				break;
 			default:
 				printf("warning: unrecognized cose key option %d" nl, key);
+				cbor_decoding_check(cbor_value_advance(&map));
 		}
 
-		// advance to the next map key
-		cbor_decoding_check(cbor_value_advance(&map));
-
 	}
+
+	cbor_value_leave_container(it, &map);
 
 	// validate
 	if (pubkey_x_parsed == 0 || pubkey_y_parsed == 0 || cose->kty == 0 || cose->crv == 0) {
@@ -182,7 +197,7 @@ uint8_t ctap_parse_client_pin(const uint8_t *request, size_t length, CTAP_client
 		}
 		cbor_decoding_check(cbor_value_get_int_checked(&map, &key));
 		// advance to the corresponding value
-		cbor_decoding_check(cbor_value_advance(&map));
+		cbor_decoding_check(cbor_value_advance_fixed(&map));
 		// parse the value according to the key
 		switch (key) {
 			case CTAP_clientPIN_pinUvAuthProtocol:
@@ -191,6 +206,7 @@ uint8_t ctap_parse_client_pin(const uint8_t *request, size_t length, CTAP_client
 					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
 				}
 				cbor_decoding_check(cbor_value_get_int_checked(&map, &cp->pinUvAuthProtocol));
+				cbor_decoding_check(cbor_value_advance_fixed(&map));
 				break;
 			case CTAP_clientPIN_subCommand:
 				printf("CTAP_clientPIN_subCommand" nl);
@@ -198,6 +214,7 @@ uint8_t ctap_parse_client_pin(const uint8_t *request, size_t length, CTAP_client
 					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
 				}
 				cbor_decoding_check(cbor_value_get_int_checked(&map, &cp->subCommand));
+				cbor_decoding_check(cbor_value_advance_fixed(&map));
 				break;
 			case CTAP_clientPIN_keyAgreement:
 				printf("CTAP_clientPIN_keyAgreement" nl);
@@ -208,7 +225,7 @@ uint8_t ctap_parse_client_pin(const uint8_t *request, size_t length, CTAP_client
 				break;
 			case CTAP_clientPIN_pinUvAuthParam:
 				printf("CTAP_clientPIN_pinUvAuthParam" nl);
-				if ((ret = parse_fixed_byte_string(&map, cp->pinUvAuthParam, 16)) != CTAP2_OK) {
+				if ((ret = parse_fixed_byte_string(&map, cp->pinUvAuthParam, 16, &map)) != CTAP2_OK) {
 					return ret;
 				}
 				cp->pinUvAuthParamPresent = true;
@@ -221,24 +238,23 @@ uint8_t ctap_parse_client_pin(const uint8_t *request, size_t length, CTAP_client
 							cp->newPinEnc,
 							&cp->newPinEncSize,
 							NEW_PIN_ENC_MIN_SIZE,
-							NEW_PIN_ENC_MAX_SIZE
+							NEW_PIN_ENC_MAX_SIZE,
+							&map
 						)) != CTAP2_OK) {
 					return ret;
 				}
 				break;
 			case CTAP_clientPIN_pinHashEnc:
 				printf("CTAP_clientPIN_pinHashEnc" nl);
-				if ((ret = parse_fixed_byte_string(&map, cp->pinHashEnc, 16)) != CTAP2_OK) {
+				if ((ret = parse_fixed_byte_string(&map, cp->pinHashEnc, 16, &map)) != CTAP2_OK) {
 					return ret;
 				}
 				cp->pinHashEncPresent = true;
 				break;
 			default:
 				printf("ctap_parse_client_pin: unknown key %d" nl, key);
+				cbor_decoding_check(cbor_value_advance(&map));
 		}
-
-		// advance to the next map key
-		cbor_decoding_check(cbor_value_advance(&map));
 
 	}
 
