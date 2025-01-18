@@ -11,6 +11,15 @@ on:
       - main
   pull_request:
 
+defaults:
+  # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
+  run:
+    # When Bash is specified explicitly, a different command is run internally by GH:
+    # shell: unspecified => bash -e {0}
+    # shell: bash => bash --noprofile --norc -eo pipefail {0} <-- Note that this enables the useful pipefail option.
+    # see https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
+    shell: bash
+
 jobs:
   build:
     name: "Build (embedded)"
