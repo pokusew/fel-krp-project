@@ -131,8 +131,8 @@ typedef struct CTAP_clientPIN {
 #define CTAP_clientPIN_subCmd_changePIN                                 0x04
 #define CTAP_clientPIN_subCmd_getPinToken                               0x05
 #define CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingUvWithPermissions   0x06
-// (unused)                                                             0x08
 #define CTAP_clientPIN_subCmd_getUVRetries                              0x07
+#define CTAP_clientPIN_subCmd_0x08                                      0x08
 #define CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingPinWithPermissions  0x09
 
 
