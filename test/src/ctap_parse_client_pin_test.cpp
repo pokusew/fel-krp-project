@@ -12,8 +12,8 @@ testing::AssertionResult SameBytes(
 	const char *actual_expr,
 	const char *expected_expr,
 	size_t size,
-	const uint8_t actual[size],
-	const uint8_t expected[size]
+	const uint8_t *actual,
+	const uint8_t *expected
 ) {
 	for (int i = 0; i < size; ++i) {
 		if (actual[i] != expected[i]) {
