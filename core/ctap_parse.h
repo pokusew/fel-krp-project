@@ -42,19 +42,31 @@ typedef struct COSE_Key {
 	int crv;
 } COSE_Key;
 
+// Identification of the key type
 #define COSE_KEY_LABEL_KTY      1
+// Key usage restriction to this algorithm
 #define COSE_KEY_LABEL_ALG      3
+// CRV = curve, values from Table 22
 #define COSE_KEY_LABEL_CRV      -1
 #define COSE_KEY_LABEL_X        -2
 #define COSE_KEY_LABEL_Y        -3
 
+// https://datatracker.ietf.org/doc/html/rfc8152#section-13
+// OKP = Octet Key Pair
 #define COSE_KEY_KTY_OKP        1
+// Elliptic Curve Keys w/ x- and y-coordinate pair
 #define COSE_KEY_KTY_EC2        2
 
+// NIST P-256 also known as secp256r1
 #define COSE_KEY_CRV_P256       1
+// Ed25519 for use w/ EdDSA only
 #define COSE_KEY_CRV_ED25519    6
 
+// ECDSA w/ SHA-256
+// https://datatracker.ietf.org/doc/html/rfc8152#section-8.1
 #define COSE_ALG_ES256            -7
+// EdDSA
+// https://datatracker.ietf.org/doc/html/rfc8152#section-8.2
 #define COSE_ALG_EDDSA            -8
 #define COSE_ALG_ECDH_ES_HKDF_256 -25
 
