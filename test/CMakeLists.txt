@@ -10,6 +10,14 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# https://fmt.dev/11.1/get-started/#cmake
+FetchContent_Declare(
+		fmt
+		GIT_REPOSITORY https://github.com/fmtlib/fmt
+		GIT_TAG 8303d140a1a11f19b982a9f664bbe59a1ccda3f4 # 11.1.2
+)
+FetchContent_MakeAvailable(fmt)
+
 # TESTS
 
 add_executable(
@@ -123,6 +131,7 @@ add_executable(
 target_link_libraries(
 		test_ctap_parse_client_pin
 		GTest::gtest_main
+		fmt::fmt
 		core_ctap_parse
 )
 
