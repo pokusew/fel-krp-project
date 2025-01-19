@@ -121,10 +121,7 @@ jobs:
 
       - name: Test
         id: test
-        run: |
-          echo $-
-          set -o
-          ctest --extra-verbose --test-dir build |& tee log/ctest-output.txt
+        run: ctest --extra-verbose --test-dir build |& tee log/ctest-output.txt
 
       - name: Upload test outputs
         if: always()
