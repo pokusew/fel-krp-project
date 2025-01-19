@@ -109,7 +109,7 @@ jobs:
 
       - name: Configue project
         id: configure
-        run: cmake -DEMBEDDED_BUILD=OFF -DCMAKE_BUILD_TYPE=${{ matrix.buildtype }} -B build
+        run: cmake -DEMBEDDED_BUILD=OFF -DSANITIZERS=ON -DCMAKE_BUILD_TYPE=${{ matrix.buildtype }} -B build
 
       - name: Build
         id: build
