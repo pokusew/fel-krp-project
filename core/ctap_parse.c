@@ -225,10 +225,17 @@ uint8_t ctap_parse_client_pin(const uint8_t *request, size_t length, CTAP_client
 				break;
 			case CTAP_clientPIN_pinUvAuthParam:
 				printf("CTAP_clientPIN_pinUvAuthParam" nl);
-				if ((ret = parse_fixed_byte_string(&map, cp->pinUvAuthParam, 16, &map)) != CTAP2_OK) {
+				if ((
+						ret = parse_byte_string(
+							&map,
+							cp->pinUvAuthParam,
+							&cp->pinUvAuthParamSize,
+							PIN_UV_AUTH_PARAM_MIN_SIZE,
+							PIN_UV_AUTH_PARAM_MAX_SIZE,
+							&map
+						)) != CTAP2_OK) {
 					return ret;
 				}
-				cp->pinUvAuthParamPresent = true;
 				break;
 			case CTAP_clientPIN_newPinEnc:
 				printf("CTAP_clientPIN_newPinEnc" nl);
@@ -246,7 +253,13 @@ uint8_t ctap_parse_client_pin(const uint8_t *request, size_t length, CTAP_client
 				break;
 			case CTAP_clientPIN_pinHashEnc:
 				printf("CTAP_clientPIN_pinHashEnc" nl);
-				if ((ret = parse_fixed_byte_string(&map, cp->pinHashEnc, 16, &map)) != CTAP2_OK) {
+				if ((
+						ret = parse_fixed_byte_string(
+							&map,
+							cp->pinHashEnc,
+							sizeof(cp->pinHashEnc),
+							&map
+						)) != CTAP2_OK) {
 					return ret;
 				}
 				cp->pinHashEncPresent = true;

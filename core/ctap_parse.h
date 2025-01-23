@@ -86,6 +86,8 @@ typedef struct COSE_Key {
 // NEW_PIN_ENC_MIN_SIZE = max(64, 80)
 #define NEW_PIN_ENC_MAX_SIZE        80
 #define NEW_PIN_ENC_MIN_SIZE        64
+#define PIN_UV_AUTH_PARAM_MAX_SIZE  32
+#define PIN_UV_AUTH_PARAM_MIN_SIZE  16
 
 // Command
 // code (one byte)
@@ -101,7 +103,8 @@ typedef struct CTAP_clientPIN {
 	int subCommand;
 	COSE_Key keyAgreement;
 	bool keyAgreementPresent;
-	uint8_t pinUvAuthParam[16]; // TODO: check size v1 vs v2
+	uint8_t pinUvAuthParam[PIN_UV_AUTH_PARAM_MAX_SIZE];
+	size_t pinUvAuthParamSize;
 	bool pinUvAuthParamPresent;
 	uint8_t newPinEnc[NEW_PIN_ENC_MAX_SIZE];
 	size_t newPinEncSize;
@@ -134,7 +137,12 @@ typedef struct CTAP_clientPIN {
 #define CTAP_clientPIN_subCmd_getUVRetries                              0x07
 #define CTAP_clientPIN_subCmd_0x08                                      0x08
 #define CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingPinWithPermissions  0x09
-
+// On success, authenticator returns the following structure in its response:
+#define CTAP_clientPIN_res_keyAgreement     0x01
+#define CTAP_clientPIN_res_pinUvAuthToken   0x02
+#define CTAP_clientPIN_res_pinRetries       0x03
+#define CTAP_clientPIN_res_powerCycleState  0x04
+#define CTAP_clientPIN_res_uvRetries        0x05
 
 uint8_t ctap_parse_client_pin(const uint8_t *request, size_t length, CTAP_clientPIN *cp);
 
