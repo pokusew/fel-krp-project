@@ -1,40 +1,10 @@
 #include <gtest/gtest.h>
-#include <fmt/format.h>
-#include <fmt/ranges.h>
+#include "gtest_custom_assertions.h"
 extern "C" {
 #include "ctap_parse.h"
 }
 
 namespace {
-
-testing::AssertionResult SameBytes(
-	const char *size_expr,
-	const char *actual_expr,
-	const char *expected_expr,
-	size_t size,
-	const uint8_t *actual,
-	const uint8_t *expected
-) {
-	for (int i = 0; i < size; ++i) {
-		if (actual[i] != expected[i]) {
-			size_t field_width = std::max(strlen(actual_expr), strlen(expected_expr));
-			return testing::AssertionFailure()
-				<< fmt::format(
-					"bytes differ when comparing {0} bytes ({1}):"
-					"\n  {3:>{2}}: {4:02X}"
-					"\n  {5:>{2}}: {6:02X}"
-					"\n  {8:>{9}}  ^^ first diff at index = {7}",
-					size, size_expr, field_width,
-					actual_expr, fmt::join(actual, actual + size, " "),
-					expected_expr, fmt::join(expected, expected + size, " "),
-					i, "", field_width + (i * 3)
-				);
-		}
-	}
-	return testing::AssertionSuccess();
-}
-
-#define EXPECT_SAME_BYTES(actual, expected) EXPECT_PRED_FORMAT3(SameBytes, sizeof((actual)), (actual), (expected))
 
 TEST(CtapParseClientPin, InvalidCbor) {
 	const uint8_t request[] = {0xFF};

@@ -127,5 +127,5 @@ gtest_discover_tests(test_ubsan PROPERTIES WILL_FAIL true)
 std_test(cbor src/cbor_test.cpp)
 target_link_libraries(test_cbor tinycbor)
 
-std_test(ctap_parse_client_pin src/ctap_parse_client_pin_test.cpp)
+std_test(ctap_parse_client_pin src/ctap_parse_client_pin_test.cpp src/gtest_custom_assertions.cpp)
 target_link_libraries(test_ctap_parse_client_pin fmt::fmt core_ctap_parse)
