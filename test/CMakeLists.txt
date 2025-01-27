@@ -34,11 +34,9 @@ add_library(
 		STATIC
 		../tinycbor/src/cborerrorstrings.c
 		../tinycbor/src/cborencoder.c
-		../tinycbor/src/cborencoder_close_container_checked.c
 		../tinycbor/src/cborparser.c
-		../tinycbor/src/cborpretty.c
-		../tinycbor/src/cbor.h
 )
+# CTAP2 spec, Section 8. Message Encoding:
 # Because some authenticators are memory constrained,
 # the depth of nested CBOR structures used by all message encodings
 # is limited to at most four (4) levels of any combination of CBOR maps
