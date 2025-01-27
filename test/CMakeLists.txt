@@ -43,7 +43,7 @@ add_library(
 # Clients, platforms, and servers MUST NOT use more than 4 levels of CBOR nesting.
 target_compile_definitions(
 		tinycbor
-		INTERFACE
+		PUBLIC
 		CBOR_PARSER_MAX_RECURSIONS=4
 )
 target_include_directories(
