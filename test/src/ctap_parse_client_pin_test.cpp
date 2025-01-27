@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
-#include "gtest_custom_assertions.h"
+#include <gtest_custom_assertions.h>
 extern "C" {
-#include "ctap_parse.h"
+#include <ctap_parse.h>
 }
 
 namespace {
