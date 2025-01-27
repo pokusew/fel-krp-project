@@ -26,6 +26,9 @@ FetchContent_MakeAvailable(fmt)
 
 # LIBRARIES
 
+# see https://cmake.org/cmake/help/latest/manual/cmake-buildsystem.7.html#target-commands
+# see https://cmake.org/cmake/help/latest/manual/cmake-buildsystem.7.html#target-usage-requirements
+
 add_library(
 		tinycbor
 		STATIC
