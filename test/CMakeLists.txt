@@ -113,6 +113,13 @@ function(std_test name)
 	gtest_discover_tests(test_${name})
 endfunction()
 
+# the custom SameBytes (EXPECT_SAME_BYTES) GoogleTest assertion
+add_library(gtest_custom_assertions STATIC gtest_custom_assertions/gtest_custom_assertions.cpp)
+target_include_directories(gtest_custom_assertions INTERFACE gtest_custom_assertions)
+target_link_libraries(gtest_custom_assertions
+		PRIVATE fmt::fmt
+		PUBLIC GTest::gtest_main
+)
 
 std_test(hello src/hello_test.cpp)
 
@@ -127,5 +134,5 @@ gtest_discover_tests(test_ubsan PROPERTIES WILL_FAIL true)
 std_test(cbor src/cbor_test.cpp)
 target_link_libraries(test_cbor tinycbor)
 
-std_test(ctap_parse_client_pin src/ctap_parse_client_pin_test.cpp src/gtest_custom_assertions.cpp)
-target_link_libraries(test_ctap_parse_client_pin fmt::fmt core_ctap_parse)
+std_test(ctap_parse_client_pin src/ctap_parse_client_pin_test.cpp)
+target_link_libraries(test_ctap_parse_client_pin core_ctap_parse gtest_custom_assertions)

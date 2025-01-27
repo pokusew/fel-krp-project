@@ -1,6 +1,6 @@
 #include "gtest_custom_assertions.h"
-#include <fmt/format.h>
-#include <fmt/ranges.h>
+#include "fmt/format.h"
+#include "fmt/ranges.h"
 
 testing::AssertionResult SameBytes(
 	const char *size_expr,
