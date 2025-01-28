@@ -124,7 +124,16 @@ target_link_libraries(gtest_custom_assertions
 
 std_test(hello src/hello_test.cpp)
 
-std_test(ubsan src/ubsan_test.cpp)
+# a special test that is expected to fail
+add_executable(
+		test_ubsan
+		src/gtest_sanitizers_integration.cpp
+		src/ubsan_test.cpp
+)
+target_link_libraries(
+		test_ubsan
+		GTest::gtest_main
+)
 # We expect the UbsanTest's test cases to fail.
 # This way, we check that our gtest_sanitizers_integration.cpp works correctly.
 # https://cmake.org/cmake/help/latest/command/set_tests_properties.html
