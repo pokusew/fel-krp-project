@@ -63,11 +63,6 @@ target_include_directories(
 		INTERFACE
 		../core
 )
-target_include_directories(
-		core_ctap_parse
-		PRIVATE
-		../fido2
-)
 target_link_libraries(
 		core_ctap_parse
 		tinycbor
