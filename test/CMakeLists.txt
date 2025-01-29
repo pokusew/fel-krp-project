@@ -65,13 +65,55 @@ target_include_directories(
 )
 target_link_libraries(
 		core_ctap_parse
-		tinycbor
+		PUBLIC tinycbor
 )
 target_compile_definitions(
 		core_ctap_parse
-		PRIVATE
+		PUBLIC
 		LIONKEY_LOG=1
 )
+
+add_library(
+		core_ctap_pin
+		STATIC
+		../core/ctap_pin.c
+)
+target_include_directories(
+		core_ctap_pin
+		INTERFACE
+		../core
+)
+target_link_libraries(
+		core_ctap_pin
+		PUBLIC tinycbor core_ctap_parse
+)
+
+add_library(
+		core_ctap
+		STATIC
+		../core/ctap.c
+)
+target_include_directories(
+		core_ctap
+		INTERFACE
+		../core
+)
+target_link_libraries(
+		core_ctap
+		PUBLIC tinycbor core_ctap_parse core_ctap_pin core_utils
+)
+
+add_library(
+		core_utils
+		STATIC
+		../core/utils.c
+)
+target_include_directories(
+		core_utils
+		INTERFACE
+		../core
+)
+
 
 
 # TESTS
@@ -141,3 +183,6 @@ target_link_libraries(test_cbor tinycbor)
 
 std_test(ctap_parse_client_pin src/ctap_parse_client_pin_test.cpp)
 target_link_libraries(test_ctap_parse_client_pin core_ctap_parse gtest_custom_assertions)
+
+std_test(ctap_client_pin src/ctap_client_pin_test.cpp)
+target_link_libraries(test_ctap_client_pin core_ctap gtest_custom_assertions)
