@@ -16,6 +16,12 @@
     }                                                    \
     ((void) 0)
 
+#define cbor_encoding_check(r)                           \
+    if ((err = (r)) != CborNoError) {                    \
+        lionkey_cbor_error_log(err, __LINE__, __FILE__); \
+        return CTAP1_ERR_OTHER;                          \
+    }                                                    \
+    ((void) 0)
 
 #if LIONKEY_LOG & 0x1
 
