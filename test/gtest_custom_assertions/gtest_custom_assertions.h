@@ -14,4 +14,6 @@ testing::AssertionResult SameBytes(
 
 #define EXPECT_SAME_BYTES(actual, expected) EXPECT_PRED_FORMAT3(SameBytes, sizeof((actual)), (actual), (expected))
 
+#define EXPECT_SAME_BYTES_S(size, actual, expected) EXPECT_PRED_FORMAT3(SameBytes, (size), (actual), (expected))
+
 #endif // POKUSEW_GTEST_CUSTOM_ASSERTIONS_H
