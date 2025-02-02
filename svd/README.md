@@ -6,16 +6,14 @@ CLion and other IDEs support SVD files for describing the layout of registers fo
 yourselves.
 
 ST does not provide SVD files for their MCUs. Fortunately, we can get one from the Arm Keil IDE website.
-1. Go to [Arm Keil | CMSIS Packs](https://www.keil.arm.com/devices/) and search for _STM32F4xx_.
-2. There should be one result: [STM32F4xx_DFP](https://www.keil.arm.com/packs/stm32f4xx_dfp-keil/boards/).
-3. Click _Download Recommended Pack_ or use
 1. Go to [Arm Keil | CMSIS Packs](https://www.keil.arm.com/packs/) and search for _STM32F4xx_.
 2. There should be one result: [STM32F4xx_DFP](https://www.keil.arm.com/packs/stm32f4xx_dfp-keil/overview/).
-   this [direct download link](https://www.keil.com/pack/Keil.STM32F4xx_DFP.2.17.1.pack) (might stop working in the
+3. Click on _Download STM32F4xx_DFP 3.0.0_ or use
+   this [direct download link](https://www.keil.com/pack/Keil.STM32F4xx_DFP.3.0.0.pack) (might stop working in the
    future).
-4. Note: At the time we downloaded it, it was `Version 2.17.1: July 4, 2023 Keil.STM32F4xx_DFP.2.17.1.pack`.
+4. Note: At the time we downloaded it, it was `Version 3.0.0: Oct. 11, 2024 Keil.STM32F4xx_DFP.3.0.0.pack`.
 5. Rename `.pack` to `.zip`. Then unzip it.
-6. Open the `Keil.STM32F4xx_DFP.2.17.1` dir, go to `CMSIS/SVD` subdir.
+6. Open the `Keil.STM32F4xx_DFP.3.0.0` dir, go to `CMSIS/SVD` subdir.
    There should be the `STM32F407.svd` file.
    That's the one you are looking for.
 
