@@ -9,6 +9,8 @@ ST does not provide SVD files for their MCUs. Fortunately, we can get one from t
 1. Go to [Arm Keil | CMSIS Packs](https://www.keil.arm.com/devices/) and search for _STM32F4xx_.
 2. There should be one result: [STM32F4xx_DFP](https://www.keil.arm.com/packs/stm32f4xx_dfp-keil/boards/).
 3. Click _Download Recommended Pack_ or use
+1. Go to [Arm Keil | CMSIS Packs](https://www.keil.arm.com/packs/) and search for _STM32F4xx_.
+2. There should be one result: [STM32F4xx_DFP](https://www.keil.arm.com/packs/stm32f4xx_dfp-keil/overview/).
    this [direct download link](https://www.keil.com/pack/Keil.STM32F4xx_DFP.2.17.1.pack) (might stop working in the
    future).
 4. Note: At the time we downloaded it, it was `Version 2.17.1: July 4, 2023 Keil.STM32F4xx_DFP.2.17.1.pack`.
