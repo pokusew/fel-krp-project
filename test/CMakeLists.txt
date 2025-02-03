@@ -159,6 +159,17 @@ target_link_libraries(gtest_custom_assertions
 		PUBLIC GTest::gtest_main
 )
 
+# hex utils
+add_library(hex_utils INTERFACE)
+target_sources(hex_utils INTERFACE hex_utils/hex.hpp)
+target_include_directories(hex_utils INTERFACE hex_utils)
+# https://cmake.org/cmake/help/latest/manual/cmake-compile-features.7.html#requiring-language-standards
+# https://cmake.org/cmake/help/latest/prop_gbl/CMAKE_CXX_KNOWN_FEATURES.html#high-level-meta-features-indicating-c-standard-support
+target_compile_features(hex_utils INTERFACE cxx_std_20)
+
+std_test(hex_utils src/hex_utils_test.cpp)
+target_link_libraries(test_hex_utils hex_utils)
+
 std_test(hello src/hello_test.cpp)
 
 # a special test that is expected to fail
