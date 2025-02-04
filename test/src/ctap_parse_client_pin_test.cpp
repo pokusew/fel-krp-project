@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <gtest_custom_assertions.h>
+#include <hex.hpp>
 extern "C" {
 #include <ctap_parse.h>
 }
@@ -48,31 +49,30 @@ TEST(CtapParseClientPin, GetKeyAgreement) {
 }
 
 TEST(CtapParseClientPin, GetPinToken) {
-	const uint8_t request[] = "\xa4\x01\x01\x02\x05\x03\xa5\x01\x02\x03\x38\x18\x20\x01\x21\x58" \
-		"\x20\x39\x09\xe3\x89\xb5\x45\x66\x2b\xfb\xee\x67\x90\x5d\xd4\x32" \
-		"\xe7\x01\xa1\xc1\x46\xac\xab\x6a\x5b\x42\x0b\x75\xdd\x35\x10\x5e" \
-		"\x5d\x22\x58\x20\xf0\xb7\xcb\x3e\xbf\x62\x59\x4b\x9e\x8d\x98\x70" \
-		"\xb1\xa9\x15\x4a\xb5\x0c\xdd\x2c\x1e\x6e\x86\x14\x90\xb8\x2d\x92" \
-		"\xf0\x9e\x19\x84\x06\x50\x4d\x72\x7d\x4d\xc0\x14\x04\xd7\xe9\x59" \
-		"\x0d\xe7\xf0\x4d\x89\xca";
+	auto request = hex::bytes<
+		"a40101020503a5010203381820012158203909e389b545662bfbee67905dd432"
+		"e701a1c146acab6a5b420b75dd35105e5d225820f0b7cb3ebf62594b9e8d9870"
+		"b1a9154ab50cdd2c1e6e861490b82d92f09e198406504d727d4dc01404d7e959"
+		"0de7f04d89ca"
+	>();
 	CTAP_clientPIN cp;
 	uint8_t status;
-	status = ctap_parse_client_pin(request, sizeof(request), &cp);
+	status = ctap_parse_client_pin(request.data(), request.size(), &cp);
 	ASSERT_EQ(status, CTAP2_OK);
 	EXPECT_EQ(cp.pinUvAuthProtocol, 1);
 	EXPECT_EQ(cp.subCommand, CTAP_clientPIN_subCmd_getPinToken);
 	EXPECT_EQ(cp.keyAgreementPresent, true);
 	EXPECT_EQ(cp.keyAgreement.kty, 2);
 	EXPECT_EQ(cp.keyAgreement.crv, 1);
-	const uint8_t expected_x[] = "\x39\x09\xe3\x89\xb5\x45\x66\x2b\xfb\xee\x67\x90\x5d\xd4\x32\xe7\x01\xa1\xc1\x46\xac\xab\x6a\x5b\x42\x0b\x75\xdd\x35\x10\x5e\x5d";
-	const uint8_t expected_y[] = "\xf0\xb7\xcb\x3e\xbf\x62\x59\x4b\x9e\x8d\x98\x70\xb1\xa9\x15\x4a\xb5\x0c\xdd\x2c\x1e\x6e\x86\x14\x90\xb8\x2d\x92\xf0\x9e\x19\x84";
+	auto expected_x = hex::bytes<"3909e389b545662bfbee67905dd432e701a1c146acab6a5b420b75dd35105e5d">();
+	auto expected_y = hex::bytes<"f0b7cb3ebf62594b9e8d9870b1a9154ab50cdd2c1e6e861490b82d92f09e1984">();
 	EXPECT_SAME_BYTES(
 		cp.keyAgreement.pubkey.x,
-		expected_x
+		expected_x.data()
 	);
 	EXPECT_SAME_BYTES(
 		cp.keyAgreement.pubkey.y,
-		expected_y
+		expected_y.data()
 	);
 	EXPECT_EQ(cp.pinUvAuthParamPresent, false);
 	EXPECT_EQ(cp.newPinEncSize, 0);

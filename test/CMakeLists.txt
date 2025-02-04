@@ -210,7 +210,7 @@ std_test(tiny_aes src/tiny_aes_test.cpp)
 target_link_libraries(test_tiny_aes tinyaes hex_utils gtest_custom_assertions)
 
 std_test(ctap_parse_client_pin src/ctap_parse_client_pin_test.cpp)
-target_link_libraries(test_ctap_parse_client_pin core_ctap_parse gtest_custom_assertions)
+target_link_libraries(test_ctap_parse_client_pin core_ctap_parse hex_utils gtest_custom_assertions)
 
 std_test(ctap_client_pin src/ctap_client_pin_test.cpp)
 target_link_libraries(test_ctap_client_pin core_ctap hex_utils gtest_custom_assertions)
