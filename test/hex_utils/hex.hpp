@@ -26,7 +26,7 @@
 
 namespace hex {
 
-constexpr uint8_t char_to_int(const char &ch) {
+constexpr uint8_t hex_char_to_int(const char &ch) {
 	if (ch >= '0' && ch <= '9') {
 		return ch - '0';
 	}
@@ -35,48 +35,98 @@ constexpr uint8_t char_to_int(const char &ch) {
 		return ch - 'A' + 10;
 	}
 
-	return ch - 'a' + 10;
+	if (ch >= 'a' && ch <= 'f') {
+		return ch - 'a' + 10;
+	}
+
+	// invalid hex char
+	return 0;
 }
 
 template<size_t N>
-struct str_to_ba {
+struct hex_str_to_bytes {
 	std::array<char, N> str{};
 
-	constexpr str_to_ba(const char *a)
-
-	noexcept {
+	constexpr hex_str_to_bytes(const char *a) noexcept {
 		for (size_t i = 0u; i < N; ++i) {
 			str[i] = a[i];
 		}
 	}
 
-	[[nodiscard]] constexpr size_t get_skip_count() const {
-		size_t skips = 0u;
-		bool skip_next_char = false;
+	constexpr size_t get_num_bytes() const {
+		size_t num_bytes = 0u;
+		// one byte consists of two hex digits (0xAB)
+		bool second_digit_needed = false;
 
-		for (size_t i = 0u; i < N; ++i) {
+		for (const auto &ch : str) {
 
-			// delimiter
-			if (str[i] == ' ') {
-				++skips;
+			// ignore delimiters in the hex string, note that
+			// (a) delimiters between the two hex digits of one byte are not allowed
+			// (b) multiple consecutive delimiters are allowed
+			//     as well as any number of leading/trailing delimiters
+			if (!second_digit_needed && ch == ' ') {
 				continue;
 			}
 
-			if (!skip_next_char) {
-				// hit char pair
-				if (i + 1 < N && str[i + 1] != ' ') {
-					skip_next_char = true;
-				}
+			// this char must be a valid hex digit
+			if (!(
+				(ch >= '0' && ch <= '9')
+				|| (ch >= 'A' && ch <= 'F')
+				|| (ch >= 'a' && ch <= 'f')
+			)) {
+				return 0;
+			}
+
+			if (second_digit_needed) {
+				num_bytes++;
+				second_digit_needed = false;
 				continue;
 			}
 
-			// do only 1 skip for char pair
-			++skips;
-			skip_next_char = false;
+			second_digit_needed = true;
 
 		}
 
-		return skips;
+		// if second_digit_needed => incomplete last byte
+		return !second_digit_needed ? num_bytes : 0;
+	}
+
+	constexpr auto is_valid() const {
+		size_t num_bytes = 0u;
+		// one byte consists of two hex digits (0xAB)
+		bool second_digit_needed = false;
+
+		for (const auto &ch : str) {
+
+			// ignore delimiters in the hex string, note that
+			// (a) delimiters between the two hex digits of one byte are not allowed
+			// (b) multiple consecutive delimiters are allowed
+			//     as well as any number of leading/trailing delimiters
+			if (!second_digit_needed && ch == ' ') {
+				continue;
+			}
+
+			// this char must be a valid hex digit
+			if (!(
+				(ch >= '0' && ch <= '9')
+				|| (ch >= 'A' && ch <= 'F')
+				|| (ch >= 'a' && ch <= 'f')
+			)) {
+				return false;
+			}
+
+			if (second_digit_needed) {
+				num_bytes++;
+				second_digit_needed = false;
+				continue;
+			}
+
+			second_digit_needed = true;
+
+		}
+
+		// if second_digit_needed => incomplete last byte
+		return !second_digit_needed;
 	}
 
 	constexpr auto size() const {
@@ -84,47 +134,79 @@ struct str_to_ba {
 	}
 };
 
-// only doing this part to decrease size of N by 1 because of the terminating null char,
+// only doing this part to decrease the value of N by 1 because of the terminating null char,
 // otherwise would put this directly in constructor :(
+// note:
+//   This syntax is called a deduction guide template:
+//   https://en.cppreference.com/w/cpp/language/class_template_argument_deduction#User-defined_deduction_guides
 template<size_t N>
-str_to_ba(const char(&)[N])->str_to_ba<N - 1>;
+hex_str_to_bytes(const char (&)[N]) -> hex_str_to_bytes<N - 1>;
 
 /**
+ * Converts the given HEX string to an uint8_t array
  *
- * @tparam str HEX string, spaces are allowed
- * @return
+ * The HEX string can contains delimiters in the hex string, note that
+ * (a) delimiters between the two hex digits of one byte are not allowed
+ * (b) multiple consecutive delimiters are allowed
+ *     as well as any number of leading/trailing delimiters
+ *
+ * For example:
+ * "AB 55 CD" -> valid
+ * "AB55 CD" -> valid
+ * "AB55CD" -> valid
+ * " AB55CD " -> valid
+ * "55 8 8" -> INVALID (delimiters between the two hex digits of one byte are not allowed)
+ *
+ * When an invalid HEX string is given, for example like this:
+ *
+ *   constexpr auto data = hex::bytes<"AB 55CD ">();
+ *
+ * the compilation fails with a similar error message:
+ *
+ *   hex.hpp:176:2: error: static_assert failed due to requirement 'hex::hex_str_to_bytes<6>{{{53, 53, 32, 56, 32, 56}}}.is_valid()' "Invalid HEX string given!"
+ *           static_assert(str.is_valid(), "Invalid HEX string given!");
+ *           ^             ~~~~~~~~~~~~~~
+ *
+ * @tparam str a HEX string, optionally with spaces as delimiters
+ * @return the byte array (uint8_t)
  */
-template<str_to_ba str>
+template<hex_str_to_bytes str>
 constexpr auto bytes() {
 
-	std::array<uint8_t, str.size() - str.get_skip_count()> result{};
+	static_assert(str.is_valid(), "Invalid HEX string given!");
+
+	std::array<uint8_t, str.get_num_bytes()> result{};
+
+	if (!str.is_valid()) {
+		return result;
+	}
 
 	size_t result_i = 0u;
-	bool skip_next_char = false;
+	// one byte consists of two hex digits (0xAB)
+	bool second_digit_needed = false;
 
 	for (size_t str_i = 0u; str_i < str.size(); ++str_i) {
 
-		// delimiting wildcard
+		// ignore delimiters in the hex string
+		// here, all other characters are already guaranteed to be valid hex string characters
+		// (thanks to the check !str.is_valid() above), so no other checks are necessary
 		if (str.str[str_i] == ' ') {
 			continue;
 		}
 
-		// already consumed character
-		if (skip_next_char) {
-			skip_next_char = false;
+		if (second_digit_needed) {
+			result[result_i] = 16 * hex_char_to_int(str.str[str_i - 1]) + hex_char_to_int(str.str[str_i]);
+			result_i++;
+			second_digit_needed = false;
 			continue;
 		}
 
-		// one byte is two hex digits (characters) 0xAB
-		if (str_i + 1 < str.size()) {
-			// set and increase
-			// TODO: fix edge case bug hex::bytes<"55 8 8">()
-			result[result_i++] = 16 * char_to_int(str.str[str_i]) + char_to_int(str.str[str_i + 1]);
-			skip_next_char = true;
-		}
+		second_digit_needed = true;
+
 	}
 
 	return result;
+
 }
 
 }
