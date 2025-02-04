@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <hex.hpp>
 #include <cbor.h>
 namespace {
 
@@ -54,7 +55,7 @@ TEST(CborTest, MaxRecursionExceeded) {
 
 	static_assert(CBOR_PARSER_MAX_RECURSIONS == 4);
 	// {1: {2: {3: {4: {5: 0}}}}, -1: 99}
-	uint8_t data[] = "\xa2\x01\xa1\x02\xa1\x03\xa1\x04\xa1\x05\x00\x20\x18\x63";
+	auto data = hex::bytes<"a2 01 a1 02 a1 03 a1 04 a1 05 00 20 18 63">();
 
 	CborParser parser;
 	CborValue it;
@@ -62,8 +63,8 @@ TEST(CborTest, MaxRecursionExceeded) {
 	CborError err;
 
 	err = cbor_parser_init(
-		data,
-		sizeof(data) - 1, // without the terminating zero byte
+		data.data(),
+		data.size(),
 		CborValidateCanonicalFormat,
 		&parser,
 		&it
@@ -81,7 +82,7 @@ TEST(CborTest, MaxRecursion) {
 
 	static_assert(CBOR_PARSER_MAX_RECURSIONS == 4);
 	// {1: {2: {3: {4: 0}}}, -1: 99}
-	uint8_t data[] = "\xa2\x01\xa1\x02\xa1\x03\xa1\x04\x00\x20\x18\x63";
+	auto data = hex::bytes<"a2 01 a1 02 a1 03 a1 04 00 20 18 63">();
 
 	CborParser parser;
 	CborValue it;
@@ -89,8 +90,8 @@ TEST(CborTest, MaxRecursion) {
 	CborError err;
 
 	err = cbor_parser_init(
-		data,
-		sizeof(data) - 1, // without the terminating zero byte
+		data.data(),
+		data.size(),
 		CborValidateCanonicalFormat,
 		&parser,
 		&it
