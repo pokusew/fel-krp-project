@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <hex.hpp>
+namespace {
 
 TEST(HexUtilsTest, ThreeBytesSeparated) {
 
@@ -54,3 +55,5 @@ TEST(HexUtilsTest, ZeroBytes) {
 	ASSERT_EQ(data.size(), 0);
 
 }
+
+} // namespace

@@ -3,7 +3,6 @@
 extern "C" {
 #include <ctap.h>
 }
-
 namespace {
 
 class CtapClientPinTest : public testing::Test {

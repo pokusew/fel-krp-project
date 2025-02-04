@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <cbor.h>
+namespace {
 
 void dump_hex(const uint8_t *buf, size_t size) {
 	printf("hex(%zu): ", size);
@@ -102,3 +103,5 @@ TEST(CborTest, MaxRecursion) {
 	ASSERT_EQ(err, CborNoError);
 
 }
+
+} // namespace

@@ -3,7 +3,6 @@
 extern "C" {
 #include <ctap_parse.h>
 }
-
 namespace {
 
 TEST(CtapParseClientPin, InvalidCbor) {

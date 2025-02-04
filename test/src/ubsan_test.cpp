@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-// https://stackoverflow.com/questions/47861534/why-does-google-test-sample-put-tests-in-an-anonymous-namespace
 namespace {
 
 TEST(UbsanTest, SignedIntegerOverflow) {
