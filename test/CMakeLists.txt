@@ -53,6 +53,20 @@ target_include_directories(
 		../tinycbor/src
 )
 
+add_library(tinyaes STATIC)
+target_sources(tinyaes
+		PRIVATE
+		../crypto/tiny-AES-c/aes.c
+)
+target_compile_definitions(tinyaes
+		# we need only AES-256-CBC
+		PUBLIC AES256=1 ECB=0 CTR=0
+)
+target_include_directories(tinyaes
+		INTERFACE
+		../crypto/tiny-AES-c
+)
+
 add_library(
 		core_ctap_parse
 		STATIC
@@ -191,6 +205,9 @@ gtest_discover_tests(test_ubsan PROPERTIES WILL_FAIL true)
 
 std_test(cbor src/cbor_test.cpp)
 target_link_libraries(test_cbor tinycbor)
+
+std_test(tiny_aes src/tiny_aes_test.cpp)
+target_link_libraries(test_tiny_aes tinyaes hex_utils gtest_custom_assertions)
 
 std_test(ctap_parse_client_pin src/ctap_parse_client_pin_test.cpp)
 target_link_libraries(test_ctap_parse_client_pin core_ctap_parse gtest_custom_assertions)
