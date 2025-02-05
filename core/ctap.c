@@ -3,8 +3,10 @@
 #include "ctap.h"
 #include "utils.h"
 #include "ctap_pin.h"
+#include <uECC.h>
 
 int ctap_generate_rng(uint8_t *buffer, size_t length) {
+	debug_log("ctap_generate_rng: %zu bytes to %p" nl, length, buffer);
 	for (size_t i = 0; i < length; i++) {
 		buffer[i] = (uint8_t) rand();
 	}
@@ -62,6 +64,8 @@ int8_t ctap_leftover_pin_attempts(ctap_state_t *state) {
 static void ctap_reset_key_agreement(ctap_state_t *state) {
 	static_assert(sizeof(state->KEY_AGREEMENT_PRIV) == 32, "unexpected sizeof(state->KEY_AGREEMENT_PRIV)");
 	ctap_generate_rng(state->KEY_AGREEMENT_PRIV, sizeof(state->KEY_AGREEMENT_PRIV));
+	debug_log("KEY_AGREEMENT_PRIV = ");
+	dump_hex(state->KEY_AGREEMENT_PRIV, sizeof(state->KEY_AGREEMENT_PRIV));
 }
 
 void ctap_init(ctap_state_t *state) {
@@ -69,6 +73,7 @@ void ctap_init(ctap_state_t *state) {
 	printf("ctap_init" nl);
 
 	// crypto_ecc256_init();
+	uECC_set_rng((uECC_RNG_Function) ctap_generate_rng);
 
 	// int is_init = authenticator_read_state(&state);
 

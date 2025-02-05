@@ -118,7 +118,7 @@ target_include_directories(
 )
 target_link_libraries(
 		core_ctap_pin
-		PUBLIC tinycbor core_ctap_parse
+		PUBLIC tinycbor core_ctap_parse micro_ecc
 )
 
 add_library(
@@ -133,7 +133,7 @@ target_include_directories(
 )
 target_link_libraries(
 		core_ctap
-		PUBLIC tinycbor core_ctap_parse core_ctap_pin core_utils
+		PUBLIC tinycbor core_ctap_parse core_ctap_pin core_utils micro_ecc
 )
 
 add_library(

@@ -1,4 +1,6 @@
 #include "ctap_pin.h"
+#include "utils.h"
+#include <uECC.h>
 
 // 6.5.4. PIN/UV Auth Protocol Abstract Definition
 
@@ -31,7 +33,6 @@ static uint8_t decrypt(const uint8_t *shared_secret, const uint8_t *ciphertext, 
 /// it also checks whether the pinUvAuthToken is in use or not.
 static uint8_t verify(const uint8_t *key, const uint8_t *message, const uint8_t *signature);
 
-
 // The platform interface is:
 //
 // initialize()
@@ -49,8 +50,45 @@ static uint8_t verify(const uint8_t *key, const uint8_t *message, const uint8_t 
 // authenticate(key, message) → signature
 // Computes a MAC of the given message.
 
+static int ctap_add_cose_key(
+	CborEncoder *encoder,
+	uint8_t *x,
+	uint8_t *y,
+	uint8_t credtype,
+	int32_t algtype
+) {
+
+	CborError err;
+	CborEncoder map;
+
+	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, algtype != COSE_ALG_EDDSA ? 5 : 4));
+
+	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_KTY));
+	cbor_encoding_check(cbor_encode_int(&map, algtype != COSE_ALG_EDDSA ? COSE_KEY_KTY_EC2 : COSE_KEY_KTY_OKP));
+
+	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_ALG));
+	cbor_encoding_check(cbor_encode_int(&map, algtype));
+
+	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_CRV));
+	cbor_encoding_check(cbor_encode_int(&map, algtype != COSE_ALG_EDDSA ? COSE_KEY_CRV_P256 : COSE_KEY_CRV_ED25519));
+
+	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_X));
+	cbor_encoding_check(cbor_encode_byte_string(&map, x, 32));
+
+	if (algtype != COSE_ALG_EDDSA) {
+		cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_Y));
+		cbor_encoding_check(cbor_encode_byte_string(&map, y, 32));
+	}
+
+	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
+
+	return CTAP2_OK;
+
+}
+
 uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t length) {
 
+	uint8_t ret;
 	CborError err;
 
 	CTAP_clientPIN cp;
@@ -67,6 +105,7 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 	CborEncoder map;
 
 	switch (cp.subCommand) {
+
 		case CTAP_clientPIN_subCmd_getPINRetries:
 			// start response map
 			cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 2));
@@ -79,11 +118,37 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 			// close response map
 			cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
 			break;
-		case CTAP_clientPIN_subCmd_getKeyAgreement:
 
+		case CTAP_clientPIN_subCmd_getKeyAgreement:
+			// start response map
+			cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 1));
+			// 1. keyAgreement
+			cbor_encoding_check(cbor_encode_int(&map, CTAP_clientPIN_res_keyAgreement));
+			if (uECC_compute_public_key(
+				state->KEY_AGREEMENT_PRIV,
+				state->KEY_AGREEMENT_PUB,
+				uECC_secp256r1()
+			) != 1) {
+				error_log("uECC_compute_public_key failed" nl);
+				return CTAP1_ERR_OTHER;
+			}
+			if ((
+					ret = ctap_add_cose_key(
+						&map,
+						state->KEY_AGREEMENT_PUB,
+						state->KEY_AGREEMENT_PUB + 32,
+						0,
+						COSE_ALG_ECDH_ES_HKDF_256
+					)) != CTAP2_OK) {
+				return ret;
+			}
+			// close response map
+			cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
 			break;
+
 		default:
 			return CTAP2_ERR_INVALID_SUBCOMMAND;
+
 	}
 
 	return CTAP2_OK;
