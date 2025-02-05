@@ -111,7 +111,7 @@ uint8_t parse_cose_key(CborValue *it, COSE_Key *cose) {
 				// 6.5.6.
 				// getPublicKey()
 				// 3 (alg) = -25 (although this is not the algorithm actually used)
-				if (alg != -25) {
+				if (alg != COSE_ALG_ECDH_ES_HKDF_256) {
 					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
 				}
 				cbor_decoding_check(cbor_value_advance_fixed(&map));
