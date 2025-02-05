@@ -7,20 +7,20 @@ extern "C" {
 namespace {
 
 TEST(CtapParseClientPin, InvalidCbor) {
-	const uint8_t request[] = {0xFF};
+	auto request = hex::bytes<"ff">();
 	CTAP_clientPIN cp;
 	uint8_t status;
-	status = ctap_parse_client_pin(request, sizeof(request), &cp);
+	status = ctap_parse_client_pin(request.data(), request.size(), &cp);
 	ASSERT_EQ(status, CTAP2_ERR_INVALID_CBOR);
 }
 
 // TODO: Consider not allowing CBOR messages that are NOT in the CTAP2 canonical CBOR encoding form.
 // See 8. Message Encoding (https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#message-encoding)
 TEST(CtapParseClientPin, RequestCborNotCanonical) {
-	const uint8_t request[] = {0xA2, 0x02, 0x02, 0x01, 0x01};
+	auto request = hex::bytes<"a2 02 02 01 01">();
 	CTAP_clientPIN cp;
 	uint8_t status;
-	status = ctap_parse_client_pin(request, sizeof(request), &cp);
+	status = ctap_parse_client_pin(request.data(), request.size(), &cp);
 	ASSERT_EQ(status, CTAP2_OK);
 	EXPECT_EQ(cp.pinUvAuthProtocol, 1);
 	EXPECT_EQ(cp.subCommand, CTAP_clientPIN_subCmd_getKeyAgreement);
@@ -33,10 +33,10 @@ TEST(CtapParseClientPin, RequestCborNotCanonical) {
 }
 
 TEST(CtapParseClientPin, GetKeyAgreement) {
-	const uint8_t request[] = {0xA2, 0x01, 0x01, 0x02, 0x02};
+	auto request = hex::bytes<"a2 01 01 02 02">();
 	CTAP_clientPIN cp;
 	uint8_t status;
-	status = ctap_parse_client_pin(request, sizeof(request), &cp);
+	status = ctap_parse_client_pin(request.data(), request.size(), &cp);
 	ASSERT_EQ(status, CTAP2_OK);
 	EXPECT_EQ(cp.pinUvAuthProtocol, 1);
 	EXPECT_EQ(cp.subCommand, CTAP_clientPIN_subCmd_getKeyAgreement);
