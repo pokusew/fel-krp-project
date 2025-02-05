@@ -67,6 +67,25 @@ target_include_directories(tinyaes
 		../crypto/tiny-AES-c
 )
 
+add_library(micro_ecc STATIC)
+target_sources(micro_ecc
+		PRIVATE
+		../crypto/micro-ecc/uECC.c
+		INTERFACE
+		../crypto/micro-ecc/uECC.h
+)
+target_compile_definitions(micro_ecc
+		PUBLIC
+		# uECC_PLATFORM=5 # if not provided directly, it will be auto-guessed from compiler macros
+		uECC_OPTIMIZATION_LEVEL=4
+		uECC_SQUARE_FUNC=1
+		uECC_SUPPORT_COMPRESSED_POINT=0
+)
+target_include_directories(micro_ecc
+		INTERFACE
+		../crypto/micro-ecc
+)
+
 add_library(
 		core_ctap_parse
 		STATIC
@@ -208,6 +227,9 @@ target_link_libraries(test_cbor tinycbor hex_utils)
 
 std_test(tiny_aes src/tiny_aes_test.cpp)
 target_link_libraries(test_tiny_aes tinyaes hex_utils gtest_custom_assertions)
+
+std_test(micro_ecc src/micro_ecc_test.cpp)
+target_link_libraries(test_micro_ecc micro_ecc hex_utils gtest_custom_assertions)
 
 std_test(ctap_parse_client_pin src/ctap_parse_client_pin_test.cpp)
 target_link_libraries(test_ctap_parse_client_pin core_ctap_parse hex_utils gtest_custom_assertions)
