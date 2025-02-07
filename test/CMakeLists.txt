@@ -196,7 +196,15 @@ function(std_test name)
 			test_${name}
 			GTest::gtest_main
 	)
-	gtest_discover_tests(test_${name})
+	gtest_discover_tests(test_${name}
+			# Currently, all of our value-parameterized tests use a custom name_generator
+			# (passed as the last arg to the INSTANTIATE_TEST_SUITE_P macro)
+			# that adequately describes the values.
+			# Therefore we want to supress the default GoogleTest CTest behavior:
+			#   By default, the value index of value-parameterized tests is replaced
+			#   by the actual value in the CTest test name.
+			NO_PRETTY_VALUES
+	)
 endfunction()
 
 # the custom SameBytes (EXPECT_SAME_BYTES) GoogleTest assertion
