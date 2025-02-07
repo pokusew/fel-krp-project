@@ -133,7 +133,7 @@ target_include_directories(
 )
 target_link_libraries(
 		core_ctap_pin
-		PUBLIC tinycbor core_ctap_parse micro_ecc
+		PUBLIC tinycbor core_ctap_parse micro_ecc sha256 tinyaes
 )
 
 add_library(

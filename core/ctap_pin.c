@@ -1,6 +1,8 @@
 #include "ctap_pin.h"
 #include "utils.h"
 #include <uECC.h>
+#include <hmac.h>
+#include <aes.h>
 
 // 6.5.4. PIN/UV Auth Protocol Abstract Definition
 
@@ -86,6 +88,119 @@ static int ctap_add_cose_key(
 
 }
 
+uint8_t ctap_client_pin_set_pin(ctap_state_t *state, const CTAP_clientPIN *cp) {
+
+	// 6.5.5.5 Setting a New PIN
+
+	// 5.1 If the authenticator does not receive mandatory parameters for this command,
+	//     it returns CTAP2_ERR_MISSING_PARAMETER error.
+	if (!cp->keyAgreementPresent || cp->newPinEncSize == 0 || cp->pinUvAuthParamSize == 0) {
+		return CTAP2_ERR_MISSING_PARAMETER;
+	}
+
+	// 5.3 If a PIN has already been set, authenticator returns CTAP2_ERR_PIN_AUTH_INVALID error.
+	// TODO: re-enable this check
+	// if (state->persistent.is_pin_set == 1) {
+	// 	return CTAP2_ERR_PIN_AUTH_INVALID;
+	// }
+
+	// 5.4 The authenticator calls decapsulate on the provided platform key-agreement key
+	//     to obtain the shared secret. If an error results, it returns CTAP1_ERR_INVALID_PARAMETER.
+	//
+	// decapsulate(peerCoseKey) → sharedSecret | error
+	//   1. Return ecdh(peerCoseKey).
+	//
+	// ecdh(peerCoseKey) → sharedSecret | error
+	//   1. Parse peerCoseKey as specified for getPublicKey, below, and produce a P-256 point, Y.
+	//      If unsuccessful, or if the resulting point is not on the curve, return error.
+	//   2. Calculate xY, the shared point. (I.e. the scalar-multiplication of the peer’s point, Y,
+	//      with the local private key agreement key.)
+	//   3. Let Z be the 32-byte, big-endian encoding of the x-coordinate of the shared point.
+	//   4. Return kdf(Z).
+	//
+	// kdf(Z) → sharedSecret
+	//   Return SHA-256(Z).
+	//
+	uint8_t shared_secret[32];
+	if (uECC_shared_secret(
+		(uint8_t *) &cp->keyAgreement.pubkey,
+		state->KEY_AGREEMENT_PRIV,
+		shared_secret,
+		uECC_secp256r1()
+	) != 1) {
+		error_log("uECC_shared_secret failed" nl);
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+	SHA256_CTX sha256_ctx;
+	sha256_init(&sha256_ctx);
+	sha256_update(&sha256_ctx, shared_secret, 32);
+	sha256_final(&sha256_ctx, shared_secret);
+
+	// 5.5 The authenticator calls verify(shared secret, newPinEnc, pinUvAuthParam)
+	//     If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
+	//
+	// verify(key, message, signature) → success | error
+	//   Verifies that the signature is a valid MAC for the given message.
+	//   If the key parameter value is the current pinUvAuthToken,
+	//   it also checks whether the pinUvAuthToken is in use or not.
+	//
+	// verify(key, message, signature) → success | error
+	//   1. If the key parameter value is the current pinUvAuthToken and it is not in use, then return error.
+	//   2. Compute HMAC-SHA-256 with the given key and message.
+	//      Return success if signature is 16 bytes and is equal to the first 16 bytes of the result,
+	//      otherwise return error.
+
+	// verify(key = shared secret, message = newPinEnc, signature = pinUvAuthParam)
+	uint8_t hmac[32];
+	hmac_sha256_ctx_t hmac_sha256_ctx;
+	hmac_sha256_init(&hmac_sha256_ctx, shared_secret, 32);
+	hmac_sha256_update(&hmac_sha256_ctx, cp->newPinEnc, cp->newPinEncSize);
+	hmac_sha256_final(&hmac_sha256_ctx, hmac);
+	if (cp->pinUvAuthParamSize != 16 || memcmp(hmac, cp->pinUvAuthParam, 16) != 0) {
+		return CTAP2_ERR_PIN_AUTH_INVALID;
+	}
+
+	// 5.6 The authenticator calls decrypt(shared secret, newPinEnc) to produce paddedNewPin.
+	//     If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
+	if (cp->newPinEncSize != 64) {
+		return CTAP2_ERR_PIN_AUTH_INVALID;
+	}
+	uint8_t all_zero_iv[AES_BLOCKLEN];
+	memset(all_zero_iv, 0, AES_BLOCKLEN);
+	struct AES_ctx aes_ctx;
+	AES_init_ctx_iv(&aes_ctx, shared_secret, all_zero_iv);
+	uint8_t padded_new_pin[64];
+	memcpy(padded_new_pin, cp->newPinEnc, 64);
+	AES_CBC_decrypt_buffer(&aes_ctx, padded_new_pin, 64);
+
+	// 5.7 If paddedNewPin is NOT 64 bytes long, it returns CTAP1_ERR_INVALID_PARAMETER
+
+	// 5.8 The authenticator drops all trailing 0x00 bytes from paddedNewPin to produce newPin.
+	uint8_t *new_pin;
+	size_t new_pin_length = 0;
+	for (size_t i = 0; i < 64; ++i) {
+		if (padded_new_pin[i] != 0x00) {
+			new_pin = &padded_new_pin[i];
+			new_pin_length = 64 - i;
+		}
+	}
+
+	// 5.9 The authenticator checks the length of newPin against the current minimum PIN length,
+	//     returning CTAP2_ERR_PIN_POLICY_VIOLATION if it is too short.
+	// 5.10 An authenticator MAY impose arbitrary, additional constraints on PINs.
+	//      If newPin fails to satisfy such additional constraints,
+	//      the authenticator returns CTAP2_ERR_PIN_POLICY_VIOLATION.
+	// TODO
+
+	// 5.11 Authenticator remembers newPin length internally as PINCodePointLength.
+	// 5.12 Authenticator stores LEFT(SHA-256(newPin), 16) internally as CurrentStoredPIN,
+	//      sets the pinRetries counter to maximum count, and returns CTAP2_OK.
+	// TODO
+
+	return CTAP2_OK;
+
+}
+
 uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t length) {
 
 	uint8_t ret;
@@ -144,6 +259,10 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 			}
 			// close response map
 			cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
+			break;
+
+		case CTAP_clientPIN_subCmd_setPIN:
+			return ctap_client_pin_set_pin(state, &cp);
 			break;
 
 		default:
