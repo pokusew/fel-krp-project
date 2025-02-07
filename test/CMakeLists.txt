@@ -86,6 +86,19 @@ target_include_directories(micro_ecc
 		../crypto/micro-ecc
 )
 
+# https://github.com/B-Con/crypto-algorithms/blob/master/sha256.h
+add_library(sha256 STATIC)
+target_sources(sha256
+		PRIVATE
+		../crypto/sha256/sha256.c
+		INTERFACE
+		../crypto/sha256/sha256.h
+)
+target_include_directories(sha256
+		INTERFACE
+		../crypto/sha256
+)
+
 add_library(
 		core_ctap_parse
 		STATIC
@@ -230,6 +243,9 @@ target_link_libraries(test_tiny_aes tinyaes hex_utils gtest_custom_assertions)
 
 std_test(micro_ecc src/micro_ecc_test.cpp)
 target_link_libraries(test_micro_ecc micro_ecc hex_utils gtest_custom_assertions)
+
+std_test(sha256 src/sha256_test.cpp)
+target_link_libraries(test_sha256 sha256 hex_utils gtest_custom_assertions)
 
 std_test(ctap_parse_client_pin src/ctap_parse_client_pin_test.cpp)
 target_link_libraries(test_ctap_parse_client_pin core_ctap_parse hex_utils gtest_custom_assertions)
