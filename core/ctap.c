@@ -31,41 +31,10 @@ static void ctap_state_init(ctap_persistent_state_t *state) {
 
 	// ctap_reset_rk();
 
-	if (ctap_generate_rng(state->PIN_SALT, sizeof(state->PIN_SALT)) != 1) {
-		error_log(red("ctap_generate_rng failed") nl);
-		// exit(1); // TODO
-	}
-
-	debug_log("generated PIN SALT: ");
-	dump_hex(state->PIN_SALT, sizeof(state->PIN_SALT));
-
 }
 
 void authenticator_write_state(ctap_state_t *state) {
 
-}
-
-bool ctap_is_pin_set(ctap_state_t *state) {
-	return state->persistent.is_pin_set == 1;
-}
-
-bool ctap_device_locked(ctap_state_t *state) {
-	return state->persistent.pin_total_remaining_attempts <= 0;
-}
-
-bool ctap_device_boot_locked(ctap_state_t *state) {
-	return state->pin_boot_remaining_attempts <= 0;
-}
-
-int8_t ctap_leftover_pin_attempts(ctap_state_t *state) {
-	return state->persistent.pin_total_remaining_attempts;
-}
-
-static void ctap_reset_key_agreement(ctap_state_t *state) {
-	static_assert(sizeof(state->KEY_AGREEMENT_PRIV) == 32, "unexpected sizeof(state->KEY_AGREEMENT_PRIV)");
-	ctap_generate_rng(state->KEY_AGREEMENT_PRIV, sizeof(state->KEY_AGREEMENT_PRIV));
-	debug_log("KEY_AGREEMENT_PRIV = ");
-	dump_hex(state->KEY_AGREEMENT_PRIV, sizeof(state->KEY_AGREEMENT_PRIV));
 }
 
 void ctap_init(ctap_state_t *state) {
@@ -102,26 +71,21 @@ void ctap_init(ctap_state_t *state) {
 		authenticator_write_state(state);
 	// }
 
+	state->pin_boot_remaining_attempts = PIN_PER_BOOT_ATTEMPTS;
+
+	// 6.5.5.1. Authenticator Configuration Operations Upon Power Up
+	// At power-up, the authenticator calls initialize for each pinUvAuthProtocol that it supports.
+	ctap_pin_protocol_v1_init(&state->pin_protocol[0]);
+
 	// do_migration_if_required(&state);
 
 	// crypto_load_master_secret(state->persistent->master_keys);
 
-	if (ctap_is_pin_set(state)) {
+	if (state->persistent.is_pin_set) {
 		info_log("pin remaining_tries=%" wPRId8 nl, state->persistent.pin_total_remaining_attempts);
 	} else {
 		info_log("pin not set" nl);
 	}
-
-	if (ctap_device_locked(state)) {
-		error_log(red("DEVICE LOCKED!") nl);
-	}
-
-	if (ctap_generate_rng(state->PIN_TOKEN, PIN_TOKEN_SIZE) != 1) {
-		error_log(red("ctap_generate_rng failed") nl);
-		// exit(1); // TODO
-	}
-
-	ctap_reset_key_agreement(state);
 
 }
 
@@ -159,7 +123,6 @@ uint8_t ctap_request(
 
 	if (status == CTAP2_OK) {
 		state->response.length = cbor_encoder_get_buffer_size(encoder, state->response.data);
-		assert(state->response.length > 0);
 	}else {
 		state->response.length = 0;
 	}

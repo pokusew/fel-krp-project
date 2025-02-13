@@ -21,7 +21,7 @@
 
 
 #define KEY_SPACE_BYTES     128
-#define PIN_SALT_LEN        (32)
+#define PIN_HASH_SIZE       16
 
 #define EMPTY_MARKER        0xFFFFFFFF
 #define INITIALIZED_MARKER  0xA5A5A5A5
@@ -37,10 +37,11 @@ static_assert(
 typedef struct ctap_persistent_state {
 
 	// PIN information
-	uint8_t is_pin_set;
-	uint8_t PIN_CODE_HASH[32];
-	uint8_t PIN_SALT[PIN_SALT_LEN];
-	int8_t pin_total_remaining_attempts;
+	bool is_pin_set;
+	// from the spec we can derive that 4 <= pin_code_point_length <= 63
+	uint8_t pin_code_point_length;
+	uint8_t pin_hash[PIN_HASH_SIZE];
+	uint8_t pin_total_remaining_attempts;
 
 	// number of stored client-side discoverable credentials
 	// aka resident credentials aka resident keys (RK)
@@ -67,7 +68,75 @@ typedef struct ctap_response {
 	size_t length;
 } ctap_response_t;
 
-#define PIN_TOKEN_SIZE 16
+#define PIN_TOKEN_SIZE 32
+
+/// 6.5. authenticatorClientPIN (0x06)
+/// 6.5.4. PIN/UV Auth Protocol Abstract Definition
+///
+/// PIN/UV Auth Protocol exists so that plaintext PINs are not sent to the authenticator.
+/// Instead, a PIN/UV auth protocol (aka pinUvAuthProtocol) ensures that PINs
+/// are encrypted when sent to an authenticator and are exchanged for a pinUvAuthToken
+/// that serves to authenticate subsequent commands.
+/// Additionally, authenticators supporting built-in user verification methods
+/// can provide a pinUvAuthToken upon user verification.
+///
+/// Note:
+///   PIN/UV Auth Protocol One was essentially defined in CTAP2.0.
+///   The difference between the original definition and the definition in CTAP2.1
+///   is that originally the pinToken (pinUvAuthToken in CTAP2.1 terms) length was unlimited.
+///   CTAP2.1 specifies lengths for pinUvAuthTokens
+///   in both PIN/UV Auth Protocol 1 and in PIN/UV Auth Protocol 2.
+typedef struct ctap_pin_protocol {
+
+	uint8_t token[PIN_TOKEN_SIZE];
+	uint8_t key_agreement_public_key[64];
+	uint8_t key_agreement_private_key[32];
+
+	/// This process is run by the authenticator at power-on.
+	int (*initialize)(
+		struct ctap_pin_protocol *protocol
+	);
+
+	/// Generates a fresh public key.
+	int (*regenerate)(
+		struct ctap_pin_protocol *protocol
+	);
+
+	/// Generates a fresh pinUvAuthToken.
+	int (*reset_token)(
+		struct ctap_pin_protocol *protocol
+	);
+
+	int (*get_public_key)(
+		struct ctap_pin_protocol *protocol,
+		CborEncoder *encoder
+	);
+
+	/// Processes the output of encapsulate from the peer and produces a shared secret,
+	/// known to both platform and authenticator.
+	int (*decapsulate)(
+		const struct ctap_pin_protocol *protocol,
+		const COSE_Key *peer_cose_key,
+		uint8_t shared_secret[32]
+	);
+
+	/// Decrypts the given ciphertext, using the given key, and returns a pointer to the plaintext.
+	int (*decrypt)(
+		const uint8_t *key, const size_t key_length,
+		const uint8_t *ciphertext, const size_t ciphertext_length,
+		uint8_t *plaintext, size_t *plaintext_size
+	);
+
+	/// Verifies that the signature is a valid MAC for the given message.
+	/// If the key parameter value is the current pinUvAuthToken,
+	/// it also checks whether the pinUvAuthToken is in use or not.
+	int (*verify)(
+		const struct ctap_pin_protocol *protocol,
+		const uint8_t *key, const size_t key_length,
+		const uint8_t *message, const size_t message_length,
+		const uint8_t *signature, const size_t signature_length
+	);
+} ctap_pin_protocol_t;
 
 typedef struct ctap_state {
 
@@ -75,10 +144,8 @@ typedef struct ctap_state {
 
 	ctap_response_t response;
 
-	uint8_t PIN_TOKEN[PIN_TOKEN_SIZE];
-	uint8_t KEY_AGREEMENT_PUB[64];
-	uint8_t KEY_AGREEMENT_PRIV[32];
-	int8_t pin_boot_remaining_attempts;
+	ctap_pin_protocol_t pin_protocol[2];
+	uint8_t pin_boot_remaining_attempts;
 
 } ctap_state_t;
 
@@ -92,5 +159,7 @@ uint8_t ctap_request(
 );
 
 void ctap_init(ctap_state_t *state);
+
+int ctap_generate_rng(uint8_t *buffer, size_t length);
 
 #endif // POKUSEW_CTAP_H
