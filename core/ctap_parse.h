@@ -86,14 +86,18 @@ typedef struct COSE_Key {
 //    	CTAP status code
 //      n bytes of CBOR encoded data
 
-// pinUvAuthProtocol 1 = 64 bytes
-// pinUvAuthProtocol 2 = 80 bytes (16 + 64)
-// NEW_PIN_ENC_MAX_SIZE = max(64, 80)
-// NEW_PIN_ENC_MIN_SIZE = max(64, 80)
-#define NEW_PIN_ENC_MAX_SIZE        80
-#define NEW_PIN_ENC_MIN_SIZE        64
-#define PIN_UV_AUTH_PARAM_MAX_SIZE  32
-#define PIN_UV_AUTH_PARAM_MIN_SIZE  16
+// newPinEnc pinUvAuthProtocol 1 = 64 bytes
+// newPinEnc pinUvAuthProtocol 2 = 80 bytes (16 + 64)
+#define NEW_PIN_ENC_MAX_SIZE        80 // = max(64, 80)
+#define NEW_PIN_ENC_MIN_SIZE        64 // = min(64, 80)
+// pinUvAuthParam pinUvAuthProtocol 1 = 16 bytes
+// pinUvAuthParam pinUvAuthProtocol 2 = 32 bytes
+#define PIN_UV_AUTH_PARAM_MAX_SIZE  32 // = max(16, 32)
+#define PIN_UV_AUTH_PARAM_MIN_SIZE  16 // = min(16, 32)
+// pinHashEnc pinUvAuthProtocol 1 = 16 bytes
+// pinHashEnc pinUvAuthProtocol 2 = 32 bytes (16 + 16)
+#define PIN_HASH_ENC_MIN_SIZE       16 // = min(16, 32)
+#define PIN_HASH_ENC_MAX_SIZE       32 // = min(16, 32)
 
 // Command
 // code (one byte)
@@ -114,8 +118,8 @@ typedef struct CTAP_clientPIN {
 	bool pinUvAuthParamPresent;
 	uint8_t newPinEnc[NEW_PIN_ENC_MAX_SIZE];
 	size_t newPinEncSize;
-	uint8_t pinHashEnc[16]; // TODO: check size v1 vs v2
-	bool pinHashEncPresent;
+	uint8_t pinHashEnc[PIN_HASH_ENC_MAX_SIZE];
+	size_t pinHashEncSize;
 	int permissions;
 	bool permissionsPresent;
 	int rpId;

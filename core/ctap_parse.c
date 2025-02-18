@@ -254,15 +254,16 @@ uint8_t ctap_parse_client_pin(const uint8_t *request, size_t length, CTAP_client
 			case CTAP_clientPIN_pinHashEnc:
 				printf("CTAP_clientPIN_pinHashEnc" nl);
 				if ((
-						ret = parse_fixed_byte_string(
+						ret = parse_byte_string(
 							&map,
 							cp->pinHashEnc,
-							sizeof(cp->pinHashEnc),
+							&cp->pinHashEncSize,
+							PIN_HASH_ENC_MIN_SIZE,
+							PIN_HASH_ENC_MAX_SIZE,
 							&map
 						)) != CTAP2_OK) {
 					return ret;
 				}
-				cp->pinHashEncPresent = true;
 				break;
 			default:
 				printf("ctap_parse_client_pin: unknown key %d" nl, key);
