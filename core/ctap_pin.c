@@ -154,10 +154,39 @@ static int ctap_pin_protocol_v1_decrypt(
 	return 0;
 }
 
-static int ctap_pin_protocol_v1_verify(
+static void ctap_pin_protocol_v1_verify_init(
 	const ctap_pin_protocol_t *protocol,
-	const uint8_t *key, const size_t key_length,
-	const uint8_t *message, const size_t message_length,
+	hmac_sha256_ctx_t *hmac_sha256_ctx,
+	const uint8_t *key, const size_t key_length
+) {
+	// 6.5.6. PIN/UV Auth Protocol One
+	// verify(key, message, signature) → success | error
+	//   1. If the key parameter value is the current pinUvAuthToken and it is not in use, then return error.
+	//   2. Compute HMAC-SHA-256 with the given key and message.
+	//      Return success if signature is 16 bytes and is equal to the first 16 bytes of the result,
+	//      otherwise return error.
+	hmac_sha256_init(hmac_sha256_ctx, key, key_length);
+}
+
+
+static void ctap_pin_protocol_v1_verify_update(
+	const ctap_pin_protocol_t *protocol,
+	hmac_sha256_ctx_t *hmac_sha256_ctx,
+	const uint8_t *message_data, const size_t message_data_length
+) {
+	// 6.5.6. PIN/UV Auth Protocol One
+	// verify(key, message, signature) → success | error
+	//   1. If the key parameter value is the current pinUvAuthToken and it is not in use, then return error.
+	//   2. Compute HMAC-SHA-256 with the given key and message.
+	//      Return success if signature is 16 bytes and is equal to the first 16 bytes of the result,
+	//      otherwise return error.
+	hmac_sha256_update(hmac_sha256_ctx, message_data, message_data_length);
+}
+
+
+static int ctap_pin_protocol_v1_verify_final(
+	const ctap_pin_protocol_t *protocol,
+	hmac_sha256_ctx_t *hmac_sha256_ctx,
 	const uint8_t *signature, const size_t signature_length
 ) {
 	// 6.5.6. PIN/UV Auth Protocol One
@@ -167,10 +196,7 @@ static int ctap_pin_protocol_v1_verify(
 	//      Return success if signature is 16 bytes and is equal to the first 16 bytes of the result,
 	//      otherwise return error.
 	uint8_t hmac[32];
-	hmac_sha256_ctx_t hmac_sha256_ctx;
-	hmac_sha256_init(&hmac_sha256_ctx, key, key_length);
-	hmac_sha256_update(&hmac_sha256_ctx, message, message_length);
-	hmac_sha256_final(&hmac_sha256_ctx, hmac);
+	hmac_sha256_final(hmac_sha256_ctx, hmac);
 	if (signature_length != 16 || memcmp(hmac, signature, 16) != 0) {
 		return 1;
 	}
@@ -186,7 +212,9 @@ void ctap_pin_protocol_v1_init(ctap_pin_protocol_t *protocol) {
 	protocol->get_public_key = ctap_pin_protocol_v1_get_public_key;
 	protocol->decapsulate = ctap_pin_protocol_v1_decapsulate;
 	protocol->decrypt = ctap_pin_protocol_v1_decrypt;
-	protocol->verify = ctap_pin_protocol_v1_verify;
+	protocol->verify_init = ctap_pin_protocol_v1_verify_init;
+	protocol->verify_update = ctap_pin_protocol_v1_verify_update;
+	protocol->verify_final = ctap_pin_protocol_v1_verify_final;
 
 	// TODO: handle initialize error
 	protocol->initialize(protocol);
@@ -254,10 +282,12 @@ uint8_t ctap_client_pin_set_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_pr
 
 	// 5.5 The authenticator calls verify(shared secret, newPinEnc, pinUvAuthParam)
 	//     If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
-	if (pin_protocol->verify(
+	hmac_sha256_ctx_t verify_ctx;
+	pin_protocol->verify_init(pin_protocol, &verify_ctx, /* key */ shared_secret, sizeof(shared_secret));
+	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message */ cp->newPinEnc, cp->newPinEncSize);
+	if (pin_protocol->verify_final(
 		pin_protocol,
-		/* key */ shared_secret, sizeof(shared_secret),
-		/* message */ cp->newPinEnc, cp->newPinEncSize,
+		&verify_ctx,
 		/* signature */ cp->pinUvAuthParam, cp->pinUvAuthParamSize
 	) != 0) {
 		return CTAP2_ERR_PIN_AUTH_INVALID;

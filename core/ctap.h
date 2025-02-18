@@ -3,6 +3,7 @@
 
 #include "ctap_parse.h"
 #include <cbor.h>
+#include <hmac.h>
 
 #define CTAP_CMD_MAKE_CREDENTIAL        0x01
 #define CTAP_CMD_GET_ASSERTION          0x02
@@ -130,10 +131,19 @@ typedef struct ctap_pin_protocol {
 	/// Verifies that the signature is a valid MAC for the given message.
 	/// If the key parameter value is the current pinUvAuthToken,
 	/// it also checks whether the pinUvAuthToken is in use or not.
-	int (*verify)(
+	void (*verify_init)(
 		const struct ctap_pin_protocol *protocol,
-		const uint8_t *key, const size_t key_length,
-		const uint8_t *message, const size_t message_length,
+		hmac_sha256_ctx_t *ctx,
+		const uint8_t *key, const size_t key_length
+	);
+	void (*verify_update)(
+		const struct ctap_pin_protocol *protocol,
+		hmac_sha256_ctx_t *ctx,
+		const uint8_t *message_data, const size_t message_data_length
+	);
+	int (*verify_final)(
+		const struct ctap_pin_protocol *protocol,
+		hmac_sha256_ctx_t *ctx,
 		const uint8_t *signature, const size_t signature_length
 	);
 } ctap_pin_protocol_t;
