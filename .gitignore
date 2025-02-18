@@ -40,3 +40,6 @@ Desktop.ini
 
 # https://github.com/solokeys/solo1
 /solo1
+
+# Node.js project
+/scripts/node_modules/

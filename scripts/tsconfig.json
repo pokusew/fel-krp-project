@@ -1,0 +1,30 @@
+{
+	// https://www.typescriptlang.org/tsconfig
+	// see https://github.com/cloudflare/workers-sdk/blob/main/templates/worker-typescript/tsconfig.json
+	// see https://github.com/tsconfig/bases/blob/main/bases/node20.json
+	"compilerOptions": {
+		"lib": ["ESNext"],
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"types": ["node"],
+		"typeRoots": ["./node_modules/@types", "./node_modules"],
+		"target": "ESNext",
+		"allowJs": true,
+		"strict": true,
+		"esModuleInterop": true,
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"forceConsistentCasingInFileNames": true,
+		"noEmit": true,
+		"rootDir": ".",
+		"sourceMap": true,
+	},
+	// https://www.typescriptlang.org/tsconfig#files
+	// https://www.typescriptlang.org/tsconfig#include
+	// https://www.typescriptlang.org/tsconfig#exclude
+	// see https://github.com/Microsoft/TypeScript/wiki/FAQ#why-is-a-file-in-the-exclude-list-still-picked-up-by-the-compiler
+	// use `tsc --listFiles` to list what files are included in the compilation,
+	// and `tsc --traceResolution` to see why they were included
+	"include": ["./src/"],
+	"exclude": [],
+}
