@@ -92,6 +92,7 @@ typedef struct ctap_pin_protocol {
 	uint8_t token[PIN_TOKEN_SIZE];
 	uint8_t key_agreement_public_key[64];
 	uint8_t key_agreement_private_key[32];
+	size_t shared_secret_length;
 
 	/// This process is run by the authenticator at power-on.
 	int (*initialize)(
@@ -118,7 +119,7 @@ typedef struct ctap_pin_protocol {
 	int (*decapsulate)(
 		const struct ctap_pin_protocol *protocol,
 		const COSE_Key *peer_cose_key,
-		uint8_t shared_secret[32]
+		uint8_t *shared_secret
 	);
 
 	/// Decrypts the given ciphertext, using the given key, and returns a pointer to the plaintext.

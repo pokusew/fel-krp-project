@@ -206,6 +206,8 @@ static int ctap_pin_protocol_v1_verify_final(
 
 void ctap_pin_protocol_v1_init(ctap_pin_protocol_t *protocol) {
 
+	protocol->shared_secret_length = 32;
+
 	protocol->initialize = ctap_pin_protocol_v1_initialize;
 	protocol->regenerate = ctap_pin_protocol_v1_regenerate;
 	protocol->reset_token = ctap_pin_protocol_v1_reset_token;
@@ -275,7 +277,7 @@ uint8_t ctap_client_pin_set_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_pr
 
 	// 5.4 The authenticator calls decapsulate on the provided platform key-agreement key
 	//     to obtain the shared secret. If an error results, it returns CTAP1_ERR_INVALID_PARAMETER.
-	uint8_t shared_secret[32];
+	uint8_t shared_secret[pin_protocol->shared_secret_length];
 	if (pin_protocol->decapsulate(pin_protocol, &cp->keyAgreement, shared_secret) != 0) {
 		return CTAP1_ERR_INVALID_PARAMETER;
 	}
