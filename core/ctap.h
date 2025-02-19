@@ -93,6 +93,7 @@ typedef struct ctap_pin_protocol {
 	uint8_t key_agreement_public_key[64];
 	uint8_t key_agreement_private_key[32];
 	size_t shared_secret_length;
+	size_t encryption_extra_length;
 
 	/// This process is run by the authenticator at power-on.
 	int (*initialize)(
@@ -122,11 +123,18 @@ typedef struct ctap_pin_protocol {
 		uint8_t *shared_secret
 	);
 
-	/// Decrypts the given ciphertext, using the given key, and returns a pointer to the plaintext.
+	int (*encrypt)(
+		// Note that key is always a shared_secret (v1 32 bytes or v2 64 bytes).
+		const uint8_t *key, const size_t key_length,
+		const uint8_t *plaintext, const size_t plaintext_length,
+		uint8_t *ciphertext
+	);
+
 	int (*decrypt)(
+		// Note that key is always a shared_secret (v1 32 bytes or v2 64 bytes).
 		const uint8_t *key, const size_t key_length,
 		const uint8_t *ciphertext, const size_t ciphertext_length,
-		uint8_t *plaintext, size_t *plaintext_size
+		uint8_t *plaintext
 	);
 
 	/// Verifies that the signature is a valid MAC for the given message.
@@ -135,6 +143,8 @@ typedef struct ctap_pin_protocol {
 	void (*verify_init)(
 		const struct ctap_pin_protocol *protocol,
 		hmac_sha256_ctx_t *ctx,
+		// Note that key is always either a shared_secret (v1 32 bytes or v2 64 bytes)
+		// or pin_uv_auth_token (32 bytes).
 		const uint8_t *key, const size_t key_length
 	);
 	void (*verify_update)(

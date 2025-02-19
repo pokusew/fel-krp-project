@@ -112,6 +112,45 @@ constexpr auto create_change_pin(
 	return request;
 }
 
+constexpr auto create_get_pin_token(
+	const std::array<uint8_t, 32> &x,
+	const std::array<uint8_t, 32> &y,
+	const std::array<uint8_t, 16> &pin_hash_enc
+) {
+	auto request = hex::bytes<
+		"06" // authenticatorClientPIN
+		// {
+		//     1: 1,
+		//     2: 5,
+		//     3: {
+		//         1: 2,
+		//         3: -25_0,
+		//         -1: 1,
+		//         -2: h'{x}',
+		//         -3: h'{y}',
+		//     },
+		//     6: h'{pinHashEnc (0x06) (16 bytes)}',
+		// }
+		"a4"
+		"  01 01"
+		"  02 05"
+		"  03 a5"
+		"       01 02"
+		"       03 3818"
+		"       20 01"
+		"       21 5820" // x (32 bytes)
+		"          aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		"       22 5820" // y (32 bytes)
+		"          bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+		"  06 50" // pinHashEnc (0x06) (16 bytes)
+		"     eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	>();
+	std::copy_n(x.begin(), x.size(), &request[18]);
+	std::copy_n(y.begin(), y.size(), &request[53]);
+	std::copy_n(pin_hash_enc.begin(), pin_hash_enc.size(), &request[87]);
+	return request;
+}
+
 #define EXPECT_ERROR_RESPONSE(expected_status) \
 	EXPECT_EQ(status, expected_status); \
 	EXPECT_EQ(response_status_code, status); \
@@ -342,6 +381,54 @@ TEST_F(CtapClientPinTest, ChangePinFrom1234ToABCD) {
 
 	test_ctap_request(request_change_pin_from_1234_to_ABCD);
 	EXPECT_SUCCESS_EMPTY_RESPONSE();
+}
+
+TEST_F(CtapClientPinTest, GetPinToken) {
+	auto pin_1234 = hex::bytes<"31323334">();
+	auto pin_1234_hash = hex::bytes<
+		"03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"
+	>();
+	auto request_set_pin_1234 = create_set_pin(
+		test_platform_public_key_x,
+		test_platform_public_key_y,
+		hex::bytes<
+			"ceb8b1e368e647b2336f9e8c3e153e268bdec21eb33d93235650d9e6ae245f35"
+			"9155836973598fba7d5709f0f47bfcf747d99c117642e1f1286765f3fa96a238"
+		>(),
+		hex::bytes<
+			"f5d31443c94ba810aed7d02d4fce816f"
+		>()
+	);
+	auto request_get_pin_token = create_get_pin_token(
+		test_platform_public_key_x,
+		test_platform_public_key_y,
+		hex::bytes<
+			"b6b30c7cb6f9bb2e42082904889328d8"
+		>()
+	);
+
+	EXPECT_EQ(ctap.persistent.is_pin_set, false);
+
+	test_ctap_request(request_set_pin_1234);
+	EXPECT_SUCCESS_EMPTY_RESPONSE();
+
+	EXPECT_PIN_SET_SUCCESSFULLY();
+	EXPECT_EQ(ctap.persistent.pin_code_point_length, 4);
+	static_assert(sizeof(ctap.persistent.pin_hash) <= pin_1234_hash.size());
+	EXPECT_SAME_BYTES(ctap.persistent.pin_hash, pin_1234_hash.data());
+
+	test_ctap_request(request_get_pin_token);
+	EXPECT_EQ(status, CTAP2_OK);
+	EXPECT_EQ(response_status_code, status);
+	dump_hex(response_data, response_data_length);
+	// {3: 8, 4: false}
+	auto expected_response = hex::bytes<
+		"a1"
+		"  02 5820"
+		"     bfa8a46cecb907afc9d5d6f69743803a8266c0a34ee01203147b9a781b00e699"
+	>();
+	ASSERT_EQ(response_data_length, expected_response.size());
+	EXPECT_SAME_BYTES_S(response_data_length, response_data, expected_response.data());
 }
 
 } // namespace
