@@ -260,59 +260,38 @@ static size_t count_unicode_code_points_in_utf8_string(const uint8_t *str, const
 
 }
 
-uint8_t ctap_client_pin_set_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_protocol, const CTAP_clientPIN *cp) {
+static uint8_t set_pin(
+	ctap_state_t *state,
+	ctap_pin_protocol_t *pin_protocol,
+	const CTAP_clientPIN *cp,
+	const uint8_t *shared_secret,
+	const size_t shared_secret_length
+) {
 
-	// 6.5.5.5 Setting a New PIN
-
-	// 5.1 If the authenticator does not receive mandatory parameters for this command,
-	//     it returns CTAP2_ERR_MISSING_PARAMETER error.
-	if (!cp->keyAgreementPresent || cp->newPinEncSize == 0 || cp->pinUvAuthParamSize == 0) {
-		return CTAP2_ERR_MISSING_PARAMETER;
-	}
-
-	// 5.3 If a PIN has already been set, authenticator returns CTAP2_ERR_PIN_AUTH_INVALID error.
-	if (state->persistent.is_pin_set) {
-		return CTAP2_ERR_PIN_AUTH_INVALID;
-	}
-
-	// 5.4 The authenticator calls decapsulate on the provided platform key-agreement key
-	//     to obtain the shared secret. If an error results, it returns CTAP1_ERR_INVALID_PARAMETER.
-	uint8_t shared_secret[pin_protocol->shared_secret_length];
-	if (pin_protocol->decapsulate(pin_protocol, &cp->keyAgreement, shared_secret) != 0) {
-		return CTAP1_ERR_INVALID_PARAMETER;
-	}
-
-	// 5.5 The authenticator calls verify(shared secret, newPinEnc, pinUvAuthParam)
-	//     If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
-	hmac_sha256_ctx_t verify_ctx;
-	pin_protocol->verify_init(pin_protocol, &verify_ctx, /* key */ shared_secret, sizeof(shared_secret));
-	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message */ cp->newPinEnc, cp->newPinEncSize);
-	if (pin_protocol->verify_final(
-		pin_protocol,
-		&verify_ctx,
-		/* signature */ cp->pinUvAuthParam, cp->pinUvAuthParamSize
-	) != 0) {
-		return CTAP2_ERR_PIN_AUTH_INVALID;
-	}
-
-	// 5.6 The authenticator calls decrypt(shared secret, newPinEnc) to produce paddedNewPin.
-	//     If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
+	// 6.5.5.5. Setting a New PIN:     5.6
+	// 6.5.5.6. Changing existing PIN: 5.9
+	//   The authenticator calls decrypt(shared secret, newPinEnc) to produce paddedNewPin.
+	//   If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
 	uint8_t padded_new_pin[64];
 	size_t padded_new_pin_length;
 	if (pin_protocol->decrypt(
-		/* key */ shared_secret, sizeof(shared_secret),
+		/* key */ shared_secret, shared_secret_length,
 		/* ciphertext */ cp->newPinEnc, cp->newPinEncSize,
 		/* output: plaintext */ padded_new_pin, &padded_new_pin_length
 	) != 0) {
 		return CTAP2_ERR_PIN_AUTH_INVALID;
 	}
 
-	// 5.7 If paddedNewPin is NOT 64 bytes long, it returns CTAP1_ERR_INVALID_PARAMETER
+	// 6.5.5.5. Setting a New PIN:     5.7
+	// 6.5.5.6. Changing existing PIN: 5.10
+	//   If paddedNewPin is NOT 64 bytes long, it returns CTAP1_ERR_INVALID_PARAMETER
 	if (padded_new_pin_length != 64) {
 		return CTAP1_ERR_INVALID_PARAMETER;
 	}
 
-	// 5.8 The authenticator drops all trailing 0x00 bytes from paddedNewPin to produce newPin.
+	// 6.5.5.5. Setting a New PIN:     5.8
+	// 6.5.5.6. Changing existing PIN: 5.11
+	//   The authenticator drops all trailing 0x00 bytes from paddedNewPin to produce newPin.
 	uint8_t *new_pin = padded_new_pin;
 	// iterate from the end (i.e., from the right) and stop on the first non-zero byte
 	size_t new_pin_length = 64;
@@ -328,12 +307,14 @@ uint8_t ctap_client_pin_set_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_pr
 		return CTAP1_ERR_INVALID_PARAMETER;
 	}
 
-	// 5.9 The authenticator checks the length of newPin against the current minimum PIN length,
-	//     returning CTAP2_ERR_PIN_POLICY_VIOLATION if it is too short.
+	// 6.5.5.5. Setting a New PIN:     5.9
+	// 6.5.5.6. Changing existing PIN: 5.12
+	//   The authenticator checks the length of newPin against the current minimum PIN length,
+	//   returning CTAP2_ERR_PIN_POLICY_VIOLATION if it is too short.
 	//
-	// 5.10 An authenticator MAY impose arbitrary, additional constraints on PINs.
-	//      If newPin fails to satisfy such additional constraints,
-	//      the authenticator returns CTAP2_ERR_PIN_POLICY_VIOLATION.
+	//   An authenticator MAY impose arbitrary, additional constraints on PINs.
+	//   If newPin fails to satisfy such additional constraints,
+	//   the authenticator returns CTAP2_ERR_PIN_POLICY_VIOLATION.
 	//
 	// 6.5.1. PIN Composition Requirements states that
 	//   Platforms MUST enforce the following, baseline, requirements on PINs used with this specification:
@@ -377,9 +358,11 @@ uint8_t ctap_client_pin_set_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_pr
 	}
 	assert(new_pin_code_point_length <= 63);
 
-	// 5.11 Authenticator remembers newPin length internally as PINCodePointLength.
-	// 5.12 Authenticator stores LEFT(SHA-256(newPin), 16) internally as CurrentStoredPIN,
-	//      sets the pinRetries counter to maximum count, and returns CTAP2_OK.
+	// 6.5.5.5. Setting a New PIN:     5.11, 5.12
+	// 6.5.5.6. Changing existing PIN: 5.15, 5.17
+	//   Authenticator remembers newPin length internally as PINCodePointLength.
+	//   Authenticator stores LEFT(SHA-256(newPin), 16) internally as CurrentStoredPIN,
+	//   sets the pinRetries counter to maximum count, and returns CTAP2_OK.
 
 	uint8_t new_pin_hash[32];
 	SHA256_CTX sha256_ctx;
@@ -398,6 +381,143 @@ uint8_t ctap_client_pin_set_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_pr
 	state->persistent.is_pin_set = true;
 	state->persistent.pin_total_remaining_attempts = PIN_TOTAL_ATTEMPTS;
 	state->pin_boot_remaining_attempts = PIN_PER_BOOT_ATTEMPTS;
+
+	return CTAP2_OK;
+
+}
+
+uint8_t ctap_client_pin_set_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_protocol, const CTAP_clientPIN *cp) {
+
+	// 6.5.5.5 Setting a New PIN
+
+	// 5.1 If the authenticator does not receive mandatory parameters for this command,
+	//     it returns CTAP2_ERR_MISSING_PARAMETER error.
+	if (!cp->keyAgreementPresent || cp->newPinEncSize == 0 || cp->pinUvAuthParamSize == 0) {
+		return CTAP2_ERR_MISSING_PARAMETER;
+	}
+
+	// 5.3 If a PIN has already been set, authenticator returns CTAP2_ERR_PIN_AUTH_INVALID error.
+	if (state->persistent.is_pin_set) {
+		return CTAP2_ERR_PIN_AUTH_INVALID;
+	}
+
+	// 5.4 The authenticator calls decapsulate on the provided platform key-agreement key
+	//     to obtain the shared secret. If an error results, it returns CTAP1_ERR_INVALID_PARAMETER.
+	uint8_t shared_secret[pin_protocol->shared_secret_length];
+	if (pin_protocol->decapsulate(pin_protocol, &cp->keyAgreement, shared_secret) != 0) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+
+	// 5.5 The authenticator calls verify(shared secret, newPinEnc, pinUvAuthParam)
+	//     If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
+	hmac_sha256_ctx_t verify_ctx;
+	pin_protocol->verify_init(pin_protocol, &verify_ctx, /* key */ shared_secret, sizeof(shared_secret));
+	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message */ cp->newPinEnc, cp->newPinEncSize);
+	if (pin_protocol->verify_final(
+		pin_protocol,
+		&verify_ctx,
+		/* signature */ cp->pinUvAuthParam, cp->pinUvAuthParamSize
+	) != 0) {
+		return CTAP2_ERR_PIN_AUTH_INVALID;
+	}
+
+	return set_pin(state, pin_protocol, cp, shared_secret, sizeof(shared_secret));
+
+}
+
+static uint8_t handle_invalid_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_protocol) {
+	pin_protocol->regenerate(pin_protocol);
+	if (state->persistent.pin_total_remaining_attempts == 0) {
+		return CTAP2_ERR_PIN_BLOCKED;
+	}
+	if (state->pin_boot_remaining_attempts == 0) {
+		return CTAP2_ERR_PIN_AUTH_BLOCKED;
+	}
+	return CTAP2_ERR_PIN_INVALID;
+}
+
+uint8_t ctap_client_pin_change_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_protocol, const CTAP_clientPIN *cp) {
+
+	// 6.5.5.6. Changing existing PIN
+
+	// 5.1 If the authenticator does not receive mandatory parameters for this command,
+	//     it returns CTAP2_ERR_MISSING_PARAMETER error.
+	if (!cp->keyAgreementPresent || cp->newPinEncSize == 0 || cp->pinUvAuthParamSize == 0 || cp->pinHashEncSize == 0) {
+		return CTAP2_ERR_MISSING_PARAMETER;
+	}
+
+	// 5.3 If the pinRetries counter is 0, return CTAP2_ERR_PIN_BLOCKED error.
+	if (state->persistent.pin_total_remaining_attempts == 0) {
+		return CTAP2_ERR_PIN_BLOCKED;
+	}
+	// Note:
+	//   It is necessary to do the check from the point 5.7
+	//   before we decrement the pinRetries counter (pin_total_remaining_attempts) in 5.6!
+	//   (The spec does not explicitly state that in the list, but it implies that.)
+	//     If the authenticator sees 3 consecutive mismatches, it returns CTAP2_ERR_PIN_AUTH_BLOCKED,
+	//     indicating that power cycling is needed for further operations.
+	//     This is done so that malware running on the platform should not be able
+	//     to block the device without user interaction.
+	if (state->pin_boot_remaining_attempts == 0) {
+		return CTAP2_ERR_PIN_AUTH_BLOCKED;
+	}
+
+	// 5.4 The authenticator calls decapsulate on the provided platform key-agreement key
+	//     to obtain the shared secret. If an error results, it returns CTAP1_ERR_INVALID_PARAMETER.
+	uint8_t shared_secret[pin_protocol->shared_secret_length];
+	if (pin_protocol->decapsulate(pin_protocol, &cp->keyAgreement, shared_secret) != 0) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+
+	// 5.5 The authenticator calls verify(shared secret, newPinEnc || pinHashEnc, pinUvAuthParam)
+	//     If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
+	hmac_sha256_ctx_t verify_ctx;
+	pin_protocol->verify_init(pin_protocol, &verify_ctx, /* key */ shared_secret, sizeof(shared_secret));
+	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message part 1 */ cp->newPinEnc, cp->newPinEncSize);
+	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message part 2 */ cp->pinHashEnc, cp->pinHashEncSize);
+	if (pin_protocol->verify_final(
+		pin_protocol,
+		&verify_ctx,
+		/* signature */ cp->pinUvAuthParam, cp->pinUvAuthParamSize
+	) != 0) {
+		return CTAP2_ERR_PIN_AUTH_INVALID;
+	}
+
+	// 5.6 Authenticator decrements the pinRetries counter by 1.
+	assert(state->persistent.pin_total_remaining_attempts > 0);
+	state->persistent.pin_total_remaining_attempts--;
+	assert(state->pin_boot_remaining_attempts > 0);
+	state->pin_boot_remaining_attempts--;
+
+	// 5.7 Authenticator decrypts pinHashEnc using decrypt(shared secret, pinHashEnc)
+	//     and verifies against its internal stored LEFT(SHA-256(curPin), 16).
+	uint8_t pin_hash[cp->pinHashEncSize];
+	size_t pin_hash_length;
+	if (pin_protocol->decrypt(
+		/* key */ shared_secret, sizeof(shared_secret),
+		/* ciphertext */ cp->pinHashEnc, cp->pinHashEncSize,
+		/* output: plaintext */ pin_hash, &pin_hash_length
+	) != 0) {
+		return handle_invalid_pin(state, pin_protocol);
+	}
+	assert(sizeof(state->persistent.pin_hash) <= pin_hash_length);
+	if (memcmp(state->persistent.pin_hash, pin_hash, sizeof(state->persistent.pin_hash)) != 0) {
+		return handle_invalid_pin(state, pin_protocol);
+	}
+
+	// 5.8 Authenticator sets the pinRetries counter to maximum value.
+	state->persistent.pin_total_remaining_attempts = PIN_TOTAL_ATTEMPTS;
+	state->pin_boot_remaining_attempts = PIN_PER_BOOT_ATTEMPTS;
+
+	// 5.9 - 5.18 Set new pin.
+	uint8_t status = set_pin(state, pin_protocol, cp, shared_secret, sizeof(shared_secret));
+	if (status != CTAP2_OK) {
+		return status;
+	}
+
+	// 5.19 Authenticator calls resetPinUvAuthToken() for all pinUvAuthProtocols supported
+	//      by this authenticator. (I.e. all existing pinUvAuthTokens are invalidated.)
+	state->pin_protocol[0].initialize(&state->pin_protocol[0]);
 
 	return CTAP2_OK;
 
@@ -465,6 +585,10 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 
 		case CTAP_clientPIN_subCmd_setPIN:
 			return ctap_client_pin_set_pin(state, pin_protocol, &cp);
+			break;
+
+		case CTAP_clientPIN_subCmd_changePIN:
+			return ctap_client_pin_change_pin(state, pin_protocol, &cp);
 			break;
 
 		default:
