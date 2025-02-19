@@ -1,9 +1,10 @@
 import {
+	PinUvAuthProtocol,
 	PinUvAuthProtocolOne,
+	PinUvAuthProtocolTwo,
 	createPinUvAuthProtocolEcdhCoseKey,
 	computeSha256Digest,
 	CoseKey,
-	PinUvAuthProtocol,
 } from './pin-uv-auth-protocol.js';
 import assert from 'node:assert/strict';
 
@@ -25,8 +26,8 @@ interface ProcessedPin {
 	padded: Buffer;
 }
 
-function processPin(pin: string): ProcessedPin {
-	console.log(`pin = '${pin}'`);
+function processPin(pin: string, name = 'pin'): ProcessedPin {
+	console.log(`${name} = '${pin}'`);
 	const bytes = Buffer.from(pin, 'utf-8');
 	hex('  bytes', bytes);
 	const hash = computeSha256Digest(bytes);
@@ -52,15 +53,17 @@ const TEST_PLATFORM_PRIVATE_KEY = Buffer.from(
 	'hex',
 );
 
-function setPin(
-	pin: string,
+function setOrChangePin(
+	oldPinStr: string | undefined,
+	newPinStr: string,
 	platform: PinUvAuthProtocol = new PinUvAuthProtocolOne(),
 	platformPrivateKey: Buffer = TEST_PLATFORM_PRIVATE_KEY,
 	authenticatorPublicKey: CoseKey = TEST_AUTHENTICATOR_PUBLIC_KEY,
 ) {
-	console.log('--- setPin ---');
+	console.log(oldPinStr === undefined ? '--- setPin ---' : '--- changePin ---');
 
-	const newPin = processPin(pin);
+	const oldPin = oldPinStr !== undefined ? processPin(oldPinStr, 'oldPin') : undefined;
+	const newPin = processPin(newPinStr, 'newPin');
 
 	platform.initialize(platformPrivateKey);
 
@@ -76,22 +79,64 @@ function setPin(
 
 	const newPicEnc = platform.encrypt(sharedSecret, newPin.padded);
 	hex('newPicEnc', newPicEnc);
-	const pinUvAuthParam = platform.authenticate(sharedSecret, newPicEnc);
+
+	const message: Buffer[] = [newPicEnc];
+
+	if (oldPin !== undefined) {
+		const pinHashEnc = platform.encrypt(sharedSecret, oldPin.hash.subarray(0, 16));
+		hex('pinHashEnc', pinHashEnc);
+		message.push(pinHashEnc);
+	}
+
+	const pinUvAuthParam = platform.authenticate(sharedSecret, Buffer.concat(message));
 	hex('pinUvAuthParam', pinUvAuthParam);
 }
 
-function main() {
+const USAGE = `usage:
+  {v1|v2} setPin {newPin}
+  {v1|v2} changePin {oldPin} {newPin}`;
 
-	if (process.argv.length < 3) {
-		console.error(`missing required argument pin`);
+function main(args: string[]) {
+	if (args.length < 3) {
+		console.error(`missing required arguments`);
+		console.error(USAGE);
 		process.exit(1);
 	}
 
-	const pin = process.argv[2];
+	const [version, subCommand] = args;
 
-	setPin(pin);
+	if (version !== 'v1' && version !== 'v2') {
+		console.error(`invalid protocol version '${version}' given`);
+		console.error(USAGE);
+		process.exit(1);
+	}
 
+	if (subCommand !== 'setPin' && subCommand !== 'changePin') {
+		console.error(`invalid subCommand name '${version}' given`);
+		console.error(USAGE);
+		process.exit(1);
+	}
+
+	const protocol: PinUvAuthProtocol =
+		version === 'v1' ? new PinUvAuthProtocolOne() : new PinUvAuthProtocolTwo();
+
+	if (subCommand === 'setPin') {
+		const newPin = args[2];
+		setOrChangePin(undefined, newPin, protocol);
+		return;
+	}
+
+	if (subCommand === 'changePin') {
+		if (process.argv.length < 4) {
+			console.error(`missing required arguments`);
+			console.error(USAGE);
+			process.exit(1);
+		}
+		const oldPin = args[2];
+		const newPin = args[3];
+		setOrChangePin(oldPin, newPin, protocol);
+	}
 }
 
-main();
+main(process.argv.slice(2));
 
