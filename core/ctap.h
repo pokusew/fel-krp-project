@@ -89,7 +89,7 @@ typedef struct ctap_response {
 ///   in both PIN/UV Auth Protocol 1 and in PIN/UV Auth Protocol 2.
 typedef struct ctap_pin_protocol {
 
-	uint8_t token[PIN_TOKEN_SIZE];
+	uint8_t pin_uv_auth_token[PIN_TOKEN_SIZE];
 	uint8_t key_agreement_public_key[64];
 	uint8_t key_agreement_private_key[32];
 	size_t shared_secret_length;
@@ -106,7 +106,7 @@ typedef struct ctap_pin_protocol {
 	);
 
 	/// Generates a fresh pinUvAuthToken.
-	int (*reset_token)(
+	int (*reset_pin_uv_auth_token)(
 		struct ctap_pin_protocol *protocol
 	);
 

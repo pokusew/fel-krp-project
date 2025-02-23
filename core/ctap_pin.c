@@ -9,7 +9,7 @@ static int ctap_pin_protocol_v1_initialize(
 ) {
 	int ret = 0;
 	ret |= protocol->regenerate(protocol);
-	ret |= protocol->reset_token(protocol);
+	ret |= protocol->reset_pin_uv_auth_token(protocol);
 	return ret;
 }
 
@@ -41,15 +41,15 @@ static int ctap_pin_protocol_v1_regenerate(
 	return 1;
 }
 
-static int ctap_pin_protocol_v1_reset_token(
+static int ctap_pin_protocol_v1_reset_pin_uv_auth_token(
 	ctap_pin_protocol_t *protocol
 ) {
 	ctap_generate_rng(
-		protocol->token,
-		sizeof(protocol->token)
+		protocol->pin_uv_auth_token,
+		sizeof(protocol->pin_uv_auth_token)
 	);
 	debug_log("v1 pinUvAuthToken = ");
-	dump_hex(protocol->token, sizeof(protocol->token));
+	dump_hex(protocol->pin_uv_auth_token, sizeof(protocol->pin_uv_auth_token));
 	return 0;
 }
 
@@ -222,7 +222,7 @@ void ctap_pin_protocol_v1_init(ctap_pin_protocol_t *protocol) {
 
 	protocol->initialize = ctap_pin_protocol_v1_initialize;
 	protocol->regenerate = ctap_pin_protocol_v1_regenerate;
-	protocol->reset_token = ctap_pin_protocol_v1_reset_token;
+	protocol->reset_pin_uv_auth_token = ctap_pin_protocol_v1_reset_pin_uv_auth_token;
 	protocol->get_public_key = ctap_pin_protocol_v1_get_public_key;
 	protocol->decapsulate = ctap_pin_protocol_v1_decapsulate;
 	protocol->encrypt = ctap_pin_protocol_v1_encrypt;
@@ -636,7 +636,7 @@ uint8_t ctap_client_pin_get_pin_token(
 	// Create a new pinUvAuthToken by calling resetPinUvAuthToken()
 	// for all pinUvAuthProtocols supported by this authenticator.
 	// (I.e. all existing pinUvAuthTokens are invalidated.)
-	state->pin_protocol[0].reset_token(&state->pin_protocol[0]);
+	state->pin_protocol[0].reset_pin_uv_auth_token(&state->pin_protocol[0]);
 
 	// TODO: Call beginUsingPinUvAuthToken(userIsPresent: false).
 	// TODO: If the noMcGaPermissionsWithClientPin option ID is present
@@ -645,11 +645,11 @@ uint8_t ctap_client_pin_get_pin_token(
 	// The authenticator returns the encrypted pinUvAuthToken for the specified pinUvAuthProtocol,
 	// i.e. encrypt(shared secret, pinUvAuthToken).
 
-	size_t encrypted_pin_uv_auth_token_length = sizeof(pin_protocol->token) + pin_protocol->encryption_extra_length;
+	size_t encrypted_pin_uv_auth_token_length = sizeof(pin_protocol->pin_uv_auth_token) + pin_protocol->encryption_extra_length;
 	uint8_t encrypted_pin_uv_auth_token[encrypted_pin_uv_auth_token_length];
 	if (pin_protocol->encrypt(
 		shared_secret,
-		pin_protocol->token, sizeof(pin_protocol->token),
+		pin_protocol->pin_uv_auth_token, sizeof(pin_protocol->pin_uv_auth_token),
 		encrypted_pin_uv_auth_token
 	) != 0) {
 		assert(false);
@@ -777,7 +777,7 @@ uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
 	// Create a new pinUvAuthToken by calling resetPinUvAuthToken()
 	// for all pinUvAuthProtocols supported by this authenticator.
 	// (I.e. all existing pinUvAuthTokens are invalidated.)
-	state->pin_protocol[0].reset_token(&state->pin_protocol[0]);
+	state->pin_protocol[0].reset_pin_uv_auth_token(&state->pin_protocol[0]);
 
 	// TODO: Call beginUsingPinUvAuthToken(userIsPresent: false).
 	// TODO: If the noMcGaPermissionsWithClientPin option ID is present
@@ -786,11 +786,11 @@ uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
 	// The authenticator returns the encrypted pinUvAuthToken for the specified pinUvAuthProtocol,
 	// i.e. encrypt(shared secret, pinUvAuthToken).
 
-	size_t encrypted_pin_uv_auth_token_length = sizeof(pin_protocol->token) + pin_protocol->encryption_extra_length;
+	size_t encrypted_pin_uv_auth_token_length = sizeof(pin_protocol->pin_uv_auth_token) + pin_protocol->encryption_extra_length;
 	uint8_t encrypted_pin_uv_auth_token[encrypted_pin_uv_auth_token_length];
 	if (pin_protocol->encrypt(
 		shared_secret,
-		pin_protocol->token, sizeof(pin_protocol->token),
+		pin_protocol->pin_uv_auth_token, sizeof(pin_protocol->pin_uv_auth_token),
 		encrypted_pin_uv_auth_token
 	) != 0) {
 		assert(false);

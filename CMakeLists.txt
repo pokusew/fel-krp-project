@@ -34,14 +34,24 @@ if ((NOT EMBEDDED_BUILD) AND SANITIZERS)
 	#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -Wall -O0 -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -g")
 	## set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O3 -pthread") # -march=native
 
+	# See how others do it:
+	# https://github.com/ada-url/ada/blob/main/cmake/add-cpp-test.cmake
+	# https://github.com/ada-url/ada/blob/main/cmake/codecoverage.cmake
+
+	# -fsanitize=unsigned-integer-overflow:
+	#     Unsigned integer overflow, where the result of an unsigned integer computation
+	#     cannot be represented in its type. Unlike signed integer overflow,
+	#     this is NOT undefined behavior, but it is often unintentional.
+	set(SANITIZERS_FLAGS "-fsanitize=address,undefined")
+
 	message("current CMAKE_C_FLAGS = ${CMAKE_C_FLAGS}")
 	message("current CMAKE_CXX_FLAGS = ${CMAKE_CXX_FLAGS}")
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address,undefined")
-	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -fsanitize=address,undefined")
-	# set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} -fsanitize=address,undefined")
-	set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -fsanitize=address,undefined")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${SANITIZERS_FLAGS} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SANITIZERS_FLAGS} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${SANITIZERS_FLAGS}")
+	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${SANITIZERS_FLAGS}")
+	# set(CMAKE_STATIC_LINKER_FLAGS "${CMAKE_STATIC_LINKER_FLAGS} ${SANITIZERS_FLAGS}")
+	set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${SANITIZERS_FLAGS}")
 
 
 	# if buildtype == 'debug' and get_option('debug_with_sanitizers')
