@@ -123,16 +123,40 @@ typedef struct ctap_pin_protocol {
 		uint8_t *shared_secret
 	);
 
+	/**
+	 * Encrypt a plaintext using a shared secret as a key and outputs a ciphertext to the given ciphertext buffer.
+	 *
+	 * The plaintext remains unchanged.
+	 *
+	 * @param shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
+	 *                      (32 bytes for v1, 64 bytes for v2)
+	 * @param plaintext the plaintext
+	 * @param plaintext_length the plaintext length in bytes
+	 * @param ciphertext the pointer to an array of size at least (plaintext_length + encryption_extra_length) bytes
+	 *                   where the ciphertext will be written
+	 * @return 0 on success, 1 on error
+	 */
 	int (*encrypt)(
-		// Note that key is always a shared_secret (v1 32 bytes or v2 64 bytes).
-		const uint8_t *key, const size_t key_length,
+		const uint8_t *shared_secret,
 		const uint8_t *plaintext, const size_t plaintext_length,
 		uint8_t *ciphertext
 	);
 
+	/**
+	 * Decrypts a ciphertext using a shared secret as a key and outputs a plaintext to the given plaintext buffer.
+	 *
+	 * The ciphertext remains unchanged.
+	 *
+	 * @param shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
+	 *                      (32 bytes for v1, 64 bytes for v2)
+	 * @param ciphertext the ciphertext
+	 * @param ciphertext_length the ciphertext length in bytes
+	 * @param plaintext the pointer to an array of size at least (ciphertext_length - encryption_extra_length) bytes
+	 *                  where
+	 * @return 0 on success, 1 on error
+	 */
 	int (*decrypt)(
-		// Note that key is always a shared_secret (v1 32 bytes or v2 64 bytes).
-		const uint8_t *key, const size_t key_length,
+		const uint8_t *shared_secret,
 		const uint8_t *ciphertext, const size_t ciphertext_length,
 		uint8_t *plaintext
 	);
