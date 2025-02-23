@@ -154,6 +154,62 @@ typedef struct CTAP_clientPIN {
 #define CTAP_clientPIN_res_powerCycleState  0x04
 #define CTAP_clientPIN_res_uvRetries        0x05
 
+// 6.5.5.7. Operations to Obtain a pinUvAuthToken
+// The following pinUvAuthToken permissions are defined:
+
+/**
+ * MakeCredential
+ * RP ID: Required
+ * This allows the pinUvAuthToken to be used for authenticatorMakeCredential operations
+ * with the provided rpId parameter.
+ */
+#define CTAP_clientPIN_pinUvAuthToken_permission_mc    0x01u
+
+/**
+ * GetAssertion
+ * RP ID: Required
+ * This allows the pinUvAuthToken to be used for authenticatorGetAssertion operations
+ * with the provided rpId parameter.
+ */
+#define CTAP_clientPIN_pinUvAuthToken_permission_ga    0x02u
+
+/**
+ * Credential Management
+ * RP ID: Optional
+ * This allows the pinUvAuthToken to be used with the authenticatorCredentialManagement command.
+ * The rpId parameter is optional, if it is present, the pinUvAuthToken can only be used
+ * for Credential Management operations on Credentials associated with that RP ID.
+ */
+#define CTAP_clientPIN_pinUvAuthToken_permission_cm    0x04u
+
+/**
+ * Bio Enrollment
+ * RP ID: Ignored
+ * This allows the pinUvAuthToken to be used with the authenticatorBioEnrollment command.
+ * The rpId parameter is ignored for this permission.
+ */
+#define CTAP_clientPIN_pinUvAuthToken_permission_be    0x08u
+
+/**
+ * Large Blob Write
+ * RP ID: Ignored
+ * This allows the pinUvAuthToken to be used with the authenticatorLargeBlobs command.
+ * The rpId parameter is ignored for this permission.
+ */
+#define CTAP_clientPIN_pinUvAuthToken_permission_lbw   0x10u
+
+/**
+ * Authenticator Configuration
+ * RP ID: Ignored
+ * This allows the pinUvAuthToken to be used with the authenticatorConfig command.
+ * The rpId parameter is ignored for this permission.
+ */
+#define CTAP_clientPIN_pinUvAuthToken_permission_acfg  0x20u
+
+static inline bool permissions_include_any_of(int permissions, int mask) {
+	return (permissions & mask) != 0;
+}
+
 uint8_t ctap_parse_client_pin(const uint8_t *request, size_t length, CTAP_clientPIN *cp);
 
 #endif // POKUSEW_CTAP_PARSE_H

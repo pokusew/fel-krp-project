@@ -204,7 +204,7 @@ TEST_F(CtapClientPinTest, InvalidSubcommand) {
 		"01" //   unsigned(1)
 		"01" //   unsigned(1)
 		"02" //   unsigned(2)
-		"09" //   unsigned(9)
+		"08" //   unsigned(9)
 	>();
 	test_ctap_request(request);
 	EXPECT_ERROR_RESPONSE(CTAP2_ERR_INVALID_SUBCOMMAND);

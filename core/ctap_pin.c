@@ -672,6 +672,147 @@ uint8_t ctap_client_pin_get_pin_token(
 
 }
 
+uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
+	ctap_state_t *state,
+	ctap_pin_protocol_t *pin_protocol,
+	const CTAP_clientPIN *cp
+) {
+
+	uint8_t status;
+
+	// 6.5.5.7.2. Getting pinUvAuthToken using getPinUvAuthTokenUsingPinWithPermissions (ClientPIN)
+
+	// If the authenticator does not receive mandatory parameters for this command,
+	// it returns CTAP2_ERR_MISSING_PARAMETER error.
+	if (!cp->keyAgreementPresent || cp->pinHashEncSize == 0 || cp->permissionsPresent == 0) {
+		return CTAP2_ERR_MISSING_PARAMETER;
+	}
+
+	// If the authenticator receives a permissions parameter with value 0, return CTAP1_ERR_INVALID_PARAMETER.
+	if (cp->permissions == 0) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+
+	// The following checks are implied by the pinUvAuthToken permissions definition
+	// (the table in 6.5.5.7. Operations to Obtain a pinUvAuthToken)
+	const bool rpIdRequired = permissions_include_any_of(
+		cp->permissions,
+		CTAP_clientPIN_pinUvAuthToken_permission_mc
+		| CTAP_clientPIN_pinUvAuthToken_permission_ga
+	);
+	if (rpIdRequired && !cp->rpIdPresent) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+
+	// For each pinUvAuthToken permission present in the permissions parameter,
+	// if the statement corresponding to the permission is currently true,
+	// terminate these steps and return CTAP2_ERR_UNAUTHORIZED_PERMISSION.
+	// Undefined permissions present in the permissions parameter are ignored.
+	// enum AuthenticatorOption {
+	// 	OptionFalse = -1,
+	// 	OptionAbsent = 0,
+	// 	OptionTrue = 1,
+	// };
+	// const enum AuthenticatorOption noMcGaPermissionsWithClientPin = OptionAbsent;
+	// const enum AuthenticatorOption credMgmt = OptionTrue;
+	// const enum AuthenticatorOption bioEnroll = OptionAbsent;
+	// const enum AuthenticatorOption largeBlobs = OptionAbsent;
+	// const enum AuthenticatorOption authnrCfg = OptionTrue;
+	// if (
+	// 	(
+	// 		permissions_include_any_of(cp->permissions, CTAP_clientPIN_pinUvAuthToken_permission_mc)
+	// 		&& noMcGaPermissionsWithClientPin == OptionTrue
+	// 	)
+	// 	|| (
+	// 		permissions_include_any_of(cp->permissions, CTAP_clientPIN_pinUvAuthToken_permission_ga)
+	// 		&& noMcGaPermissionsWithClientPin == OptionTrue
+	// 	)
+	// 	|| (
+	// 		permissions_include_any_of(cp->permissions, CTAP_clientPIN_pinUvAuthToken_permission_cm)
+	// 		&& (credMgmt == OptionFalse || credMgmt == OptionAbsent)
+	// 	)
+	// 	|| (
+	// 		permissions_include_any_of(cp->permissions, CTAP_clientPIN_pinUvAuthToken_permission_be)
+	// 		&& bioEnroll == OptionAbsent
+	// 	)
+	// 	|| (
+	// 		permissions_include_any_of(cp->permissions, CTAP_clientPIN_pinUvAuthToken_permission_lbw)
+	// 		&& (largeBlobs == OptionFalse || largeBlobs == OptionAbsent)
+	// 	)
+	// 	|| (
+	// 		permissions_include_any_of(cp->permissions, CTAP_clientPIN_pinUvAuthToken_permission_acfg)
+	// 		&& (authnrCfg == OptionFalse || authnrCfg == OptionAbsent)
+	// 	)
+	// 	) {
+	// 	return CTAP2_ERR_UNAUTHORIZED_PERMISSION;
+	// }
+	// simplified constant version
+	if (permissions_include_any_of(
+		cp->permissions,
+		CTAP_clientPIN_pinUvAuthToken_permission_be
+		| CTAP_clientPIN_pinUvAuthToken_permission_lbw
+	)) {
+		return CTAP2_ERR_UNAUTHORIZED_PERMISSION;
+	}
+
+	// Check remaining pin attempts.
+	if ((status = check_pin_remaining_attempts(state)) != CTAP2_OK) {
+		return status;
+	}
+
+	// The authenticator calls decapsulate on the provided platform key-agreement key
+	// to obtain the shared secret. If an error results, it returns CTAP1_ERR_INVALID_PARAMETER.
+	uint8_t shared_secret[pin_protocol->shared_secret_length];
+	if (pin_protocol->decapsulate(pin_protocol, &cp->keyAgreement, shared_secret) != 0) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+
+	// Check the provided pin.
+	if ((status = check_pin_hash(state, pin_protocol, cp, shared_secret)) != CTAP2_OK) {
+		return status;
+	}
+
+	// TODO: Handle forcePINChange.
+
+	// Create a new pinUvAuthToken by calling resetPinUvAuthToken()
+	// for all pinUvAuthProtocols supported by this authenticator.
+	// (I.e. all existing pinUvAuthTokens are invalidated.)
+	state->pin_protocol[0].reset_token(&state->pin_protocol[0]);
+
+	// TODO: Call beginUsingPinUvAuthToken(userIsPresent: false).
+	// TODO: If the noMcGaPermissionsWithClientPin option ID is present
+	//       and set to false, or absent, then assign the pinUvAuthToken the default permissions.
+
+	// The authenticator returns the encrypted pinUvAuthToken for the specified pinUvAuthProtocol,
+	// i.e. encrypt(shared secret, pinUvAuthToken).
+
+	size_t encrypted_pin_uv_auth_token_length = sizeof(pin_protocol->token) + pin_protocol->encryption_extra_length;
+	uint8_t encrypted_pin_uv_auth_token[encrypted_pin_uv_auth_token_length];
+	if (pin_protocol->encrypt(
+		shared_secret,
+		pin_protocol->token, sizeof(pin_protocol->token),
+		encrypted_pin_uv_auth_token
+	) != 0) {
+		assert(false);
+		return CTAP1_ERR_OTHER;
+	}
+
+	CborEncoder *encoder = &state->response.encoder;
+	CborEncoder map;
+	CborError err;
+
+	// start response map
+	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 1));
+	// 2. pinUvAuthToken
+	cbor_encoding_check(cbor_encode_int(&map, CTAP_clientPIN_res_pinUvAuthToken));
+	cbor_encoding_check(cbor_encode_byte_string(&map, encrypted_pin_uv_auth_token, encrypted_pin_uv_auth_token_length));
+	// close response map
+	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
+
+	return CTAP2_OK;
+
+}
+
 uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t length) {
 
 	uint8_t ret;
@@ -740,6 +881,15 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 
 		case CTAP_clientPIN_subCmd_getPinToken:
 			return ctap_client_pin_get_pin_token(state, pin_protocol, &cp);
+
+		case CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingUvWithPermissions:
+		case CTAP_clientPIN_subCmd_getUVRetries:
+			// not applicable because we currently don't support any built-in user verification methods
+			// (see the uv option in the authenticatorGetInfo response)
+			return CTAP2_ERR_INVALID_SUBCOMMAND;
+
+		case CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingPinWithPermissions:
+			return ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(state, pin_protocol, &cp);
 
 	}
 
