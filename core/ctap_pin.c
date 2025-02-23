@@ -273,6 +273,96 @@ static size_t count_unicode_code_points_in_utf8_string(const uint8_t *str, const
 
 }
 
+static void decrement_pin_remaining_attempts(ctap_state_t *state) {
+	assert(state->persistent.pin_total_remaining_attempts > 0);
+	assert(state->pin_boot_remaining_attempts > 0);
+	state->persistent.pin_total_remaining_attempts--;
+	state->pin_boot_remaining_attempts--;
+}
+
+static void reset_pin_remaining_attempts(ctap_state_t *state) {
+	state->persistent.pin_total_remaining_attempts = PIN_TOTAL_ATTEMPTS;
+	state->pin_boot_remaining_attempts = PIN_PER_BOOT_ATTEMPTS;
+}
+
+static uint8_t check_pin_remaining_attempts(ctap_state_t *state) {
+	if (state->persistent.pin_total_remaining_attempts == 0) {
+		return CTAP2_ERR_PIN_BLOCKED;
+	}
+	if (state->pin_boot_remaining_attempts == 0) {
+		return CTAP2_ERR_PIN_AUTH_BLOCKED;
+	}
+	return CTAP2_OK;
+}
+
+static uint8_t handle_invalid_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_protocol) {
+	decrement_pin_remaining_attempts(state);
+	pin_protocol->regenerate(pin_protocol);
+	uint8_t status = check_pin_remaining_attempts(state);
+	if (status != CTAP2_OK) {
+		return status;
+	}
+	return CTAP2_ERR_PIN_INVALID;
+}
+
+static uint8_t check_pin_hash(
+	ctap_state_t *state,
+	ctap_pin_protocol_t *pin_protocol,
+	const CTAP_clientPIN *cp,
+	const uint8_t *shared_secret
+) {
+	// These preconditions should be ensured by the caller function.
+	assert(state->persistent.pin_total_remaining_attempts > 0);
+	assert(state->pin_boot_remaining_attempts > 0);
+
+	// Note: This case is not explicitly mentioned in the spec.
+	if (!state->persistent.is_pin_set) {
+		return CTAP2_ERR_PIN_NOT_SET;
+	}
+
+	// The spec suggests, that we should decrement the pinRetries counter.
+	// by 1 BEFORE actually checking the pin. Then, if the pin is correct,
+	// we should reset the pinRetries counter to the maximum value.
+	// To avoid the unnecessary decrement/reset, we decrement the pinRetries counter
+	// ONLY IF that pin is actually incorrect (in handle_invalid_pin).
+
+	// Authenticator decrypts pinHashEnc using decrypt(shared secret, pinHashEnc)
+	// and verifies against its internal stored LEFT(SHA-256(curPin), 16).
+	size_t pin_hash_length = cp->pinHashEncSize - pin_protocol->encryption_extra_length;
+	assert(sizeof(state->persistent.pin_hash) <= pin_hash_length);
+	uint8_t pin_hash[pin_hash_length];
+	if (pin_protocol->decrypt(
+		/* key */ shared_secret,
+		/* ciphertext */ cp->pinHashEnc, cp->pinHashEncSize,
+		/* output: plaintext */ pin_hash
+	) != 0) {
+		return handle_invalid_pin(state, pin_protocol);
+	}
+	if (memcmp(state->persistent.pin_hash, pin_hash, sizeof(state->persistent.pin_hash)) != 0) {
+		return handle_invalid_pin(state, pin_protocol);
+	}
+
+	// 5.8 Authenticator sets the pinRetries counter to maximum value.
+	reset_pin_remaining_attempts(state);
+
+	return CTAP2_OK;
+}
+
+/**
+ * Sets a new PIN
+ *
+ * 1. Decrypts newPinEnc to produce paddedNewPin
+ * 2. Drops all trailing 0x00 bytes from paddedNewPin to produce newPin.
+ * 3. Validates newPin length.
+ * 4. Persists newPin.
+ *    (newPin length aka PINCodePointLength and LEFT(SHA-256(newPin), 16) aka CurrentStoredPIN).
+ * 5. Resets the pin remaining attempts counters to their resp. max values.
+ *
+ * @returns CTAP2_OK pin successfully set and persisted
+ *          CTAP1_ERR_INVALID_PARAMETER invalid paddedNewPin, resp. newPinEnc
+ *          CTAP2_ERR_PIN_AUTH_INVALID when newPinEnc decryption fails (should not happen)
+ *          CTAP2_ERR_PIN_POLICY_VIOLATION newPin too short
+ */
 static uint8_t set_pin(
 	ctap_state_t *state,
 	ctap_pin_protocol_t *pin_protocol,
@@ -389,16 +479,19 @@ static uint8_t set_pin(
 	);
 	memcpy(state->persistent.pin_hash, new_pin_hash, PIN_HASH_SIZE);
 	state->persistent.pin_code_point_length = new_pin_code_point_length;
-
 	state->persistent.is_pin_set = true;
-	state->persistent.pin_total_remaining_attempts = PIN_TOTAL_ATTEMPTS;
-	state->pin_boot_remaining_attempts = PIN_PER_BOOT_ATTEMPTS;
+
+	reset_pin_remaining_attempts(state);
 
 	return CTAP2_OK;
 
 }
 
-uint8_t ctap_client_pin_set_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_protocol, const CTAP_clientPIN *cp) {
+uint8_t ctap_client_pin_set_pin(
+	ctap_state_t *state,
+	ctap_pin_protocol_t *pin_protocol,
+	const CTAP_clientPIN *cp
+) {
 
 	// 6.5.5.5 Setting a New PIN
 
@@ -437,60 +530,6 @@ uint8_t ctap_client_pin_set_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_pr
 
 }
 
-static uint8_t check_pin_remaining_attempts(ctap_state_t *state) {
-	if (state->persistent.pin_total_remaining_attempts == 0) {
-		return CTAP2_ERR_PIN_BLOCKED;
-	}
-	if (state->pin_boot_remaining_attempts == 0) {
-		return CTAP2_ERR_PIN_AUTH_BLOCKED;
-	}
-	return CTAP2_OK;
-}
-
-static uint8_t handle_invalid_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_protocol) {
-	pin_protocol->regenerate(pin_protocol);
-	uint8_t status = check_pin_remaining_attempts(state);
-	if (status != CTAP2_OK) {
-		return status;
-	}
-	return CTAP2_ERR_PIN_INVALID;
-}
-
-static uint8_t check_pin_hash(
-	ctap_state_t *state,
-	ctap_pin_protocol_t *pin_protocol,
-	const CTAP_clientPIN *cp,
-	const uint8_t *shared_secret
-) {
-	// 5.6 Authenticator decrements the pinRetries counter by 1.
-	assert(state->persistent.pin_total_remaining_attempts > 0);
-	state->persistent.pin_total_remaining_attempts--;
-	assert(state->pin_boot_remaining_attempts > 0);
-	state->pin_boot_remaining_attempts--;
-
-	// Authenticator decrypts pinHashEnc using decrypt(shared secret, pinHashEnc)
-	// and verifies against its internal stored LEFT(SHA-256(curPin), 16).
-	size_t pin_hash_length = cp->pinHashEncSize - pin_protocol->encryption_extra_length;
-	assert(sizeof(state->persistent.pin_hash) <= pin_hash_length);
-	uint8_t pin_hash[pin_hash_length];
-	if (pin_protocol->decrypt(
-		/* key */ shared_secret,
-		/* ciphertext */ cp->pinHashEnc, cp->pinHashEncSize,
-		/* output: plaintext */ pin_hash
-	) != 0) {
-		return handle_invalid_pin(state, pin_protocol);
-	}
-	if (memcmp(state->persistent.pin_hash, pin_hash, sizeof(state->persistent.pin_hash)) != 0) {
-		return handle_invalid_pin(state, pin_protocol);
-	}
-
-	// 5.8 Authenticator sets the pinRetries counter to maximum value.
-	state->persistent.pin_total_remaining_attempts = PIN_TOTAL_ATTEMPTS;
-	state->pin_boot_remaining_attempts = PIN_PER_BOOT_ATTEMPTS;
-
-	return CTAP2_OK;
-}
-
 uint8_t ctap_client_pin_change_pin(
 	ctap_state_t *state,
 	ctap_pin_protocol_t *pin_protocol,
@@ -507,20 +546,9 @@ uint8_t ctap_client_pin_change_pin(
 		return CTAP2_ERR_MISSING_PARAMETER;
 	}
 
-	// 5.3 If the pinRetries counter is 0, return CTAP2_ERR_PIN_BLOCKED error.
-	if (state->persistent.pin_total_remaining_attempts == 0) {
-		return CTAP2_ERR_PIN_BLOCKED;
-	}
-	// Note:
-	//   It is necessary to do the check from the point 5.7
-	//   before we decrement the pinRetries counter (pin_total_remaining_attempts) in 5.6!
-	//   (The spec does not explicitly state that in the list, but it implies that.)
-	//     If the authenticator sees 3 consecutive mismatches, it returns CTAP2_ERR_PIN_AUTH_BLOCKED,
-	//     indicating that power cycling is needed for further operations.
-	//     This is done so that malware running on the platform should not be able
-	//     to block the device without user interaction.
-	if (state->pin_boot_remaining_attempts == 0) {
-		return CTAP2_ERR_PIN_AUTH_BLOCKED;
+	// 5.3 (5.7) Check the remaining pin attempts (total and boot).
+	if ((status = check_pin_remaining_attempts(state)) != CTAP2_OK) {
+		return status;
 	}
 
 	// 5.4 The authenticator calls decapsulate on the provided platform key-agreement key
@@ -585,8 +613,6 @@ uint8_t ctap_client_pin_get_pin_token(
 	if (cp->permissionsPresent || cp->rpIdPresent) {
 		return CTAP1_ERR_INVALID_PARAMETER;
 	}
-
-	// TODO: Handle pin not set.
 
 	// Check remaining pin attempts.
 	if ((status = check_pin_remaining_attempts(state)) != CTAP2_OK) {
