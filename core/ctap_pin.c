@@ -692,7 +692,7 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 			cbor_encoding_check(cbor_encode_boolean(&map, power_cycle_needed));
 			// close response map
 			cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
-			break;
+			return CTAP2_OK;
 
 		case CTAP_clientPIN_subCmd_getKeyAgreement:
 			// start response map
@@ -704,25 +704,20 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 			}
 			// close response map
 			cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
-			break;
+			return CTAP2_OK;
 
 		case CTAP_clientPIN_subCmd_setPIN:
 			return ctap_client_pin_set_pin(state, pin_protocol, &cp);
-			break;
 
 		case CTAP_clientPIN_subCmd_changePIN:
 			return ctap_client_pin_change_pin(state, pin_protocol, &cp);
-			break;
 
 		case CTAP_clientPIN_subCmd_getPinToken:
 			return ctap_client_pin_get_pin_token(state, pin_protocol, &cp);
-			break;
-
-		default:
-			return CTAP2_ERR_INVALID_SUBCOMMAND;
 
 	}
 
-	return CTAP2_OK;
+	// default case (unknown or unsupported subcommand)
+	return CTAP2_ERR_INVALID_SUBCOMMAND;
 
 }
