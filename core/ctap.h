@@ -183,6 +183,99 @@ typedef struct ctap_pin_protocol {
 	);
 } ctap_pin_protocol_t;
 
+#define CTAP_PIN_UV_AUTH_TOKEN_STATE_INITIAL_USAGE_TIME_LIMIT_USB (30 * 1000)
+
+typedef struct ctap_timer {
+	bool running;
+	uint32_t start;
+} ctap_timer;
+
+/**
+ * 6.5.2.1. pinUvAuthToken State
+ * https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authnrClientPin-globalState-puat
+ */
+typedef struct ctap_pin_uv_auth_token_state {
+
+	/**
+	 * A permissions RP ID, initially null.
+	 */
+	int rpId;
+	bool rpIdSet;
+
+	/**
+	 * A permissions set whose possible values are those of pinUvAuthToken permissions.
+	 * It is initially empty.
+	 */
+	int permissions;
+
+	/**
+	 * A usage timer, initially not running.
+	 * Note: Once running, the timer is observed by pin_uv_auth_token_usage_timer_observer().
+	 */
+	ctap_timer usage_timer;
+
+	/**
+	 * An in use flag, initially set to false, meaning that the pinUvAuthToken is not in use
+	 * When the in use flag is set to true, the pinUvAuthToken is said to be in use.
+	 */
+	bool in_use;
+
+	/**
+	 * A initial usage time limit, initially not set. begin_using_pin_uv_auth_token() sets
+	 * this value according to the transport the platform is using to communicate with it.
+	 * The platform MUST invoke an authenticator operation using the pinUvAuthToken within
+	 * this time limit for the pinUvAuthToken to remain valid for the full max usage time period.
+	 * The default maximum per-transport initial usage time limit values are:
+	 * * usb: 30 seconds
+	 * * nfc: 19.8 seconds (16 bit counter with 3311hz clock: max time before overflow)
+	 * * ble: 30 seconds
+	 * * internal: 30 seconds
+	 *
+	 * Authenticators MAY use other values that are less than the default maximum values.
+	 *
+	 * Authenticators MAY implement a rolling timer, initialized to the per-transport initial
+	 * usage time limit, where the pinUvAuthToken and its state variables remain valid
+	 * as long as the platform again uses the pinUvAuthToken in an operation
+	 * before the rolling timer expires. If so, the rolling timer is again initialized
+	 * to the initial usage time limit. This continues until the max usage time period expires.
+	 * See pin_uv_auth_token_usage_timer_observer().
+	 *
+	 * Note: Authenticators should utilize the rolling timer approach judiciously,
+	 * e.g., because some features, such as authenticatorBioEnrollment and authenticatorCredentialManagement,
+	 * may need to accommodate infrequent user interactions. Thus the rolling timer approach
+	 * may be most applicable to authenticatorMakeCredential and authenticatorGetAssertion operations.
+	 */
+	int initial_usage_time_limit;
+
+	/**
+	 * A user present time limit defining the length of time the user is considered "present",
+	 * as represented by the userPresent flag, after user presence is collected.
+	 * The user present time limit defaults to the same default maximum per-transport values
+	 * as the initial usage time limit, although authenticators MAY use other values
+	 * that are less than the default maximum values, including zero.
+	 */
+	int user_present_time_limit;
+
+	/**
+	 * A max usage time period value, which SHOULD default to
+	 * a maximum of 10 minutes (600 seconds), though authenticators
+	 * MAY use other values less than the latter default,
+	 * possibly depending upon the use case, e.g., which transport is in use.
+	 */
+	int max_usage_time_period;
+
+	/**
+	 * A userVerified flag, initially false
+	 */
+	bool user_verified;
+
+	/**
+	 * A userPresent flag, initially false.
+	 */
+	bool user_present;
+
+} ctap_pin_uv_auth_token_state;
+
 typedef struct ctap_state {
 
 	ctap_persistent_state_t persistent;
@@ -191,6 +284,7 @@ typedef struct ctap_state {
 
 	ctap_pin_protocol_t pin_protocol[2];
 	uint8_t pin_boot_remaining_attempts;
+	ctap_pin_uv_auth_token_state pin_uv_auth_token_state;
 
 } ctap_state_t;
 
@@ -206,5 +300,19 @@ uint8_t ctap_request(
 void ctap_init(ctap_state_t *state);
 
 int ctap_generate_rng(uint8_t *buffer, size_t length);
+
+void ctap_pin_uv_auth_token_begin_using(ctap_pin_uv_auth_token_state *token_state, bool user_is_present);
+
+void ctap_pin_uv_auth_token_usage_timer_observer(ctap_pin_uv_auth_token_state *token_state);
+
+bool ctap_pin_uv_auth_token_get_user_present_flag_value(ctap_pin_uv_auth_token_state *token_state);
+
+bool ctap_pin_uv_auth_token_get_user_verified_flag_value(ctap_pin_uv_auth_token_state *token_state);
+
+void ctap_pin_uv_auth_token_clear_user_present_flag(ctap_pin_uv_auth_token_state *token_state);
+
+void ctap_pin_uv_auth_token_clear_permissions_except_lbw(ctap_pin_uv_auth_token_state *token_state);
+
+void ctap_pin_uv_auth_token_stop_using(ctap_pin_uv_auth_token_state *token_state);
 
 #endif // POKUSEW_CTAP_H
