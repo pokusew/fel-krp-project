@@ -708,9 +708,14 @@ uint8_t ctap_client_pin_get_pin_token(
 	// (I.e. all existing pinUvAuthTokens are invalidated.)
 	state->pin_protocol[0].reset_pin_uv_auth_token(&state->pin_protocol[0]);
 
-	// TODO: Call beginUsingPinUvAuthToken(userIsPresent: false).
-	// TODO: If the noMcGaPermissionsWithClientPin option ID is present
-	//       and set to false, or absent, then assign the pinUvAuthToken the default permissions.
+	// Call beginUsingPinUvAuthToken(userIsPresent: false).
+	ctap_pin_uv_auth_token_begin_using(&state->pin_uv_auth_token_state, false);
+	// If the noMcGaPermissionsWithClientPin option ID is present and set to false, or absent,
+	// then assign the pinUvAuthToken the default permissions (mc and ga).
+	// Note that the permissions RP ID is not set even though it is required for mc and ga permissions.
+	// It will be set on first use of the pinUvAuthToken with an RP ID.
+	state->pin_uv_auth_token_state.permissions =
+		CTAP_clientPIN_pinUvAuthToken_permission_mc | CTAP_clientPIN_pinUvAuthToken_permission_ga;
 
 	// The authenticator returns the encrypted pinUvAuthToken for the specified pinUvAuthProtocol,
 	// i.e. encrypt(shared secret, pinUvAuthToken).
@@ -849,9 +854,16 @@ uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
 	// (I.e. all existing pinUvAuthTokens are invalidated.)
 	state->pin_protocol[0].reset_pin_uv_auth_token(&state->pin_protocol[0]);
 
-	// TODO: Call beginUsingPinUvAuthToken(userIsPresent: false).
-	// TODO: If the noMcGaPermissionsWithClientPin option ID is present
-	//       and set to false, or absent, then assign the pinUvAuthToken the default permissions.
+	// Call beginUsingPinUvAuthToken(userIsPresent: false).
+	ctap_pin_uv_auth_token_begin_using(&state->pin_uv_auth_token_state, false);
+	// Assign the requested permissions to the pinUvAuthToken, ignoring any undefined permissions.
+	// Note: We do not clear the undefined (unknown) permissions since their presence does not affect anything.
+	state->pin_uv_auth_token_state.permissions = cp->permissions;
+	// If the rpId parameter is present, associate the permissions RP ID with the pinUvAuthToken.
+	if (cp->rpIdPresent) {
+		state->pin_uv_auth_token_state.rpId = cp->rpId;
+		state->pin_uv_auth_token_state.rpIdSet = true;
+	}
 
 	// The authenticator returns the encrypted pinUvAuthToken for the specified pinUvAuthProtocol,
 	// i.e. encrypt(shared secret, pinUvAuthToken).
