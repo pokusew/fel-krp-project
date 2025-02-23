@@ -163,7 +163,7 @@ typedef struct CTAP_clientPIN {
  * This allows the pinUvAuthToken to be used for authenticatorMakeCredential operations
  * with the provided rpId parameter.
  */
-#define CTAP_clientPIN_pinUvAuthToken_permission_mc    0x01u
+#define CTAP_clientPIN_pinUvAuthToken_permission_mc    0x01
 
 /**
  * GetAssertion
@@ -171,7 +171,7 @@ typedef struct CTAP_clientPIN {
  * This allows the pinUvAuthToken to be used for authenticatorGetAssertion operations
  * with the provided rpId parameter.
  */
-#define CTAP_clientPIN_pinUvAuthToken_permission_ga    0x02u
+#define CTAP_clientPIN_pinUvAuthToken_permission_ga    0x02
 
 /**
  * Credential Management
@@ -180,7 +180,7 @@ typedef struct CTAP_clientPIN {
  * The rpId parameter is optional, if it is present, the pinUvAuthToken can only be used
  * for Credential Management operations on Credentials associated with that RP ID.
  */
-#define CTAP_clientPIN_pinUvAuthToken_permission_cm    0x04u
+#define CTAP_clientPIN_pinUvAuthToken_permission_cm    0x04
 
 /**
  * Bio Enrollment
@@ -188,7 +188,7 @@ typedef struct CTAP_clientPIN {
  * This allows the pinUvAuthToken to be used with the authenticatorBioEnrollment command.
  * The rpId parameter is ignored for this permission.
  */
-#define CTAP_clientPIN_pinUvAuthToken_permission_be    0x08u
+#define CTAP_clientPIN_pinUvAuthToken_permission_be    0x08
 
 /**
  * Large Blob Write
@@ -196,7 +196,7 @@ typedef struct CTAP_clientPIN {
  * This allows the pinUvAuthToken to be used with the authenticatorLargeBlobs command.
  * The rpId parameter is ignored for this permission.
  */
-#define CTAP_clientPIN_pinUvAuthToken_permission_lbw   0x10u
+#define CTAP_clientPIN_pinUvAuthToken_permission_lbw   0x10
 
 /**
  * Authenticator Configuration
@@ -204,7 +204,7 @@ typedef struct CTAP_clientPIN {
  * This allows the pinUvAuthToken to be used with the authenticatorConfig command.
  * The rpId parameter is ignored for this permission.
  */
-#define CTAP_clientPIN_pinUvAuthToken_permission_acfg  0x20u
+#define CTAP_clientPIN_pinUvAuthToken_permission_acfg  0x20
 
 static inline bool permissions_include_any_of(int permissions, int mask) {
 	return (permissions & mask) != 0;
