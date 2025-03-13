@@ -22,15 +22,14 @@ defaults:
 
 jobs:
   build:
-    name: "Build (${{ matrix.target }})"
+    name: "Build (${{ matrix.preset }})"
 
     strategy:
       fail-fast: false
       matrix:
         # https://github.com/actions/runner-images?tab=readme-ov-file#available-images
         os: [ macos-latest ]
-        target: [ stm32f407 ]
-        buildtype: [ Debug ]
+        preset: [ stm32f407-debug ]
 
     runs-on: ${{ matrix.os }}
 
@@ -51,9 +50,9 @@ jobs:
       # Rust and CMake are already installed in the macos-12 runner
       # see https://github.com/actions/runner-images/blob/main/images/macos/macos-12-Readme.md
 
-      - name: Upgrade Bash on macOS
+      - name: Upgrade Bash and install Ninja on macOS
         if: startsWith(matrix.os, 'macos')
-        run: brew install bash
+        run: brew install bash ninja
 
       - name: Install Arm GNU Toolchain using brew
         if: startsWith(matrix.os, 'macos')
@@ -68,23 +67,23 @@ jobs:
 
       - name: Configue project
         id: configure
-        run: cmake -DBUILD_TARGET=${{ matrix.target }} -DCMAKE_BUILD_TYPE=${{ matrix.buildtype }} -B build
+        run: cmake --preset ${{ matrix.preset }}
 
       - name: Build
         id: build
-        run: cmake --build build
+        run: cmake --build --preset ${{ matrix.preset }}
 
       - name: Upload build outputs
         if: always()
         # https://github.com/actions/upload-artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-outputs-${{ matrix.os }}-${{ matrix.target }}-${{ matrix.buildtype }}
+          name: build-outputs-${{ matrix.os }}-${{ matrix.preset }}
           path: |
-            build/targets/${{ matrix.target }}/lionkey_${{ matrix.target }}.bin
-            build/targets/${{ matrix.target }}/lionkey_${{ matrix.target }}.hex
-            build/targets/${{ matrix.target }}/lionkey_${{ matrix.target }}.elf
-            build/targets/${{ matrix.target }}/lionkey_${{ matrix.target }}.map
+            build/${{ matrix.preset }}/targets/*/lionkey_*.bin
+            build/${{ matrix.preset }}/targets/*/lionkey_*.hex
+            build/${{ matrix.preset }}/targets/*/lionkey_*.elf
+            build/${{ matrix.preset }}/targets/*/lionkey_*.map
 
   test:
     name: "Unit tests on host"
@@ -94,7 +93,7 @@ jobs:
       matrix:
         # https://github.com/actions/runner-images?tab=readme-ov-file#available-images
         os: [ macos-latest, ubuntu-latest ]
-        buildtype: [ Debug ]
+        preset: [ host-debug ]
 
     runs-on: ${{ matrix.os }}
 
@@ -105,17 +104,17 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Upgrade Bash on macOS
+      - name: Upgrade Bash and install Ninja on macOS
         if: startsWith(matrix.os, 'macos')
-        run: brew install bash
+        run: brew install bash ninja
 
       - name: Configue project
         id: configure
-        run: cmake -DEMBEDDED_BUILD=OFF -DSANITIZERS=ON -DCMAKE_BUILD_TYPE=${{ matrix.buildtype }} -B build
+        run: cmake --preset ${{ matrix.preset }}
 
       - name: Build
         id: build
-        run: cmake --build build
+        run: cmake --build --preset ${{ matrix.preset }}
 
       - name: Create log dir for test outputs
         id: test-dir
@@ -123,14 +122,14 @@ jobs:
 
       - name: Test
         id: test
-        run: ctest --extra-verbose --test-dir build |& tee log/ctest-output.txt
+        run: ctest --extra-verbose --test-dir build/${{ matrix.preset }} |& tee log/ctest-output.txt
 
       - name: Upload test outputs
         if: always()
         # https://github.com/actions/upload-artifact
         uses: actions/upload-artifact@v4
         with:
-          name: test-outputs-${{ matrix.os }}-${{ matrix.buildtype }}
+          name: test-outputs-${{ matrix.os }}-${{ matrix.preset }}
           path: |
             log/
-            build/
+            build/${{ matrix.preset }}/
