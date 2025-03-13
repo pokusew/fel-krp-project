@@ -98,14 +98,19 @@ make build
 It is possible to build, flash and start the whole project from the command line.
 
 Building is done via `cmake` since this project is a standard [CMake] project (see [CMakeLists.txt](./CMakeLists.txt)).
+We also included a [CMakePresets.json](CMakePresets.json) to simplify passing common options.
+
+Here is an example how to build the executable for the STM3240G-EVAL board (STM32F407IGH6 MCU):
 ```bash
-cmake -DBUILD_TARGET=stm32f407 -DCMAKE_BUILD_TYPE=Debug -B build/stm32f407-debug
-cmake --build build/stm32f407-debug
+# configure step (only has to be done once)
+cmake --preset stm32f407-debug
+# build step
+cmake --build --preset stm32f407-debug
 ```
 
 Flashing can be done for example using `openocd` like this (run from the project root):
 ```bash
-openocd -s /usr/local/share/openocd/scripts -f stm3240g_eval_stlink.cfg -c 'tcl_port disabled' -c 'gdb_port disabled' -c 'program "cmake-build-stm32f407-debug/lionkey_stm32f407.elf"' -c reset -c shutdown
+openocd -s /usr/local/share/openocd/scripts -f targets/stm32f407/stm3240g_eval_stlink.cfg -c 'tcl_port disabled' -c 'gdb_port disabled' -c 'program "build/stm32f407-debug/targets/stm32f407/lionkey_stm32f407.elf"' -c reset -c shutdown
 ```
 
 

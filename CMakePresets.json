@@ -1,0 +1,107 @@
+{
+	"version": 6,
+	"configurePresets": [
+		{
+			"name": "default",
+			"hidden": true,
+			"generator": "Ninja",
+			"binaryDir": "${sourceDir}/build/${presetName}"
+		},
+		{
+			"name": "host",
+			"inherits": "default",
+			"hidden": true,
+			"description": "Configure preset for the host builds",
+			"cacheVariables": {
+				"BUILD_TARGET": "host"
+			}
+		},
+		{
+			"name": "stm32f407",
+			"inherits": "default",
+			"hidden": true,
+			"description": "Configure preset for the stm32f407 embedded builds",
+			"cacheVariables": {
+				"BUILD_TARGET": "stm32f407"
+			}
+		},
+		{
+			"name": "host-debug",
+			"inherits": "host",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug",
+				"SANITIZERS": true
+			}
+		},
+		{
+			"name": "host-debug-coverage",
+			"inherits": "host-debug",
+			"cacheVariables": {
+				"CMAKE_CXX_FLAGS": "--coverage",
+				"CMAKE_C_FLAGS": "--coverage"
+			}
+		},
+		{
+			"name": "stm32f407-debug",
+			"inherits": "stm32f407",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug"
+			}
+		}
+	],
+	"buildPresets": [
+		{
+			"name": "host-debug",
+			"configurePreset": "host-debug"
+		},
+		{
+			"name": "host-debug-coverage",
+			"configurePreset": "host-debug-coverage"
+		},
+		{
+			"name": "stm32f407-debug",
+			"configurePreset": "stm32f407-debug"
+		}
+	],
+	"workflowPresets": [
+		{
+			"name": "host-debug",
+			"steps": [
+				{
+					"type": "configure",
+					"name": "host-debug"
+				},
+				{
+					"type": "build",
+					"name": "host-debug"
+				}
+			]
+		},
+		{
+			"name": "host-debug-coverage",
+			"steps": [
+				{
+					"type": "configure",
+					"name": "host-debug-coverage"
+				},
+				{
+					"type": "build",
+					"name": "host-debug-coverage"
+				}
+			]
+		},
+		{
+			"name": "stm32f407-debug",
+			"steps": [
+				{
+					"type": "configure",
+					"name": "stm32f407-debug"
+				},
+				{
+					"type": "build",
+					"name": "stm32f407-debug"
+				}
+			]
+		}
+	]
+}
