@@ -22,13 +22,14 @@ defaults:
 
 jobs:
   build:
-    name: "Build (embedded)"
+    name: "Build (${{ matrix.target }})"
 
     strategy:
       fail-fast: false
       matrix:
         # https://github.com/actions/runner-images?tab=readme-ov-file#available-images
         os: [ macos-latest ]
+        target: [ stm32f407 ]
         buildtype: [ Debug ]
 
     runs-on: ${{ matrix.os }}
@@ -67,7 +68,7 @@ jobs:
 
       - name: Configue project
         id: configure
-        run: cmake -DEMBEDDED_BUILD=ON -DCMAKE_BUILD_TYPE=${{ matrix.buildtype }} -B build
+        run: cmake -DBUILD_TARGET=${{ matrix.target }} -DCMAKE_BUILD_TYPE=${{ matrix.buildtype }} -B build
 
       - name: Build
         id: build
@@ -78,11 +79,12 @@ jobs:
         # https://github.com/actions/upload-artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-outputs-${{ matrix.os }}-${{ matrix.buildtype }}
+          name: build-outputs-${{ matrix.os }}-${{ matrix.target }}-${{ matrix.buildtype }}
           path: |
-            build/fel-krp-project.bin
-            build/fel-krp-project.hex
-            build/fel-krp-project.elf
+            build/targets/${{ matrix.target }}/lionkey_${{ matrix.target }}.bin
+            build/targets/${{ matrix.target }}/lionkey_${{ matrix.target }}.hex
+            build/targets/${{ matrix.target }}/lionkey_${{ matrix.target }}.elf
+            build/targets/${{ matrix.target }}/lionkey_${{ matrix.target }}.map
 
   test:
     name: "Unit tests on host"

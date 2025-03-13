@@ -99,13 +99,13 @@ It is possible to build, flash and start the whole project from the command line
 
 Building is done via `cmake` since this project is a standard [CMake] project (see [CMakeLists.txt](./CMakeLists.txt)).
 ```bash
-cmake -DEMBEDDED_BUILD=ON -DCMAKE_BUILD_TYPE=Debug -B cmake-build-debug-arm
-cmake --build cmake-build-debug-arm
+cmake -DBUILD_TARGET=stm32f407 -DCMAKE_BUILD_TYPE=Debug -B build/stm32f407-debug
+cmake --build build/stm32f407-debug
 ```
 
 Flashing can be done for example using `openocd` like this (run from the project root):
 ```bash
-openocd -s /usr/local/share/openocd/scripts -f stm3240g_eval_stlink.cfg -c "tcl_port disabled" -c "gdb_port disabled" -c "tcl_port disabled" -c "program \"cmake-build-debug/fel-krp-project.elf\"" -c reset -c shutdown
+openocd -s /usr/local/share/openocd/scripts -f stm3240g_eval_stlink.cfg -c 'tcl_port disabled' -c 'gdb_port disabled' -c 'program "cmake-build-stm32f407-debug/lionkey_stm32f407.elf"' -c reset -c shutdown
 ```
 
 
@@ -197,6 +197,8 @@ some of our custom changes.
 [Arm GNU Toolchain]: https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
 
 [OpenOCD]: https://openocd.org/pages/getting-openocd.html
+
+[STMicroelectronics/OpenOCD]: https://github.com/STMicroelectronics/OpenOCD
 
 [xPack OpenOCD Releases]: https://github.com/xpack-dev-tools/openocd-xpack/releases
 
