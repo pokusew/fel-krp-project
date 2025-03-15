@@ -26,6 +26,16 @@
 			}
 		},
 		{
+			"name": "stm32h533",
+			"inherits": "default",
+			"hidden": true,
+			"description": "Configure preset for the stm32h533 embedded builds",
+			"toolchainFile": "${sourceDir}/targets/stm32h533/cmake/gcc-arm-none-eabi.cmake",
+			"cacheVariables": {
+				"BUILD_TARGET": "stm32h533"
+			}
+		},
+		{
 			"name": "host-debug",
 			"inherits": "host",
 			"cacheVariables": {
@@ -47,6 +57,13 @@
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug"
 			}
+		},
+		{
+			"name": "stm32h533-debug",
+			"inherits": "stm32h533",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug"
+			}
 		}
 	],
 	"buildPresets": [
@@ -61,6 +78,10 @@
 		{
 			"name": "stm32f407-debug",
 			"configurePreset": "stm32f407-debug"
+		},
+		{
+			"name": "stm32h533-debug",
+			"configurePreset": "stm32h533-debug"
 		}
 	],
 	"workflowPresets": [
@@ -100,6 +121,19 @@
 				{
 					"type": "build",
 					"name": "stm32f407-debug"
+				}
+			]
+		},
+		{
+			"name": "stm32h533-debug",
+			"steps": [
+				{
+					"type": "configure",
+					"name": "stm32h533-debug"
+				},
+				{
+					"type": "build",
+					"name": "stm32h533-debug"
 				}
 			]
 		}
