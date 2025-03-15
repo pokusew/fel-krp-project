@@ -38,10 +38,10 @@ and later extended as a part of my pre-thesis project (B4MSVP) at CTU FEE (ČVUT
 
 ### Requirements
 
-- [CMake] _(tested with version 3.27.8 and 3.29.3)_
+- [CMake] _(tested with version 3.30.5)_
   * Note: CLion has a bundled CMake so there is no need to install it.
 
-- [Arm GNU Toolchain] _(tested with Version 13.2.Rel1)_
+- [Arm GNU Toolchain] _(tested with Version 14.2.Rel1)_
   * Download _AArch32 bare-metal target (arm-none-eabi)_ from the Arm website [here][Arm GNU Toolchain].
   * On macOS, `brew install --cask gcc-arm-embedded` can be used.
 
