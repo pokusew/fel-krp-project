@@ -177,9 +177,11 @@ protected:
 
 	CtapClientPinTest() {
 
-		// set a constant seed to generate predictable random numbers by rand()
-		// ctap_generate_rng() uses rand() in unit tests
-		srand(13); // NOLINT(*-msc51-cpp)
+		// reset the consistent pseudo random number generator between tests
+		// This is needed because the generator is global and multiple test cases
+		// run sequentially (in one executable), each affecting the generator state.
+		// We plan to improve the API to remove the global state and switch to an instance-based (context) API.
+		ctap_rng_reset(0);
 
 		ctap_init(&ctap);
 

@@ -1,17 +1,17 @@
 #include <string.h>
-#include <stdlib.h>
+// #include <stdlib.h>
 #include "ctap.h"
 #include "utils.h"
 #include "ctap_pin.h"
 #include <uECC.h>
 
-int ctap_generate_rng(uint8_t *buffer, size_t length) {
-	debug_log("ctap_generate_rng: %zu bytes to %p" nl, length, buffer);
-	for (size_t i = 0; i < length; i++) {
-		buffer[i] = (uint8_t) rand();
-	}
-	return 1;
-}
+// int ctap_generate_rng(uint8_t *buffer, size_t length) {
+// 	debug_log("ctap_generate_rng: %zu bytes to %p" nl, length, buffer);
+// 	for (size_t i = 0; i < length; i++) {
+// 		buffer[i] = (uint8_t) rand();
+// 	}
+// 	return 1;
+// }
 
 static void ctap_state_init(ctap_persistent_state_t *state) {
 

@@ -299,6 +299,8 @@ uint8_t ctap_request(
 
 void ctap_init(ctap_state_t *state);
 
+void ctap_rng_reset(uint32_t seed);
+
 int ctap_generate_rng(uint8_t *buffer, size_t length);
 
 void ctap_pin_uv_auth_token_begin_using(ctap_pin_uv_auth_token_state *token_state, bool user_is_present);

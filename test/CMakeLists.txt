@@ -141,6 +141,7 @@ add_library(
 		core_ctap
 		STATIC
 		../core/ctap.c
+		src/consistent_prng.cpp
 )
 target_include_directories(
 		core_ctap
