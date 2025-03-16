@@ -49,6 +49,9 @@ and later extended as a part of my pre-thesis project (B4MSVP) at CTU FEE (ČVUT
   * Download prebuilt binary from [xPack OpenOCD Releases].
   * Note, that the packages in apt repository in Ubuntu are outdated.
   * On macOS, `brew install open-ocd` can be used.
+  * **Note:** **STM32H5** does not work with the original OpenOCD.
+    Currently, it only works with the STMicroelectronics' fork [STMicroelectronics/OpenOCD],
+    which has to be built from source, see [this guide for the instructions](./docs/OpenOCD.md).
 
 
 ### Cloning the Project
