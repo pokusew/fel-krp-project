@@ -64,7 +64,7 @@ include_directories(
 
 		../../fido2
 
-		../../tinycbor/src
+		../../lib/tinycbor/src
 
 		../../crypto/tiny-AES-c
 		../../crypto/cifra/src
@@ -104,16 +104,16 @@ file(GLOB_RECURSE SOURCES "Startup/*.*" "Src/*.*" "Middlewares/*.*" "Drivers/*.*
 		../../crypto/cifra/src/sha512.c
 		../../crypto/cifra/src/blockwise.c
 
-		../../tinycbor/src/cbortojson.c
-		# ../../tinycbor/src/open_memstream.c
-		../../tinycbor/src/cborvalidation.c
-		../../tinycbor/src/cborparser_dup_string.c
-		../../tinycbor/src/cborpretty_stdio.c
-		../../tinycbor/src/cborencoder_close_container_checked.c
-		../../tinycbor/src/cborpretty.c
-		../../tinycbor/src/cborerrorstrings.c
-		../../tinycbor/src/cborparser.c
-		../../tinycbor/src/cborencoder.c
+		../../lib/tinycbor/src/cbortojson.c
+		# ../../lib/tinycbor/src/open_memstream.c
+		../../lib/tinycbor/src/cborvalidation.c
+		../../lib/tinycbor/src/cborparser_dup_string.c
+		../../lib/tinycbor/src/cborpretty_stdio.c
+		../../lib/tinycbor/src/cborencoder_close_container_checked.c
+		../../lib/tinycbor/src/cborpretty.c
+		../../lib/tinycbor/src/cborerrorstrings.c
+		../../lib/tinycbor/src/cborparser.c
+		../../lib/tinycbor/src/cborencoder.c
 )
 
 # TINYCBOR_HEADERS = src/cbor.h src/cborjson.h src/tinycbor-version.h

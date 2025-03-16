@@ -1,5 +1,5 @@
-[submodule "tinycbor"]
-	path = tinycbor
+[submodule "lib/tinycbor"]
+	path = lib/tinycbor
 	url = https://github.com/intel/tinycbor.git
 [submodule "crypto/micro-ecc"]
 	path = crypto/micro-ecc

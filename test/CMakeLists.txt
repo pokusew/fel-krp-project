@@ -32,9 +32,9 @@ FetchContent_MakeAvailable(fmt)
 add_library(
 		tinycbor
 		STATIC
-		../tinycbor/src/cborerrorstrings.c
-		../tinycbor/src/cborencoder.c
-		../tinycbor/src/cborparser.c
+		../lib/tinycbor/src/cborerrorstrings.c
+		../lib/tinycbor/src/cborencoder.c
+		../lib/tinycbor/src/cborparser.c
 )
 # CTAP2 spec, Section 8. Message Encoding:
 # Because some authenticators are memory constrained,
@@ -50,7 +50,7 @@ target_compile_definitions(
 target_include_directories(
 		tinycbor
 		INTERFACE
-		../tinycbor/src
+		../lib/tinycbor/src
 )
 
 add_library(tinyaes STATIC)
