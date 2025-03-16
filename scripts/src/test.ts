@@ -39,11 +39,11 @@ function processPin(pin: string, name = 'pin'): ProcessedPin {
 
 const TEST_AUTHENTICATOR_PUBLIC_KEY = createPinUvAuthProtocolEcdhCoseKey({
 	x: Buffer.from(
-		'c006f1253c019a3fccde54d159f8da812b218948c8746e46944545ee717867c6',
+		'2fec0a433af4ff216b7996d7304614be3ff2238e9d4b0b63337ea0fcac6967d0',
 		'hex',
 	),
 	y: Buffer.from(
-		'23cefbf7f94271a5b7159de7a0351705a7d321459c82ce96858351fa395b40a7',
+		'6d78c07b4cabd8b82f03870a74f23f5a2a655d17703df812dabab1a5f273acfa',
 		'hex',
 	),
 });
