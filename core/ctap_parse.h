@@ -7,8 +7,6 @@
 
 #include "ctap_errors.h"
 
-#define nl "\n"
-
 #define cbor_decoding_check(r)                           \
     if ((err = (r)) != CborNoError) {                    \
         lionkey_cbor_error_log(err, __LINE__, __FILE__); \
@@ -25,8 +23,10 @@
 
 #if LIONKEY_LOG & 0x1
 
+#include "utils.h"
+
 #define lionkey_cbor_error_log(err, line, filename) \
-	printf("CborError: 0x%x (%d) (%s) at %s:%d" nl, err, err, cbor_error_string(err), filename, line)
+	debug_log("CborError: 0x%x (%d) (%s) at %s:%d" nl, err, err, cbor_error_string(err), filename, line)
 
 #else
 #define lionkey_cbor_error_log(err, line, filename) ((void) 0)

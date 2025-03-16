@@ -119,6 +119,7 @@ target_compile_definitions(
 		core_ctap_parse
 		PUBLIC
 		LIONKEY_LOG=1
+		nl="\\n"
 )
 
 add_library(
