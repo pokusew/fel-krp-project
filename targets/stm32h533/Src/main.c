@@ -46,8 +46,6 @@
 COM_InitTypeDef BspCOMInit;
 __IO uint32_t BspButtonState = BUTTON_RELEASED;
 
-PCD_HandleTypeDef hpcd_USB_DRD_FS;
-
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -56,8 +54,6 @@ PCD_HandleTypeDef hpcd_USB_DRD_FS;
 void SystemClock_Config(void);
 
 static void MX_GPIO_Init(void);
-
-static void MX_USB_PCD_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -95,7 +91,6 @@ int main(void) {
 
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
-	MX_USB_PCD_Init();
 	/* USER CODE BEGIN 2 */
 
 	/* USER CODE END 2 */
@@ -118,15 +113,33 @@ int main(void) {
 
 	/* USER CODE BEGIN BSP */
 
+	printf("main initializing usb ..." nl);
+
+	// Configure USB peripheral manually (TinyUSB does not use the HAL PCD layer)
+	// PCD = USB peripheral controller driver
+	// Note: We perform the configuration in the same order as in the CubeMX-generated HAL_PCD_MspInit.
+	// 1. Configure USB clock (but does not yet enable it).
+	RCC_PeriphCLKInitTypeDef USB_ClkInitStruct = {0};
+	USB_ClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USB;
+	USB_ClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_PLL1Q;
+	if (HAL_RCCEx_PeriphCLKConfig(&USB_ClkInitStruct) != HAL_OK) {
+		Error_Handler();
+	}
+	// 2. Enable VDDUSB.
+	HAL_PWREx_EnableVddUSB();
+	// 3. Enable USB peripheral clock.
+	__HAL_RCC_USB_CLK_ENABLE();
+
+	// Continue with the TinyUSB configration...
 	// init device stack on the configured roothub port
+	// (STM32H533RET6 only has one "roothub port", i.e., the USB 2.0 Full-Speed peripheral)
 	tusb_rhport_init_t dev_init = {
 		.role = TUSB_ROLE_DEVICE,
 		.speed = TUSB_SPEED_AUTO
 	};
 	tusb_rhport_init(0, &dev_init);
 
-	/* -- Sample board code to send message over COM1 port ---- */
-	printf("Welcome to STM32 world !\n\r");
+	printf("main usb ready" nl);
 
 	/* -- Sample board code to switch on leds ---- */
 	BSP_LED_On(LED_GREEN);
@@ -206,40 +219,6 @@ void SystemClock_Config(void) {
 	/** Configure the programming delay
 	*/
 	__HAL_FLASH_SET_PROGRAM_DELAY(FLASH_PROGRAMMING_DELAY_0);
-}
-
-/**
-  * @brief USB Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USB_PCD_Init(void) {
-
-	/* USER CODE BEGIN USB_Init 0 */
-
-	/* USER CODE END USB_Init 0 */
-
-	/* USER CODE BEGIN USB_Init 1 */
-
-	/* USER CODE END USB_Init 1 */
-	hpcd_USB_DRD_FS.Instance = USB_DRD_FS;
-	hpcd_USB_DRD_FS.Init.dev_endpoints = 8;
-	hpcd_USB_DRD_FS.Init.speed = USBD_FS_SPEED;
-	hpcd_USB_DRD_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
-	hpcd_USB_DRD_FS.Init.Sof_enable = DISABLE;
-	hpcd_USB_DRD_FS.Init.low_power_enable = DISABLE;
-	hpcd_USB_DRD_FS.Init.lpm_enable = DISABLE;
-	hpcd_USB_DRD_FS.Init.battery_charging_enable = DISABLE;
-	hpcd_USB_DRD_FS.Init.vbus_sensing_enable = DISABLE;
-	hpcd_USB_DRD_FS.Init.bulk_doublebuffer_enable = DISABLE;
-	hpcd_USB_DRD_FS.Init.iso_singlebuffer_enable = DISABLE;
-	if (HAL_PCD_Init(&hpcd_USB_DRD_FS) != HAL_OK) {
-		Error_Handler();
-	}
-	/* USER CODE BEGIN USB_Init 2 */
-
-	/* USER CODE END USB_Init 2 */
-
 }
 
 /**

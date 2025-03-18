@@ -65,8 +65,9 @@ void PendSV_Handler(void);
 void SysTick_Handler(void);
 
 void EXTI13_IRQHandler(void);
-/* USER CODE BEGIN EFP */
 
+/* USER CODE BEGIN EFP */
+void USB_DRD_FS_IRQHandler(void);
 /* USER CODE END EFP */
 
 #ifdef __cplusplus

@@ -22,6 +22,7 @@
 #include "stm32h5xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "tusb.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -198,5 +199,9 @@ void EXTI13_IRQHandler(void) {
 }
 
 /* USER CODE BEGIN 1 */
+
+void USB_DRD_FS_IRQHandler(void) {
+	tud_int_handler(0);
+}
 
 /* USER CODE END 1 */
