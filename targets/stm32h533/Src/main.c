@@ -21,6 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "tusb.h"
+#include "utils.h"
 
 /* USER CODE END Includes */
 
@@ -116,6 +118,13 @@ int main(void) {
 
 	/* USER CODE BEGIN BSP */
 
+	// init device stack on the configured roothub port
+	tusb_rhport_init_t dev_init = {
+		.role = TUSB_ROLE_DEVICE,
+		.speed = TUSB_SPEED_AUTO
+	};
+	tusb_rhport_init(0, &dev_init);
+
 	/* -- Sample board code to send message over COM1 port ---- */
 	printf("Welcome to STM32 world !\n\r");
 
@@ -127,6 +136,8 @@ int main(void) {
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
+
+		tud_task(); // tinyusb device task
 
 		/* -- Sample board code for User push-button in interrupt mode ---- */
 		if (BspButtonState == BUTTON_PRESSED) {
@@ -260,6 +271,80 @@ static void MX_GPIO_Init(void) {
 }
 
 /* USER CODE BEGIN 4 */
+
+//--------------------------------------------------------------------+
+// Device callbacks
+//------------------------------------------------------------
+
+// Invoked when device is mounted
+void tud_mount_cb(void) {
+	debug_log("tud_mount_cb" nl);
+}
+
+// Invoked when device is unmounted
+void tud_umount_cb(void) {
+	debug_log("tud_umount_cb" nl);
+}
+
+// Invoked when usb bus is suspended
+// remote_wakeup_en : if host allow us to perform remote wakeup
+// Within 7ms, device must draw an average of current less than 2.5 mA from bus
+void tud_suspend_cb(bool remote_wakeup_en) {
+	debug_log("tud_suspend_cb" nl);
+	UNUSED(remote_wakeup_en);
+}
+
+// Invoked when usb bus is resumed
+void tud_resume_cb(void) {
+	debug_log("tud_resume_cb" nl);
+}
+
+//--------------------------------------------------------------------+
+// USB HID
+//--------------------------------------------------------------------+
+
+// Invoked when received GET_REPORT control request
+// Application must fill buffer report's content and return its length.
+// Return zero will cause the stack to STALL request
+uint16_t tud_hid_get_report_cb(
+	uint8_t itf,
+	uint8_t report_id,
+	hid_report_type_t report_type,
+	uint8_t *buffer,
+	uint16_t reqlen
+) {
+	debug_log(
+		"tud_hid_get_report_cb itf=%" wPRIu8 " report_id=%" wPRIu8 " report_type=%d reqlen=%" PRIu16 nl,
+		itf, report_id, report_type, reqlen
+	);
+	UNUSED(itf);
+	UNUSED(report_id);
+	UNUSED(report_type);
+	UNUSED(buffer);
+	UNUSED(reqlen);
+	return 0;
+}
+
+// Invoked when received SET_REPORT control request or
+// received data on OUT endpoint ( Report ID = 0, Type = 0 )
+void tud_hid_set_report_cb(
+	uint8_t itf,
+	uint8_t report_id,
+	hid_report_type_t report_type,
+	uint8_t const *buffer,
+	uint16_t bufsize
+) {
+	debug_log(
+		"tud_hid_set_report_cb itf=%" wPRIu8 " report_id=%" wPRIu8 " report_type=%d bufsize=%" PRIu16 nl,
+		itf, report_id, report_type, bufsize
+	);
+	// unused because we only have one HID interface and one report
+	UNUSED(itf);
+	UNUSED(report_id);
+	UNUSED(report_type);
+	// echo back anything we received from host
+	tud_hid_report(0, buffer, bufsize);
+}
 
 /* USER CODE END 4 */
 
