@@ -154,7 +154,7 @@ ctaphid_process_packet_result_t ctaphid_process_packet(
 			// The device then responds with the CID of the channel it received the INIT on, using that channel.
 			// Note that, at this point, we know for sure that the packet cid is valid (allocated)
 			// (thanks to the invalid channel check above).
-			assert(packet->cid != 0 && packet->cid < state->highest_allocated_cid);
+			assert(packet->cid != 0 && packet->cid <= state->highest_allocated_cid);
 			// 11.2.5.3. Transaction abort and re-synchronization
 			//   If the device detects an INIT command during a transaction
 			//   that has the same channel id as the active transaction,
@@ -177,7 +177,7 @@ ctaphid_process_packet_result_t ctaphid_process_packet(
 			return CTAPHID_RESULT_ERROR;
 		}
 
-		assert(packet->cid != 0 && packet->cid < state->highest_allocated_cid);
+		assert(packet->cid != 0 && packet->cid <= state->highest_allocated_cid);
 		buffer->cid = packet->cid;
 		assert(packet->pkt.init.cmd != CTAPHID_CANCEL && packet->pkt.init.cmd != CTAPHID_INIT);
 		buffer->cmd = packet->pkt.init.cmd;
