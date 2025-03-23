@@ -75,21 +75,23 @@ ctaphid_process_packet_result_t ctaphid_process_packet(
 
 	if (is_initialization_packet(packet)) {
 		debug_log(
-			"ctaphid_process_packet " cyan("initialization") nl
-			"  cid: 0x%08" PRIx32 nl
-			"  cmd: 0x%02" wPRIx8 nl
-			"  payload length: %" PRIu16 nl,
+			"ctaphid_process_packet"
+			" cid=0x%08" PRIx32 " "
+			cyan("initialization")
+			" cmd=0x%02" wPRIx8
+			" payload length=%" PRIu16 nl,
 			packet->cid,
 			packet->pkt.init.cmd,
 			lion_ntohs(packet->pkt.init.bcnt)
 		);
 	} else {
 		debug_log(
-			"ctaphid_process_packet " magenta("continuation") nl
-			"  cid: 0x%08" PRIx32 nl
-			"  seq: %02" wPRIx8 " (%" wPRIu8 ")" nl,
+			"ctaphid_process_packet"
+			" cid=0x%08" PRIx32 " "
+			magenta("continuation")
+			" seq=0x%02" wPRIx8 nl,
 			packet->cid,
-			packet->pkt.cont.seq, packet->pkt.cont.seq
+			packet->pkt.cont.seq
 		);
 	}
 
