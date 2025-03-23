@@ -1,6 +1,6 @@
 # Browser-Based HID Debugger using WebHID
 
-See [demo.js](./demo.js) and [index.html](./index.html)
+See [debugger.js](./debugger.js) and [index.html](./index.html)
 
 
 ## Usage:
