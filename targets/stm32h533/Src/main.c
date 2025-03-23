@@ -155,9 +155,30 @@ int main(void) {
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
-	while (1) {
+
+	int debug_uart_rx;
+	uint8_t report[CFG_TUD_ENDPOINT0_SIZE];
+	memset(report, 0, sizeof(report));
+
+	while (true) {
 
 		tud_task(); // tinyusb device task
+
+		if ((debug_uart_rx = Debug_UART_Get_Byte()) != -1) {
+
+			printf("debug_uart_rx = %c" nl, debug_uart_rx);
+
+			if (debug_uart_rx == 'l') {
+				BSP_LED_Toggle(LED_GREEN);
+			}
+
+			if (debug_uart_rx == 's') {
+				report[0] = 'A';
+				bool result = tud_hid_report(0, report, sizeof(report));
+				printf("send report result = %d" nl, result);
+			}
+
+		}
 
 		/* -- Sample board code for User push-button in interrupt mode ---- */
 		if (BspButtonState == BUTTON_PRESSED) {
