@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 #include <assert.h>
 #include "ctap_errors.h"
 #include "compiler.h"
@@ -171,6 +172,8 @@ typedef enum ctaphid_process_packet_result {
 } ctaphid_process_packet_result_t;
 
 void ctaphid_init(ctaphid_state_t *state);
+
+bool ctaphid_allocate_channel(ctaphid_state_t *state);
 
 ctaphid_process_packet_result_t ctaphid_process_packet(
 	ctaphid_state_t *state,

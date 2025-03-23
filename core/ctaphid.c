@@ -3,6 +3,14 @@
 #include <string.h>
 #include <stdbool.h>
 
+bool ctaphid_allocate_channel(ctaphid_state_t *state) {
+	if (state->highest_allocated_cid + 1 == CTAPHID_BROADCAST_CID) {
+		return false;
+	}
+	state->highest_allocated_cid++;
+	return true;
+}
+
 static void reset_buffer(ctaphid_channel_buffer_t *buffer) {
 	buffer->cid = 0;
 	buffer->cmd = 0;
