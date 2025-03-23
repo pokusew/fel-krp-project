@@ -164,6 +164,20 @@ target_include_directories(
 		../core
 )
 
+add_library(
+		core_ctaphid
+		STATIC
+		../core/ctaphid.c
+)
+target_include_directories(
+		core_ctaphid
+		INTERFACE
+		../core
+)
+target_link_libraries(
+		core_ctaphid
+		PUBLIC core_utils
+)
 
 
 # TESTS
@@ -267,3 +281,6 @@ target_link_libraries(test_ctap_parse_client_pin core_ctap_parse hex_utils gtest
 
 std_test(ctap_client_pin src/ctap_client_pin_test.cpp)
 target_link_libraries(test_ctap_client_pin core_ctap hex_utils gtest_custom_assertions)
+
+std_test(ctaphid src/ctaphid_test.cpp)
+target_link_libraries(test_ctaphid core_ctaphid hex_utils gtest_custom_assertions)

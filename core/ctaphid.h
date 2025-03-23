@@ -2,7 +2,9 @@
 #define LIONKEY_CTAPHID_H
 
 #include <stdint.h>
+#include <stddef.h>
 #include <assert.h>
+#include "ctap_errors.h"
 #include "compiler.h"
 
 // 11.2.2. Protocol structure and data framing
@@ -89,13 +91,14 @@ static_assert(
 typedef struct LION_ATTR_PACKED ctaphid_packet {
 	uint32_t cid; // Channel identifier
 	union {
-		struct ctaphid_packet_init {
+		struct LION_ATTR_PACKED ctaphid_packet_init {
 			uint8_t cmd; // Command identifier (bit 7 always set)
-			uint8_t bcnth; // High part of payload length
-			uint8_t bcntl; // Low part of payload length
+			// uint8_t bcnth; // High part of payload length
+			// uint8_t bcntl; // Low part of payload length
+			uint16_t bcnt; // Payload length (stored in big-endian)
 			uint8_t payload[CTAPHID_PACKET_INIT_PAYLOAD_SIZE];
 		} init;
-		struct ctaphid_packet_cont {
+		struct LION_ATTR_PACKED ctaphid_packet_cont {
 			uint8_t seq; // Packet sequence 0x00..0x7f (bit 7 always cleared)
 			uint8_t payload[CTAPHID_PACKET_CONT_PAYLOAD_SIZE];
 		} cont;
@@ -105,6 +108,9 @@ static_assert(
 	sizeof(ctaphid_packet_t) == CTAPHID_PACKET_SIZE,
 	"unexpected sizeof(ctaphid_packet_t)"
 );
+// for some reason sizeof(struct ctaphid_packet_init) and sizeof(struct ctaphid_packet_cont)
+// result in compile errors when compiling in C++ (when this header is included from C++ source)
+#ifndef __cplusplus
 static_assert(
 	sizeof(struct ctaphid_packet_init) == CTAPHID_PACKET_SIZE - sizeof(uint32_t),
 	"unexpected sizeof(struct ctaphid_packet_init)"
@@ -113,6 +119,7 @@ static_assert(
 	sizeof(struct ctaphid_packet_cont) == CTAPHID_PACKET_SIZE - sizeof(uint32_t),
 	"unexpected sizeof(struct ctaphid_packet_cont)"
 );
+#endif
 
 // 11.2.9.1.3. CTAPHID_INIT (0x06)
 // https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-hid-init
@@ -128,5 +135,47 @@ typedef struct LION_ATTR_PACKED ctaphid_init_response_payload {
 } ctaphid_init_response_payload_t;
 
 static_assert(sizeof(ctaphid_init_response_payload_t) == 17, "unexpected sizeof(ctaphid_init_response_payload_t)");
+
+// This buffer is used to assemble the incoming (request) message on one specific channel.
+// Message consists of one initialization packet and up to 128 continuation packets.
+// see https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-message-and-packet-structure
+typedef struct ctaphid_channel_buffer {
+	uint32_t cid;
+	uint8_t cmd;
+	size_t payload_length;
+	uint8_t next_seq;
+	size_t offset;
+	uint8_t payload[CTAPHID_MAX_PAYLOAD_LENGTH];
+} ctaphid_channel_buffer_t;
+
+typedef struct ctaphid_state {
+
+	// Channel IDs (CIDs) are generated in ascending order starting with 1, 2, 3, ... (0xFFFFFFFF - 1).
+	// CID 0 is reserved.
+	// CID 0xFFFFFFFF is reserved for broadcast commands.
+	// see https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-channels
+	uint32_t highest_allocated_cid;
+
+	ctaphid_channel_buffer_t buffer;
+
+} ctaphid_state_t;
+
+typedef enum ctaphid_process_packet_result {
+	CTAPHID_RESULT_ERROR,
+	CTAPHID_RESULT_IGNORED,
+	CTAPHID_RESULT_CANCEL,
+	CTAPHID_RESULT_ALLOCATE_CHANNEL,
+	CTAPHID_RESULT_DISCARD_INCOMPLETE_MESSAGE,
+	CTAPHID_RESULT_BUFFERING,
+	CTAPHID_RESULT_MESSAGE,
+} ctaphid_process_packet_result_t;
+
+void ctaphid_init(ctaphid_state_t *state);
+
+ctaphid_process_packet_result_t ctaphid_process_packet(
+	ctaphid_state_t *state,
+	const ctaphid_packet_t *packet_bytes,
+	uint8_t *error_code
+);
 
 #endif // LIONKEY_CTAPHID_H
