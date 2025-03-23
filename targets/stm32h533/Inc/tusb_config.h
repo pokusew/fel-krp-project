@@ -19,7 +19,11 @@ extern "C" {
 #endif
 
 #ifndef CFG_TUSB_DEBUG
-#define CFG_TUSB_DEBUG        1
+#define CFG_TUSB_DEBUG        3
+#endif
+
+#ifndef CFG_TUD_LOG_LEVEL
+#define CFG_TUD_LOG_LEVEL     3
 #endif
 
 // Enable Device stack
