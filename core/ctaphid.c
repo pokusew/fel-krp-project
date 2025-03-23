@@ -169,6 +169,10 @@ ctaphid_process_packet_result_t ctaphid_process_packet(
 			//   If the device detects an INIT command during a transaction
 			//   that has the same channel id as the active transaction,
 			//   the transaction is aborted (if possible) and all buffered data flushed (if any).
+			// Note that "if possible" translates (in our codebase) to is_incomplete_message(buffer)
+			// because if the message is already complete, it means that it has been completed
+			// in the previous invocation of ctaphid_process_packet() and therefore the CTAP layer
+			// might have already started processing it.
 			if (packet->cid == buffer->cid && is_incomplete_message(buffer)) {
 				reset_buffer(buffer);
 			}
