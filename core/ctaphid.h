@@ -34,22 +34,25 @@
 
 // 11.2.9. CTAPHID commands
 // 11.2.9.1. Mandatory commands
-// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-mandatory-commands
-#define CTAPHID_PING         (CTAPHID_PACKET_TYPE_INIT | 0x01)
-#define CTAPHID_MSG          (CTAPHID_PACKET_TYPE_INIT | 0x03)
-#define CTAPHID_INIT         (CTAPHID_PACKET_TYPE_INIT | 0x06)
-#define CTAPHID_CBOR         (CTAPHID_PACKET_TYPE_INIT | 0x10)
-#define CTAPHID_CANCEL       (CTAPHID_PACKET_TYPE_INIT | 0x11)
-#define CTAPHID_ERROR        (CTAPHID_PACKET_TYPE_INIT | 0x3F)
-#define CTAPHID_KEEPALIVE    (CTAPHID_PACKET_TYPE_INIT | 0x3B)
-// 11.2.9.2. Optional commands
-// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-optional-commands
-#define CTAPHID_LOCK         (CTAPHID_PACKET_TYPE_INIT | 0x04)
-#define CTAPHID_WINK         (CTAPHID_PACKET_TYPE_INIT | 0x08)
-// 11.2.9.3. Vendor specific commands
-// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-vendor-specific-commands
-#define CTAPHID_VENDOR_FIRST 0x40
-#define CTAPHID_VENDOR_LAST  0x7F
+typedef enum LION_ATTR_PACKED ctaphid_command {
+	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-mandatory-commands
+	CTAPHID_PING = (CTAPHID_PACKET_TYPE_INIT | 0x01),
+	CTAPHID_MSG = (CTAPHID_PACKET_TYPE_INIT | 0x03),
+	CTAPHID_INIT = (CTAPHID_PACKET_TYPE_INIT | 0x06),
+	CTAPHID_CBOR = (CTAPHID_PACKET_TYPE_INIT | 0x10),
+	CTAPHID_CANCEL = (CTAPHID_PACKET_TYPE_INIT | 0x11),
+	CTAPHID_ERROR = (CTAPHID_PACKET_TYPE_INIT | 0x3F),
+	CTAPHID_KEEPALIVE = (CTAPHID_PACKET_TYPE_INIT | 0x3B),
+	// 11.2.9.2. Optional commands
+	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-optional-commands
+	CTAPHID_LOCK = (CTAPHID_PACKET_TYPE_INIT | 0x04),
+	CTAPHID_WINK = (CTAPHID_PACKET_TYPE_INIT | 0x08),
+	// 11.2.9.3. Vendor specific commands
+	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-vendor-specific-commands
+	CTAPHID_VENDOR_FIRST = (CTAPHID_PACKET_TYPE_INIT | 0x40),
+	CTAPHID_VENDOR_LAST = (CTAPHID_PACKET_TYPE_INIT | 0x7F),
+} ctaphid_command_t;
+static_assert(sizeof(ctaphid_command_t) == sizeof(uint8_t), "invalid sizeof(ctaphid_command_t)");
 
 // defined in 11.2.9.1.3. CTAPHID_INIT (0x06):
 //   Response at success:
