@@ -171,6 +171,13 @@ ctaphid_process_packet_result_t ctaphid_process_packet(
 		//   when the device is in **idle state** will keep the device locked for other channels
 		//   until the last packet of the response message has been received or the transaction is aborted.
 
+		// validate the payload length
+		if (lion_ntohs(packet->pkt.init.bcnt) > sizeof(buffer->payload)) {
+			debug_log(red("  error: payload length exceeded sizeof(buffer->payload)") nl);
+			*error_code = CTAP1_ERR_INVALID_LENGTH;
+			return CTAPHID_RESULT_ERROR;
+		}
+
 		if (!is_idle(buffer)) {
 			debug_log(red("  error: init packet while channel busy") nl);
 			*error_code = CTAP1_ERR_CHANNEL_BUSY;
