@@ -85,7 +85,49 @@ TEST_F(CtapCtaphidTest, InvalidChannelZero) {
 	EXPECT_EQ(error_code, CTAP1_ERR_INVALID_CHANNEL);
 }
 
-TEST_F(CtapCtaphidTest, AlocateChannel) {
+TEST_F(CtapCtaphidTest, InvalidChannelNonZeroHigherThanAllocated) {
+	EXPECT_EQ(ctaphid.highest_allocated_cid, 0);
+	test_ctaphid_process_packet(init_packet(
+		1,
+		CTAPHID_PING,
+		2
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_ERROR);
+	EXPECT_EQ(error_code, CTAP1_ERR_INVALID_CHANNEL);
+}
+
+TEST_F(CtapCtaphidTest, PayloadLengthExceedsMaxLimit) {
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), true);
+	EXPECT_EQ(ctaphid.highest_allocated_cid, 1);
+	test_ctaphid_process_packet(init_packet(
+		1,
+		CTAPHID_PING,
+		CTAPHID_MAX_PAYLOAD_LENGTH + 1
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_ERROR);
+	EXPECT_EQ(error_code, CTAP1_ERR_INVALID_LENGTH);
+}
+
+TEST_F(CtapCtaphidTest, AlocateChannelNumberWhenNumbersDepleted) {
+	const uint32_t max_channel_number = CTAPHID_BROADCAST_CID - 1;
+	ctaphid.highest_allocated_cid = CTAPHID_BROADCAST_CID - 2;
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), true);
+	EXPECT_EQ(ctaphid.highest_allocated_cid, max_channel_number);
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), false);
+	EXPECT_EQ(ctaphid.highest_allocated_cid, max_channel_number);
+}
+
+TEST_F(CtapCtaphidTest, InitInvalidLength) {
+	test_ctaphid_process_packet(init_packet(
+		CTAPHID_BROADCAST_CID,
+		CTAPHID_INIT,
+		4 // only 8 allowed
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_ERROR);
+	EXPECT_EQ(error_code, CTAP1_ERR_INVALID_LENGTH);
+}
+
+TEST_F(CtapCtaphidTest, InitAlocateChannel) {
 
 	EXPECT_EQ(ctaphid.highest_allocated_cid, 0);
 
@@ -110,16 +152,45 @@ TEST_F(CtapCtaphidTest, AlocateChannel) {
 
 }
 
-TEST_F(CtapCtaphidTest, PayloadLengthExceedsMaxLimit) {
+TEST_F(CtapCtaphidTest, InitAbortAndResychronizeNoActualReset) {
+
+	const uint32_t test_cid = 1;
 	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), true);
-	EXPECT_EQ(ctaphid.highest_allocated_cid, 1);
+	EXPECT_EQ(ctaphid.highest_allocated_cid, test_cid);
+
+	auto nonce = hex::bytes<"abcdef0102030405">();
+	test_ctaphid_process_packet(init_packet(
+		test_cid,
+		CTAPHID_INIT,
+		8,
+		nonce
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_DISCARD_INCOMPLETE_MESSAGE);
+
+}
+
+TEST_F(CtapCtaphidTest, InitAbortAndResychronizeWithActualReset) {
+
+	const uint32_t test_cid = 1;
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), true);
+	EXPECT_EQ(ctaphid.highest_allocated_cid, test_cid);
+
 	test_ctaphid_process_packet(init_packet(
 		1,
 		CTAPHID_PING,
-		CTAPHID_MAX_PAYLOAD_LENGTH + 1
+		CTAPHID_PACKET_INIT_PAYLOAD_SIZE + 1
 	));
-	ASSERT_EQ(result, CTAPHID_RESULT_ERROR);
-	EXPECT_EQ(error_code, CTAP1_ERR_INVALID_LENGTH);
+	ASSERT_EQ(result, CTAPHID_RESULT_BUFFERING);
+
+	auto nonce = hex::bytes<"abcdef0102030405">();
+	test_ctaphid_process_packet(init_packet(
+		test_cid,
+		CTAPHID_INIT,
+		8,
+		nonce
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_DISCARD_INCOMPLETE_MESSAGE);
+
 }
 
 TEST_F(CtapCtaphidTest, PingTwoPackets) {
@@ -247,6 +318,122 @@ TEST_F(CtapCtaphidTest, CancelIgnoredOnNonActiveChannel) {
 		0
 	));
 	ASSERT_EQ(result, CTAPHID_RESULT_IGNORED);
+
+}
+
+TEST_F(CtapCtaphidTest, CancelOngoingCborRequest) {
+
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), true);
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), true);
+	ASSERT_EQ(ctaphid.highest_allocated_cid, 2);
+
+	auto payload = hex::bytes<"0b">(); // authenticatorSelection (0x0B)
+	test_ctaphid_process_packet(init_packet(
+		1,
+		CTAPHID_CBOR,
+		1,
+		payload
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_MESSAGE);
+	EXPECT_SAME_BYTES_S(payload.size(), ctaphid.buffer.payload, payload.data());
+
+	test_ctaphid_process_packet(init_packet(
+		1,
+		CTAPHID_CANCEL,
+		0
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_CANCEL);
+
+}
+
+TEST_F(CtapCtaphidTest, InitPacketWhileSameChannelBusyWithBuffering) {
+
+	const uint32_t test_cid = 1;
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), true);
+	ASSERT_EQ(ctaphid.highest_allocated_cid, test_cid);
+
+	test_ctaphid_process_packet(init_packet(
+		test_cid,
+		CTAPHID_PING,
+		CTAPHID_PACKET_INIT_PAYLOAD_SIZE + 1
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_BUFFERING);
+
+	test_ctaphid_process_packet(init_packet(
+		test_cid,
+		CTAPHID_PING,
+		0
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_ERROR);
+	EXPECT_EQ(error_code, CTAP1_ERR_CHANNEL_BUSY);
+
+}
+
+TEST_F(CtapCtaphidTest, InitPacketWhileSameChannelBusyWithMessage) {
+
+	const uint32_t test_cid = 1;
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), true);
+	ASSERT_EQ(ctaphid.highest_allocated_cid, test_cid);
+
+	test_ctaphid_process_packet(init_packet(
+		test_cid,
+		CTAPHID_PING,
+		1
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_MESSAGE);
+
+	test_ctaphid_process_packet(init_packet(
+		test_cid,
+		CTAPHID_PING,
+		0
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_ERROR);
+	EXPECT_EQ(error_code, CTAP1_ERR_CHANNEL_BUSY);
+
+}
+
+TEST_F(CtapCtaphidTest, InitPacketWhileOtherChannelBusyWithBuffering) {
+
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), true);
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), true);
+	ASSERT_EQ(ctaphid.highest_allocated_cid, 2);
+
+	test_ctaphid_process_packet(init_packet(
+		1,
+		CTAPHID_PING,
+		CTAPHID_PACKET_INIT_PAYLOAD_SIZE + 1
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_BUFFERING);
+
+	test_ctaphid_process_packet(init_packet(
+		2,
+		CTAPHID_PING,
+		0
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_ERROR);
+	EXPECT_EQ(error_code, CTAP1_ERR_CHANNEL_BUSY);
+
+}
+
+TEST_F(CtapCtaphidTest, InitPacketWhileOtherChannelBusyWithMessage) {
+
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), true);
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), true);
+
+	test_ctaphid_process_packet(init_packet(
+		1,
+		CTAPHID_PING,
+		1
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_MESSAGE);
+
+	test_ctaphid_process_packet(init_packet(
+		2,
+		CTAPHID_PING,
+		0
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_ERROR);
+	EXPECT_EQ(error_code, CTAP1_ERR_CHANNEL_BUSY);
 
 }
 
