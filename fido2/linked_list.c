@@ -6,46 +6,6 @@ void ll_init(linked_list_t *list) {
 	list->tail = NULL;
 }
 
-linked_list_t *ll_alloc(void) {
-
-	linked_list_t *list = (linked_list_t *) malloc(sizeof(linked_list_t));
-
-	if (list == NULL) {
-		return NULL;
-	}
-
-	ll_init(list);
-
-	return list;
-
-}
-
-void ll_free_entries(linked_list_t *list) {
-
-	if (list == NULL) {
-		return;
-	}
-
-	ll_entry_t *entry = list->head;
-
-	ll_init(list);
-
-	while (entry != NULL) {
-		ll_entry_t *next = entry->next;
-		free(entry);
-		entry = next;
-	}
-
-}
-
-void ll_free(linked_list_t *list) {
-
-	ll_free_entries(list);
-
-	free(list);
-
-}
-
 bool ll_add_to_head(linked_list_t *list, ll_entry_t *entry) {
 
 	if (entry == NULL) {
