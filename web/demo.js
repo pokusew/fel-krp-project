@@ -55,7 +55,7 @@ async function requestPermissions() {
 
 	const deviceFilter = {
 		vendorId: 0x1209,
-		productId: 0x0007,
+		productId: 0x0001,
 	};
 
 	const requestParams = { filters: [deviceFilter] };
