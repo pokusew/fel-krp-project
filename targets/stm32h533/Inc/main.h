@@ -56,6 +56,8 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 
+int Debug_UART_Get_Byte();
+
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

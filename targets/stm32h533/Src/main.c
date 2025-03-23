@@ -61,6 +61,13 @@ static void MX_GPIO_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+int Debug_UART_Get_Byte() {
+	if (__HAL_UART_GET_FLAG(hcom_uart, UART_FLAG_RXNE) == SET) {
+		return (uint8_t) (hcom_uart->Instance->RDR & (uint8_t) 0x00FF);
+	}
+	return -1;
+}
+
 /* USER CODE END 0 */
 
 /**
