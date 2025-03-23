@@ -50,9 +50,9 @@ jobs:
       # Rust and CMake are already installed in the macos-12 runner
       # see https://github.com/actions/runner-images/blob/main/images/macos/macos-12-Readme.md
 
-      - name: Upgrade Bash and install Ninja on macOS
+      - name: Upgrade Bash on macOS
         if: startsWith(matrix.os, 'macos')
-        run: brew install bash ninja
+        run: brew install bash
 
       - name: Install Arm GNU Toolchain using brew
         if: startsWith(matrix.os, 'macos')
@@ -104,9 +104,9 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Upgrade Bash and install Ninja on macOS
+      - name: Upgrade Bash on macOS
         if: startsWith(matrix.os, 'macos')
-        run: brew install bash ninja
+        run: brew install bash
 
       - name: Configue project
         id: configure
