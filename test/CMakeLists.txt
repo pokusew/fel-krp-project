@@ -179,6 +179,42 @@ target_link_libraries(
 		PUBLIC core_utils
 )
 
+add_library(tinyusb_fifo_test INTERFACE)
+target_sources(tinyusb_fifo_test PUBLIC
+		# common
+		../lib/tinyusb/src/tusb.c
+		../lib/tinyusb/src/common/tusb_fifo.c
+		# device
+		../lib/tinyusb/src/device/usbd.c
+		../lib/tinyusb/src/device/usbd_control.c
+		../lib/tinyusb/src/class/audio/audio_device.c
+		../lib/tinyusb/src/class/cdc/cdc_device.c
+		../lib/tinyusb/src/class/dfu/dfu_device.c
+		../lib/tinyusb/src/class/dfu/dfu_rt_device.c
+		../lib/tinyusb/src/class/hid/hid_device.c
+		../lib/tinyusb/src/class/midi/midi_device.c
+		../lib/tinyusb/src/class/msc/msc_device.c
+		../lib/tinyusb/src/class/net/ecm_rndis_device.c
+		../lib/tinyusb/src/class/net/ncm_device.c
+		../lib/tinyusb/src/class/usbtmc/usbtmc_device.c
+		../lib/tinyusb/src/class/vendor/vendor_device.c
+		../lib/tinyusb/src/class/video/video_device.c
+		# host
+		../lib/tinyusb/src/host/usbh.c
+		../lib/tinyusb/src/host/hub.c
+		../lib/tinyusb/src/class/cdc/cdc_host.c
+		../lib/tinyusb/src/class/hid/hid_host.c
+		../lib/tinyusb/src/class/midi/midi_host.c
+		../lib/tinyusb/src/class/msc/msc_host.c
+		../lib/tinyusb/src/class/vendor/vendor_host.c
+		# typec
+		../lib/tinyusb/src/typec/usbc.c
+)
+target_compile_definitions(tinyusb_fifo_test INTERFACE
+		CFG_TUSB_MCU=OPT_MCU_NONE
+)
+target_include_directories(tinyusb_fifo_test INTERFACE ../lib/tinyusb/src)
+target_include_directories(tinyusb_fifo_test INTERFACE tinyusb)
 
 # TESTS
 
@@ -284,3 +320,6 @@ target_link_libraries(test_ctap_client_pin core_ctap hex_utils gtest_custom_asse
 
 std_test(ctaphid src/ctaphid_test.cpp)
 target_link_libraries(test_ctaphid core_ctaphid hex_utils gtest_custom_assertions)
+
+std_test(tusb_fifo src/tusb_fifo_test.cpp)
+target_link_libraries(test_tusb_fifo tinyusb_fifo_test)
