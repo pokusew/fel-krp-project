@@ -1,6 +1,38 @@
+#include "main.h"
 #include "tusb.h"
-#include "stm32h5xx_hal.h"
 #include "utils.h"
+
+void usb_init(void) {
+
+	debug_log("initializing usb ..." nl);
+
+	// Configure USB peripheral manually (TinyUSB does not use the HAL PCD layer)
+	// PCD = USB peripheral controller driver
+	// Note: We perform the configuration in the same order as in the CubeMX-generated HAL_PCD_MspInit.
+	// 1. Configure USB clock (but does not yet enable it).
+	RCC_PeriphCLKInitTypeDef USB_ClkInitStruct = {0};
+	USB_ClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USB;
+	USB_ClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_PLL1Q;
+	if (HAL_RCCEx_PeriphCLKConfig(&USB_ClkInitStruct) != HAL_OK) {
+		Error_Handler();
+	}
+	// 2. Enable VDDUSB.
+	HAL_PWREx_EnableVddUSB();
+	// 3. Enable USB peripheral clock.
+	__HAL_RCC_USB_CLK_ENABLE();
+
+	// Continue with the TinyUSB configration...
+	// init device stack on the configured roothub port
+	// (STM32H533RET6 only has one "roothub port", i.e., the USB 2.0 Full-Speed peripheral)
+	tusb_rhport_init_t dev_init = {
+		.role = TUSB_ROLE_DEVICE,
+		.speed = TUSB_SPEED_AUTO
+	};
+	tusb_rhport_init(0, &dev_init);
+
+	debug_log("usb ready" nl);
+
+}
 
 //--------------------------------------------------------------------+
 // Device callbacks

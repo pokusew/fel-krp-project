@@ -21,8 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "tusb.h"
-#include "utils.h"
+#include "usb.h"
+#include "app.h"
 
 /* USER CODE END Includes */
 
@@ -119,80 +119,14 @@ int main(void) {
 	}
 
 	/* USER CODE BEGIN BSP */
-
-	printf("main initializing usb ..." nl);
-
-	// Configure USB peripheral manually (TinyUSB does not use the HAL PCD layer)
-	// PCD = USB peripheral controller driver
-	// Note: We perform the configuration in the same order as in the CubeMX-generated HAL_PCD_MspInit.
-	// 1. Configure USB clock (but does not yet enable it).
-	RCC_PeriphCLKInitTypeDef USB_ClkInitStruct = {0};
-	USB_ClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USB;
-	USB_ClkInitStruct.UsbClockSelection = RCC_USBCLKSOURCE_PLL1Q;
-	if (HAL_RCCEx_PeriphCLKConfig(&USB_ClkInitStruct) != HAL_OK) {
-		Error_Handler();
-	}
-	// 2. Enable VDDUSB.
-	HAL_PWREx_EnableVddUSB();
-	// 3. Enable USB peripheral clock.
-	__HAL_RCC_USB_CLK_ENABLE();
-
-	// Continue with the TinyUSB configration...
-	// init device stack on the configured roothub port
-	// (STM32H533RET6 only has one "roothub port", i.e., the USB 2.0 Full-Speed peripheral)
-	tusb_rhport_init_t dev_init = {
-		.role = TUSB_ROLE_DEVICE,
-		.speed = TUSB_SPEED_AUTO
-	};
-	tusb_rhport_init(0, &dev_init);
-
-	printf("main usb ready" nl);
-
-	/* -- Sample board code to switch on leds ---- */
-	BSP_LED_On(LED_GREEN);
-
+	usb_init();
 	/* USER CODE END BSP */
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
-
-	int debug_uart_rx;
-	uint8_t report[CFG_TUD_ENDPOINT0_SIZE];
-	memset(report, 0, sizeof(report));
-
-	while (true) {
-
-		tud_task(); // tinyusb device task
-
-		if ((debug_uart_rx = Debug_UART_Get_Byte()) != -1) {
-
-			printf("debug_uart_rx = %c" nl, debug_uart_rx);
-
-			if (debug_uart_rx == 'l') {
-				BSP_LED_Toggle(LED_GREEN);
-			}
-
-			if (debug_uart_rx == 's') {
-				report[0] = 'A';
-				bool result = tud_hid_report(0, report, sizeof(report));
-				printf("send report result = %d" nl, result);
-			}
-
-		}
-
-		/* -- Sample board code for User push-button in interrupt mode ---- */
-		if (BspButtonState == BUTTON_PRESSED) {
-			/* Update button state */
-			BspButtonState = BUTTON_RELEASED;
-			/* -- Sample board code to toggle leds ---- */
-			BSP_LED_Toggle(LED_GREEN);
-			/* ..... Perform your action ..... */
-		}
-
-		/* USER CODE END WHILE */
-
-		/* USER CODE BEGIN 3 */
-	}
+	app_run();
+	/* USER CODE END WHILE */
+	/* USER CODE BEGIN 3 */
 	/* USER CODE END 3 */
 }
 
