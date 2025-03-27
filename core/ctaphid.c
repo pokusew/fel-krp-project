@@ -127,11 +127,14 @@ static inline bool is_continuation_packet(const ctaphid_packet_t *packet) {
 	return !is_initialization_packet(packet);
 }
 
-void ctaphid_init(
-	ctaphid_state_t *state
-) {
+void ctaphid_init(ctaphid_state_t *state) {
 	debug_log("ctaphid_init" nl);
 	state->highest_allocated_cid = 0;
+	reset_buffer(&state->buffer);
+}
+
+void ctaphid_reset_to_idle(ctaphid_state_t *state) {
+	debug_log("ctaphid_reset_to_idle" nl);
 	reset_buffer(&state->buffer);
 }
 

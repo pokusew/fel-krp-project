@@ -189,6 +189,8 @@ extern const char *const debug_str_ctaphid_process_packet_result[];
 
 void ctaphid_init(ctaphid_state_t *state);
 
+void ctaphid_reset_to_idle(ctaphid_state_t *state);
+
 uint32_t ctaphid_allocate_channel(ctaphid_state_t *state);
 
 ctaphid_process_packet_result_t ctaphid_process_packet(
