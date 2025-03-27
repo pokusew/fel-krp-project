@@ -221,7 +221,7 @@ uint8_t ctap_request(
 	}
 
 	debug_log(
-		"cbor output structure length %zu bytes, status code 0x%02" wPRIx8 nl,
+		"cbor output structure length %u bytes, status code 0x%02" wPRIx8 nl,
 		state->response.length,
 		status
 	);
