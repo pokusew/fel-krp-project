@@ -70,6 +70,12 @@ static inline bool is_incomplete_message(const ctaphid_channel_buffer_t *buffer)
 	return buffer->offset < buffer->payload_length;
 }
 
+bool ctaphid_is_idle(const ctaphid_state_t *state) {
+	const ctaphid_channel_buffer_t *buffer = &state->buffer;
+	assert(buffer->cid != CTAPHID_BROADCAST_CID);
+	return is_idle(buffer);
+}
+
 bool ctaphid_has_complete_message_ready(const ctaphid_state_t *state) {
 	const ctaphid_channel_buffer_t *buffer = &state->buffer;
 	assert(buffer->cid != CTAPHID_BROADCAST_CID);
