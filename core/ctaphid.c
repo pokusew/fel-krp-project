@@ -26,9 +26,9 @@ uint32_t ctaphid_allocate_channel(ctaphid_state_t *state) {
 	return ++state->highest_allocated_cid;
 }
 
-void ctaphid_create_error_packet(ctaphid_packet_t *packet, uint8_t error_code) {
+void ctaphid_create_error_packet(ctaphid_packet_t *packet, uint32_t cid, uint8_t error_code) {
 	memset(packet, 0, sizeof(ctaphid_packet_t));
-	packet->cid = packet->cid;
+	packet->cid = cid;
 	packet->pkt.init.cmd = CTAPHID_ERROR;
 	packet->pkt.init.bcnt = lion_htons(1);
 	packet->pkt.init.payload[0] = error_code;
