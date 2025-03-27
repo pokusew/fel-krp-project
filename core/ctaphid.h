@@ -204,6 +204,13 @@ bool ctaphid_is_idle(const ctaphid_state_t *state);
 
 bool ctaphid_has_complete_message_ready(const ctaphid_state_t *state);
 
+void ctaphid_create_init_packet(
+	ctaphid_packet_t *packet,
+	uint32_t cid,
+	uint8_t cmd,
+	size_t payload_length
+);
+
 void ctaphid_create_error_packet(ctaphid_packet_t *packet, uint32_t cid, uint8_t error_code);
 
 void ctaphid_create_init_response_packet(

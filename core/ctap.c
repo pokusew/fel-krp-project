@@ -68,8 +68,8 @@ void ctap_init(ctap_state_t *state) {
 	// 	debug_log("  PIN_SALT = ");
 	// 	dump_hex(state->persistent.PIN_SALT, sizeof(state->persistent.PIN_SALT));
 	// } else {
-		ctap_state_init(&state->persistent);
-		authenticator_write_state(state);
+	ctap_state_init(&state->persistent);
+	authenticator_write_state(state);
 	// }
 
 	state->pin_boot_remaining_attempts = PIN_PER_BOOT_ATTEMPTS;
@@ -125,7 +125,7 @@ uint8_t ctap_get_info(ctap_state_t *state, const uint8_t *request, size_t length
 	cbor_encoding_check(cbor_encode_byte_string(&map, aaguid, 16));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_options));
-	cbor_encoding_check(cbor_encoder_create_map(&map, &options, 7));
+	cbor_encoding_check(cbor_encoder_create_map(&map, &options, 5));
 	{
 		// this authenticator can create discoverable credentials (not default, must be specified)
 		cbor_encoding_check(cbor_encode_text_string(&options, "rk", 2));
@@ -149,11 +149,11 @@ uint8_t ctap_get_info(ctap_state_t *state, const uint8_t *request, size_t length
 		cbor_encoding_check(cbor_encode_text_string(&options, "clientPin", 9));
 		cbor_encoding_check(cbor_encode_boolean(&options, state->persistent.is_pin_set));
 
-		cbor_encoding_check(cbor_encode_text_string(&options, "pinUvAuthToken", 14));
-		cbor_encoding_check(cbor_encode_boolean(&options, true));
-
-		cbor_encoding_check(cbor_encode_text_string(&options, "makeCredUvNotRqd", 16));
-		cbor_encoding_check(cbor_encode_boolean(&options, true));
+		// cbor_encoding_check(cbor_encode_text_string(&options, "pinUvAuthToken", 14));
+		// cbor_encoding_check(cbor_encode_boolean(&options, true));
+		//
+		// cbor_encoding_check(cbor_encode_text_string(&options, "makeCredUvNotRqd", 16));
+		// cbor_encoding_check(cbor_encode_boolean(&options, true));
 	}
 	cbor_encoding_check(cbor_encoder_close_container(&map, &options));
 
@@ -178,6 +178,51 @@ uint8_t ctap_get_info(ctap_state_t *state, const uint8_t *request, size_t length
 	return CTAP2_OK;
 }
 
+
+uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t length) {
+
+	uint8_t ret;
+	CborError err;
+
+	CTAP_makeCredential mc;
+	uint8_t status = ctap_parse_make_credential(request, length, &mc);
+	if (status != CTAP2_OK) {
+		return status;
+	}
+
+	// 6.1.2. authenticatorMakeCredential Algorithm
+	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-makeCred-authnr-alg
+
+	// Google Chrome uses this request to figure out PIN state
+	// a6015820e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b85502a1626964662e64756d6d7903a26269644101646e616d656564756d6d790481a263616c672664747970656a7075626c69632d6b657908400901
+	// {
+	//     1: h'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+	//     2: {"id": ".dummy"},
+	//     3: {"id": h'01', "name": "dummy"},
+	//     4: [{"alg": -7, "type": "public-key"}],
+	//     8: h'',
+	//     9: 1,
+	// }
+
+	// 1. If authenticator supports either pinUvAuthToken or clientPin features
+	//    and the platform sends a zero length pinUvAuthParam:
+	//    1. Request evidence of user interaction in an authenticator-specific way (e.g., flash the LED light).
+	//    2. If the user declines permission, or the operation times out,
+	//       then end the operation by returning CTAP2_ERR_OPERATION_DENIED.
+	//    3. If evidence of user interaction is provided in this step then return either CTAP2_ERR_PIN_NOT_SET
+	//       if PIN is not set or CTAP2_ERR_PIN_INVALID if PIN has been set.
+
+	if (mc.pinUvAuthParamPresent && mc.pinUvAuthParamSize == 0) {
+		// TODO: user presence check
+		return !state->persistent.is_pin_set ? CTAP2_ERR_PIN_NOT_SET : CTAP2_ERR_PIN_INVALID;
+	}
+
+
+	return CTAP1_ERR_OTHER;
+
+}
+
+
 uint8_t ctap_request(
 	ctap_state_t *state,
 	uint16_t request_data_length,
@@ -201,6 +246,10 @@ uint8_t ctap_request(
 	dump_hex(request_data, request_data_length);
 
 	switch (cmd) {
+		case CTAP_CMD_MAKE_CREDENTIAL:
+			info_log(magenta("CTAP_CMD_MAKE_CREDENTIAL") nl);
+			status = ctap_make_credential(state, request_data, request_data_length);
+			break;
 		case CTAP_CMD_GET_INFO:
 			info_log(magenta("CTAP_CMD_GET_INFO") nl);
 			status = ctap_get_info(state, request_data, request_data_length);
@@ -225,6 +274,7 @@ uint8_t ctap_request(
 		state->response.length,
 		status
 	);
+	dump_hex(state->response.data, state->response.length);
 
 	*response_status_code = status;
 	*response_data = state->response.data;

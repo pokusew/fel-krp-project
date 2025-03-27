@@ -21,7 +21,6 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "usb.h"
 #include "app.h"
 
 /* USER CODE END Includes */
@@ -119,7 +118,6 @@ int main(void) {
 	}
 
 	/* USER CODE BEGIN BSP */
-	usb_init();
 	/* USER CODE END BSP */
 
 	/* Infinite loop */
@@ -230,7 +228,7 @@ void BSP_PB_Callback(Button_TypeDef Button) {
   * @brief  This function is executed in case of error occurrence.
   * @retval None
   */
-void Error_Handler(void) {
+_Noreturn void Error_Handler(void) {
 	/* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();

@@ -38,7 +38,7 @@ const uint8_t *tud_descriptor_device_cb(void) {
 //--------------------------------------------------------------------+
 
 static const uint8_t hid_report_descriptor[] = {
-	TUD_HID_REPORT_DESC_GENERIC_INOUT(CFG_TUD_HID_EP_BUFSIZE)
+	TUD_HID_REPORT_DESC_FIDO_U2F(CFG_TUD_HID_EP_BUFSIZE)
 };
 
 // Invoked when received GET HID REPORT DESCRIPTOR request
