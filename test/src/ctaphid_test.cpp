@@ -139,6 +139,8 @@ TEST_F(CtapCtaphidTest, InitAlocateChannel) {
 		nonce
 	));
 	ASSERT_EQ(result, CTAPHID_RESULT_ALLOCATE_CHANNEL);
+	EXPECT_EQ(ctaphid_is_idle(&ctaphid), true);
+	EXPECT_EQ(ctaphid_has_complete_message_ready(&ctaphid), false);
 
 	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), 1);
 
@@ -148,6 +150,7 @@ TEST_F(CtapCtaphidTest, InitAlocateChannel) {
 		0
 	));
 	EXPECT_EQ(result, CTAPHID_RESULT_MESSAGE);
+	EXPECT_EQ(ctaphid_has_complete_message_ready(&ctaphid), true);
 
 }
 
@@ -187,6 +190,8 @@ TEST_F(CtapCtaphidTest, InitAbortAndResychronizeWithActualReset) {
 		nonce
 	));
 	ASSERT_EQ(result, CTAPHID_RESULT_DISCARD_INCOMPLETE_MESSAGE);
+	EXPECT_EQ(ctaphid_is_idle(&ctaphid), true);
+	EXPECT_EQ(ctaphid_has_complete_message_ready(&ctaphid), false);
 
 }
 
@@ -200,6 +205,7 @@ TEST_F(CtapCtaphidTest, PingTwoPackets) {
 	test_message[test_length - 1] = 0xcd;
 
 	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), test_cid);
+	EXPECT_EQ(ctaphid_is_idle(&ctaphid), true);
 
 	test_ctaphid_process_packet(init_packet(
 		test_cid,
@@ -208,6 +214,8 @@ TEST_F(CtapCtaphidTest, PingTwoPackets) {
 		test_message
 	));
 	ASSERT_EQ(result, CTAPHID_RESULT_BUFFERING);
+	EXPECT_EQ(ctaphid_is_idle(&ctaphid), false);
+	EXPECT_EQ(ctaphid_has_complete_message_ready(&ctaphid), false);
 
 	test_ctaphid_process_packet(cont_packet(
 		test_cid,
@@ -215,6 +223,9 @@ TEST_F(CtapCtaphidTest, PingTwoPackets) {
 		std::array<uint8_t, 1>{test_message[test_length - 1]}
 	));
 	ASSERT_EQ(result, CTAPHID_RESULT_MESSAGE);
+	EXPECT_EQ(ctaphid_is_idle(&ctaphid), false);
+	EXPECT_EQ(ctaphid_has_complete_message_ready(&ctaphid), true);
+	EXPECT_EQ(ctaphid.buffer.cancel, false);
 
 	EXPECT_EQ(ctaphid.buffer.cid, test_cid);
 	EXPECT_EQ(ctaphid.buffer.cmd, test_cmd);
@@ -309,6 +320,7 @@ TEST_F(CtapCtaphidTest, CancelIgnoredOnNonActiveChannel) {
 		0
 	));
 	ASSERT_EQ(result, CTAPHID_RESULT_IGNORED);
+	EXPECT_EQ(ctaphid.buffer.cancel, false);
 
 }
 
@@ -325,6 +337,7 @@ TEST_F(CtapCtaphidTest, CancelOngoingCborRequest) {
 		payload
 	));
 	ASSERT_EQ(result, CTAPHID_RESULT_MESSAGE);
+	EXPECT_EQ(ctaphid_has_complete_message_ready(&ctaphid), true);
 	EXPECT_SAME_BYTES_S(payload.size(), ctaphid.buffer.payload, payload.data());
 
 	test_ctaphid_process_packet(init_packet(
@@ -333,6 +346,7 @@ TEST_F(CtapCtaphidTest, CancelOngoingCborRequest) {
 		0
 	));
 	ASSERT_EQ(result, CTAPHID_RESULT_CANCEL);
+	EXPECT_EQ(ctaphid.buffer.cancel, true);
 
 }
 
@@ -369,6 +383,7 @@ TEST_F(CtapCtaphidTest, InitPacketWhileSameChannelBusyWithMessage) {
 		1
 	));
 	ASSERT_EQ(result, CTAPHID_RESULT_MESSAGE);
+	EXPECT_EQ(ctaphid_has_complete_message_ready(&ctaphid), true);
 
 	test_ctaphid_process_packet(init_packet(
 		test_cid,
@@ -413,6 +428,7 @@ TEST_F(CtapCtaphidTest, InitPacketWhileOtherChannelBusyWithMessage) {
 		1
 	));
 	ASSERT_EQ(result, CTAPHID_RESULT_MESSAGE);
+	EXPECT_EQ(ctaphid_has_complete_message_ready(&ctaphid), true);
 
 	test_ctaphid_process_packet(init_packet(
 		2,
