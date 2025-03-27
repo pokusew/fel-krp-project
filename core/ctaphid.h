@@ -188,7 +188,7 @@ uint32_t ctaphid_allocate_channel(ctaphid_state_t *state);
 
 ctaphid_process_packet_result_t ctaphid_process_packet(
 	ctaphid_state_t *state,
-	const ctaphid_packet_t *packet_bytes,
+	const ctaphid_packet_t *packet,
 	uint8_t *error_code
 );
 
