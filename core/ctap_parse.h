@@ -154,6 +154,31 @@ typedef struct CTAP_clientPIN {
 #define CTAP_clientPIN_res_powerCycleState  0x04
 #define CTAP_clientPIN_res_uvRetries        0x05
 
+// 6.4. authenticatorGetInfo (0x04)
+// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorGetInfo
+// On success, the authenticator returns the following authenticatorGetInfo response structure:
+#define CTAP_authenticatorGetInfo_res_versions                          0x01
+#define CTAP_authenticatorGetInfo_res_extensions                        0x02
+#define CTAP_authenticatorGetInfo_res_aaguid                            0x03
+#define CTAP_authenticatorGetInfo_res_options                           0x04
+#define CTAP_authenticatorGetInfo_res_maxMsgSize                        0x05
+#define CTAP_authenticatorGetInfo_res_pinUvAuthProtocols                0x06
+#define CTAP_authenticatorGetInfo_res_maxCredentialCountInList          0x07
+#define CTAP_authenticatorGetInfo_res_maxCredentialIdLength             0x08
+#define CTAP_authenticatorGetInfo_res_transports                        0x09
+#define CTAP_authenticatorGetInfo_res_algorithms                        0x0A
+#define CTAP_authenticatorGetInfo_res_maxSerializedLargeBlobArray       0x0B
+#define CTAP_authenticatorGetInfo_res_forcePINChange                    0x0C
+#define CTAP_authenticatorGetInfo_res_minPINLength                      0x0D
+#define CTAP_authenticatorGetInfo_res_firmwareVersion                   0x0E
+#define CTAP_authenticatorGetInfo_res_maxCredBlobLength                 0x0F
+#define CTAP_authenticatorGetInfo_res_maxRPIDsForSetMinPINLength        0x10
+#define CTAP_authenticatorGetInfo_res_preferredPlatformUvAttempts       0x11
+#define CTAP_authenticatorGetInfo_res_uvModality                        0x12
+#define CTAP_authenticatorGetInfo_res_certifications                    0x13
+#define CTAP_authenticatorGetInfo_res_remainingDiscoverableCredentials  0x14
+#define CTAP_authenticatorGetInfo_res_vendorPrototypeConfigCommands     0x15
+
 // 6.5.5.7. Operations to Obtain a pinUvAuthToken
 // The following pinUvAuthToken permissions are defined:
 
