@@ -162,6 +162,7 @@ target_include_directories(
 		core_utils
 		INTERFACE
 		../core
+		lionkey
 )
 
 add_library(
