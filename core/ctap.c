@@ -216,7 +216,7 @@ uint8_t ctap_request(
 
 	if (status == CTAP2_OK) {
 		state->response.length = cbor_encoder_get_buffer_size(encoder, state->response.data);
-	}else {
+	} else {
 		state->response.length = 0;
 	}
 
