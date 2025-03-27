@@ -162,7 +162,7 @@ typedef struct ctaphid_channel_buffer {
 
 typedef struct ctaphid_state {
 
-	// Channel IDs (CIDs) are generated in ascending order starting with 1, 2, 3, ... (0xFFFFFFFF - 1).
+	// Channel IDs (CIDs) are allocated in ascending order starting with 1, 2, 3, ... (0xFFFFFFFF - 1).
 	// CID 0 is reserved.
 	// CID 0xFFFFFFFF is reserved for broadcast commands.
 	// see https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-channels
