@@ -2,6 +2,7 @@
 #include "utils.h"
 #include <string.h>
 #include <stdbool.h>
+#include "lionkey_config.h"
 
 /**
  * Allocates a channel ID for a new channel
@@ -23,6 +24,60 @@ uint32_t ctaphid_allocate_channel(ctaphid_state_t *state) {
 		return 0;
 	}
 	return ++state->highest_allocated_cid;
+}
+
+void ctaphid_create_error_packet(ctaphid_packet_t *packet, uint8_t error_code) {
+	memset(packet, 0, sizeof(ctaphid_packet_t));
+	packet->cid = packet->cid;
+	packet->pkt.init.cmd = CTAPHID_ERROR;
+	packet->pkt.init.bcnt = lion_htons(1);
+	packet->pkt.init.payload[0] = error_code;
+}
+
+void ctaphid_create_init_response_packet(
+	ctaphid_packet_t *packet,
+	const uint8_t *nonce,
+	uint32_t transport_cid,
+	uint32_t response_cid
+) {
+	memset(packet, 0, sizeof(ctaphid_packet_t));
+	packet->cid = transport_cid;
+	packet->pkt.init.cmd = CTAPHID_INIT;
+	packet->pkt.init.bcnt = lion_htons(sizeof(ctaphid_init_response_payload_t));
+	ctaphid_init_response_payload_t *init_res = (ctaphid_init_response_payload_t *) packet->pkt.init.payload;
+	memcpy(init_res->nonce, nonce, sizeof(init_res->nonce));
+	init_res->cid = response_cid;
+	init_res->protocol_version = CTAPHID_PROTOCOL_VERSION;
+	init_res->version_major = LIONKEY_CONFIG_CTAPHID_INIT_VERSION_MAJOR;
+	init_res->version_minor = LIONKEY_CONFIG_CTAPHID_INIT_VERSION_MINOR;
+	init_res->version_build = LIONKEY_CONFIG_CTAPHID_INIT_VERSION_BUILD;
+	init_res->capabilities = LIONKEY_CONFIG_CTAPHID_CAPABILITY;
+}
+
+static inline bool is_idle(const ctaphid_channel_buffer_t *buffer) {
+	return buffer->cid == 0;
+}
+
+static inline bool is_complete_message(const ctaphid_channel_buffer_t *buffer) {
+	return buffer->offset == buffer->payload_length;
+}
+
+static inline bool is_complete_message_cmd(const ctaphid_channel_buffer_t *buffer, const uint8_t cmd) {
+	return buffer->cmd == cmd && is_complete_message(buffer);
+}
+
+static inline bool is_incomplete_message(const ctaphid_channel_buffer_t *buffer) {
+	return buffer->offset < buffer->payload_length;
+}
+
+bool ctaphid_has_complete_message_ready(const ctaphid_state_t *state) {
+	const ctaphid_channel_buffer_t *buffer = &state->buffer;
+	assert(buffer->cid != CTAPHID_BROADCAST_CID);
+	if (is_idle(buffer)) {
+		return false;
+	}
+	assert(buffer->cmd != 0);
+	return is_complete_message(buffer);
 }
 
 static void reset_buffer(ctaphid_channel_buffer_t *buffer) {
@@ -47,13 +102,13 @@ static ctaphid_process_packet_result_t copy_payload_to_buffer(
 	memcpy(&buffer->payload[buffer->offset], packet_payload, copy_size);
 	buffer->offset += copy_size;
 
-	if (buffer->offset == buffer->payload_length) {
+	if (is_complete_message(buffer)) {
 		debug_log(green("  request message ready") nl);
 		return CTAPHID_RESULT_MESSAGE;
 	}
 
 	debug_log("  buffered" nl);
-	assert(buffer->offset < buffer->payload_length);
+	assert(is_incomplete_message(buffer));
 	return CTAPHID_RESULT_BUFFERING;
 }
 
@@ -71,18 +126,6 @@ void ctaphid_init(
 	debug_log("ctaphid_init" nl);
 	state->highest_allocated_cid = 0;
 	reset_buffer(&state->buffer);
-}
-
-static inline bool is_idle(ctaphid_channel_buffer_t *buffer) {
-	return buffer->cid == 0;
-}
-
-static inline bool is_complete_message(ctaphid_channel_buffer_t *buffer, uint8_t cmd) {
-	return buffer->cmd == cmd && buffer->offset == buffer->payload_length;
-}
-
-static inline bool is_incomplete_message(ctaphid_channel_buffer_t *buffer) {
-	return buffer->offset < buffer->payload_length;
 }
 
 /**
@@ -144,7 +187,7 @@ ctaphid_process_packet_result_t ctaphid_process_packet(
 			}
 
 			// cancel if there is an ongoing CTAPHID_CBOR with the matching channel id
-			if (packet->cid == buffer->cid && is_complete_message(buffer, CTAPHID_CBOR)) {
+			if (packet->cid == buffer->cid && is_complete_message_cmd(buffer, CTAPHID_CBOR)) {
 				return CTAPHID_RESULT_CANCEL;
 			}
 

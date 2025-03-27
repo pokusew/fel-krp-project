@@ -196,4 +196,15 @@ ctaphid_process_packet_result_t ctaphid_process_packet(
 	uint8_t *error_code
 );
 
+bool ctaphid_has_complete_message_ready(const ctaphid_state_t *state);
+
+void ctaphid_create_error_packet(ctaphid_packet_t *packet, uint8_t error_code);
+
+void ctaphid_create_init_response_packet(
+	ctaphid_packet_t *packet,
+	const uint8_t *nonce,
+	uint32_t transport_cid,
+	uint32_t response_cid
+);
+
 #endif // LIONKEY_CTAPHID_H
