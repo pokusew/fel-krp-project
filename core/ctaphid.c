@@ -154,7 +154,7 @@ ctaphid_process_packet_result_t ctaphid_process_packet(
 			" cid=0x%08" PRIx32 " "
 			cyan("initialization")
 			" cmd=0x%02" wPRIx8
-			" payload length=%" PRIu16 nl,
+			" payload_length=%" PRIu16 nl,
 			packet->cid,
 			packet->pkt.init.cmd,
 			lion_ntohs(packet->pkt.init.bcnt)
