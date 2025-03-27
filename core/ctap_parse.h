@@ -26,7 +26,7 @@
 #include "utils.h"
 
 #define lionkey_cbor_error_log(err, line, filename) \
-	debug_log("CborError: 0x%x (%d) (%s) at %s:%d" nl, err, err, cbor_error_string(err), filename, line)
+	debug_log(red("CborError: 0x%x (%d) (%s) at %s:%d") nl, err, err, cbor_error_string(err), filename, line)
 
 #else
 #define lionkey_cbor_error_log(err, line, filename) ((void) 0)
