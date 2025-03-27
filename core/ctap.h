@@ -2,24 +2,27 @@
 #define POKUSEW_CTAP_H
 
 #include "ctap_parse.h"
+#include "compiler.h"
 #include <cbor.h>
 #include <hmac.h>
 
-#define CTAP_CMD_MAKE_CREDENTIAL        0x01
-#define CTAP_CMD_GET_ASSERTION          0x02
-#define CTAP_CMD_GET_NEXT_ASSERTION     0x08
-#define CTAP_CMD_GET_INFO               0x04
-#define CTAP_CMD_CLIENT_PIN             0x06
-#define CTAP_CMD_RESET                  0x07
-#define CTAP_CMD_BIO_ENROLLMENT         0x09
-#define CTAP_CMD_CREDENTIAL_MANAGEMENT  0x0A
-#define CTAP_CMD_SELECTION              0x0B
-#define CTAP_CMD_LARGE_BLOBS            0x0C
-#define CTAP_CMD_CONFIG                 0x0D
-// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#commands
-#define CTAP_VENDOR_FIRST           0x40
-#define CTAP_VENDOR_LAST            0xBF
-
+typedef enum LION_ATTR_PACKED ctap_command {
+	CTAP_CMD_MAKE_CREDENTIAL = 0x01,
+	CTAP_CMD_GET_ASSERTION = 0x02,
+	CTAP_CMD_GET_NEXT_ASSERTION = 0x08,
+	CTAP_CMD_GET_INFO = 0x04,
+	CTAP_CMD_CLIENT_PIN = 0x06,
+	CTAP_CMD_RESET = 0x07,
+	CTAP_CMD_BIO_ENROLLMENT = 0x09,
+	CTAP_CMD_CREDENTIAL_MANAGEMENT = 0x0A,
+	CTAP_CMD_SELECTION = 0x0B,
+	CTAP_CMD_LARGE_BLOBS = 0x0C,
+	CTAP_CMD_CONFIG = 0x0D,
+	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#commands
+	CTAP_VENDOR_FIRST = 0x40,
+	CTAP_VENDOR_LAST = 0xBF,
+} ctap_command_t;
+static_assert(sizeof(ctap_command_t) == sizeof(uint8_t), "invalid sizeof(ctaphid_command_t)");
 
 #define KEY_SPACE_BYTES     128
 #define PIN_HASH_SIZE       16
