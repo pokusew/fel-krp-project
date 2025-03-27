@@ -291,6 +291,15 @@ typedef struct ctap_state {
 
 } ctap_state_t;
 
+typedef enum ctap_user_presence_result {
+	CTAP_UP_RESULT_CANCEL,
+	CTAP_UP_RESULT_TIMEOUT,
+	CTAP_UP_RESULT_DENY,
+	CTAP_UP_RESULT_ALLOW,
+} ctap_user_presence_result_t ;
+
+ctap_user_presence_result_t ctap_wait_for_user_presence(void);
+
 uint8_t ctap_request(
 	ctap_state_t *state,
 	uint16_t request_data_length,

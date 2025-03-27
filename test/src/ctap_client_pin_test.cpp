@@ -8,6 +8,10 @@ extern "C" {
 }
 namespace {
 
+extern "C" ctap_user_presence_result_t ctap_wait_for_user_presence(void) {
+	return CTAP_UP_RESULT_ALLOW;
+}
+
 constexpr auto test_platform_private_key = hex::bytes<
 	"b6a7164827e98933906aa13b90dd8bf6a15989a3419d90ecc1cde95a80aefb6c"
 >();

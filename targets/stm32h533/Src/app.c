@@ -24,6 +24,32 @@ int ctap_generate_rng(uint8_t *buffer, size_t length) {
 ctaphid_state_t app_ctaphid;
 ctap_state_t app_ctap;
 
+ctap_user_presence_result_t ctap_wait_for_user_presence(void) {
+
+	const uint32_t timeout_ms = 30 * 1000; // 30 seconds
+	uint32_t start_timestamp = HAL_GetTick();
+
+	if (BspButtonState == BUTTON_PRESSED) {
+		BspButtonState = BUTTON_RELEASED;
+	}
+
+	while (true) {
+		tud_task(); // tinyusb device task
+		if (app_ctaphid.buffer.cancel) {
+			return CTAP_UP_RESULT_CANCEL;
+		}
+		uint32_t elapsed_ms = HAL_GetTick() - start_timestamp;
+		if (elapsed_ms > timeout_ms) {
+			return CTAP_UP_RESULT_TIMEOUT;
+		}
+		if (BspButtonState == BUTTON_PRESSED) {
+			BspButtonState = BUTTON_RELEASED;
+			return CTAP_UP_RESULT_ALLOW;
+		}
+	}
+
+}
+
 noreturn void app_run(void) {
 
 	info_log(nl nl cyan("app_run") nl);
