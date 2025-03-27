@@ -1,5 +1,7 @@
 #include "utils.h"
 
+#if LIONKEY_DEBUG_LEVEL > 0
+
 void dump_hex(const uint8_t *buf, size_t size) {
 	printf("hex(%zu): ", size);
 	while (size--) {
@@ -7,3 +9,5 @@ void dump_hex(const uint8_t *buf, size_t size) {
 	}
 	printf("\n");
 }
+
+#endif

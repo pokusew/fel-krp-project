@@ -1,5 +1,5 @@
-#ifndef POKUSEW_TERMINAL_H
-#define POKUSEW_TERMINAL_H
+#ifndef LIONKEY_TERMINAL_H
+#define LIONKEY_TERMINAL_H
 
 #define ESC "\033"
 // CSI (Control Sequence Introducer) sequences
@@ -108,4 +108,4 @@
 #define gray_bold_s CSI fg_bright_black ";" bold "m"
 #define gray_bold(text) CSI fg_bright_black ";" bold "m" text rst
 
-#endif // POKUSEW_TERMINAL_H
+#endif // LIONKEY_TERMINAL_H

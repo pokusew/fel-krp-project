@@ -1,10 +1,11 @@
-#ifndef POKUSEW_UTILS_H
-#define POKUSEW_UTILS_H
+#ifndef LIONKEY_UTILS_H
+#define LIONKEY_UTILS_H
 
 #include <unistd.h>
 #include <stdio.h>
 
 #include "terminal.h"
+#include "debug.h"
 
 // PRI*8 does not work correctly with -specs=nano.specs (which is currently needed because of salty)
 // see https://answers.launchpad.net/gcc-arm-embedded/+question/665299
@@ -20,7 +21,7 @@
 #define wPRIX8 PRIX16
 
 #ifndef nl
-#define nl "\r\n"
+	#define nl "\r\n"
 #endif
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -35,34 +36,33 @@
 // see https://stackoverflow.com/questions/1644868/define-macro-for-debug-printing-in-c
 // see https://gcc.gnu.org/onlinedocs/cpp/Variadic-Macros.html
 
-#define POKUSEW_DEBUG_LEVEL 3
-
-#if POKUSEW_DEBUG_LEVEL > 2
-#define if_debug(code) (code)
-#define debug_log(...) fprintf(stdout, __VA_ARGS__)
-#define debug_log_str(line) write(STDERR_FILENO, (line), sizeof((line)))
+#if LIONKEY_DEBUG_LEVEL > 2
+	#define if_debug(code) (code)
+	#define debug_log(...) fprintf(stdout, __VA_ARGS__)
+	#define debug_log_str(line) write(STDERR_FILENO, (line), sizeof((line)))
 #else
-#define if_debug(code) ((void) 0)
-#define debug_log(...) ((void) 0)
-#define debug_log_str(line) ((void) 0)
-// defining NDEBUG removes asserts
-#define NDEBUG
+	#define if_debug(code) ((void) 0)
+	#define debug_log(...) ((void) 0)
+	#define debug_log_str(line) ((void) 0)
+	// defining NDEBUG removes asserts
+	// see https://en.cppreference.com/w/c/error/assert
+	#define NDEBUG
 #endif
 
-#if POKUSEW_DEBUG_LEVEL > 1
-#define info_log(...) fprintf(stdout, __VA_ARGS__)
-#define info_log_str(line) write(STDERR_FILENO, (line), sizeof((line)))
+#if LIONKEY_DEBUG_LEVEL > 1
+	#define info_log(...) fprintf(stdout, __VA_ARGS__)
+	#define info_log_str(line) write(STDERR_FILENO, (line), sizeof((line)))
 #else
-#define info_log(...) ((void) 0)
-#define info_log_str(line) ((void) 0)
+	#define info_log(...) ((void) 0)
+	#define info_log_str(line) ((void) 0)
 #endif
 
-#if POKUSEW_DEBUG_LEVEL > 0
-#define error_log(...) fprintf(stdout, __VA_ARGS__)
-#define error_log_str(line) write(STDERR_FILENO, (line), sizeof((line)))
+#if LIONKEY_DEBUG_LEVEL > 0
+	#define error_log(...) fprintf(stdout, __VA_ARGS__)
+	#define error_log_str(line) write(STDERR_FILENO, (line), sizeof((line)))
 #else
-#define error_log(...) ((void) 0)
-#define error_log_str(line) ((void) 0)
+	#define error_log(...) ((void) 0)
+	#define error_log_str(line) ((void) 0)
 #endif
 
 #include <assert.h>
@@ -73,6 +73,10 @@
 
 #define IS_BIG_ENDIAN (*(uint16_t *)"\0\xff" < 0x100)
 
-void dump_hex(const uint8_t *buf, size_t size);
+#if LIONKEY_DEBUG_LEVEL > 0
+	void dump_hex(const uint8_t *buf, size_t size);
+#else
+	#define dump_hex(buf, size) ((void) 0)
+#endif
 
-#endif // POKUSEW_UTILS_H
+#endif // LIONKEY_UTILS_H
