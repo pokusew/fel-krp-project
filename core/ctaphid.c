@@ -3,12 +3,26 @@
 #include <string.h>
 #include <stdbool.h>
 
-bool ctaphid_allocate_channel(ctaphid_state_t *state) {
+/**
+ * Allocates a channel ID for a new channel
+ *
+ * The current implementation allocates Channel IDs (CIDs)'in ascending order
+ * starting with 1, 2, 3, ... (0xFFFFFFFF - 1).
+ *
+ * The value 0 is a reserved value and if returned y this function,
+ * it indicates an error (all possible CIDs allocated).
+ *
+ * The value 0xFFFFFFFF is a reserved value (CTAPHID_BROADCAST_CID) and it is never returned by this function.
+ *
+ * @param state
+ * @return a valid channel ID or 0 when there is no channel ID left
+ *         (i.e., when we already allocated 2^32 - 2 channels are there are no numbers left)
+ */
+uint32_t ctaphid_allocate_channel(ctaphid_state_t *state) {
 	if (state->highest_allocated_cid + 1 == CTAPHID_BROADCAST_CID) {
-		return false;
+		return 0;
 	}
-	state->highest_allocated_cid++;
-	return true;
+	return ++state->highest_allocated_cid;
 }
 
 static void reset_buffer(ctaphid_channel_buffer_t *buffer) {

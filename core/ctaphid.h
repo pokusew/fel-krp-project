@@ -176,7 +176,7 @@ typedef enum ctaphid_process_packet_result {
 
 void ctaphid_init(ctaphid_state_t *state);
 
-bool ctaphid_allocate_channel(ctaphid_state_t *state);
+uint32_t ctaphid_allocate_channel(ctaphid_state_t *state);
 
 ctaphid_process_packet_result_t ctaphid_process_packet(
 	ctaphid_state_t *state,
