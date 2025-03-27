@@ -89,6 +89,7 @@ bool ctaphid_has_complete_message_ready(const ctaphid_state_t *state) {
 static void reset_buffer(ctaphid_channel_buffer_t *buffer) {
 	buffer->cid = 0;
 	buffer->cmd = 0;
+	buffer->cancel = false;
 	buffer->payload_length = 0;
 	buffer->next_seq = 0;
 	buffer->offset = 0;
@@ -194,6 +195,7 @@ ctaphid_process_packet_result_t ctaphid_process_packet(
 
 			// cancel if there is an ongoing CTAPHID_CBOR with the matching channel id
 			if (packet->cid == buffer->cid && is_complete_message_cmd(buffer, CTAPHID_CBOR)) {
+				buffer->cancel = true;
 				return CTAPHID_RESULT_CANCEL;
 			}
 
@@ -265,6 +267,7 @@ ctaphid_process_packet_result_t ctaphid_process_packet(
 		buffer->cid = packet->cid;
 		assert(packet->pkt.init.cmd != CTAPHID_CANCEL && packet->pkt.init.cmd != CTAPHID_INIT);
 		buffer->cmd = packet->pkt.init.cmd;
+		buffer->cancel = false;
 		buffer->payload_length = lion_ntohs(packet->pkt.init.bcnt);
 		buffer->next_seq = 0;
 		buffer->offset = 0;

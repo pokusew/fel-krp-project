@@ -155,6 +155,7 @@ static_assert(
 typedef struct ctaphid_channel_buffer {
 	uint32_t cid;
 	uint8_t cmd;
+	bool cancel;
 	size_t payload_length;
 	uint8_t next_seq;
 	size_t offset;
