@@ -178,7 +178,6 @@ uint8_t ctap_get_info(ctap_state_t *state, const uint8_t *request, size_t length
 	return CTAP2_OK;
 }
 
-
 uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t length) {
 
 	uint8_t ret;
@@ -213,10 +212,18 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 	//       if PIN is not set or CTAP2_ERR_PIN_INVALID if PIN has been set.
 
 	if (mc.pinUvAuthParamPresent && mc.pinUvAuthParamSize == 0) {
-		// TODO: user presence check
-		return !state->persistent.is_pin_set ? CTAP2_ERR_PIN_NOT_SET : CTAP2_ERR_PIN_INVALID;
-	}
+		ctap_user_presence_result_t up_result = ctap_wait_for_user_presence();
+		switch (up_result) {
+			case CTAP_UP_RESULT_CANCEL:
+				return CTAP2_ERR_KEEPALIVE_CANCEL;
+			case CTAP_UP_RESULT_TIMEOUT:
+			case CTAP_UP_RESULT_DENY:
+				return CTAP2_ERR_OPERATION_DENIED;
+			case CTAP_UP_RESULT_ALLOW:
+				return !state->persistent.is_pin_set ? CTAP2_ERR_PIN_NOT_SET : CTAP2_ERR_PIN_INVALID;
+		}
 
+	}
 
 	return CTAP1_ERR_OTHER;
 

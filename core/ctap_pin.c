@@ -188,11 +188,20 @@ static int ctap_pin_protocol_v1_decapsulate(
 		error_log("uECC_shared_secret failed" nl);
 		return 1;
 	}
+	debug_log(yellow("peer_cose_key->pubkey") nl "  ");
+	dump_hex((uint8_t *) &peer_cose_key->pubkey, 64);
+	debug_log(yellow("key_agreement_private_key") nl "  ");
+	dump_hex(protocol->key_agreement_private_key, 32);
+	debug_log(yellow("shared secret before hash ") nl "  ");
+	dump_hex(shared_secret, 32);
 
 	SHA256_CTX sha256_ctx;
 	sha256_init(&sha256_ctx);
 	sha256_update(&sha256_ctx, shared_secret, 32);
 	sha256_final(&sha256_ctx, shared_secret);
+
+	debug_log(yellow("shared secret after hash ") nl "  ");
+	dump_hex(shared_secret, 32);
 
 	return 0;
 }
@@ -536,6 +545,8 @@ static uint8_t set_pin(
 	//   Authenticator stores LEFT(SHA-256(newPin), 16) internally as CurrentStoredPIN,
 	//   sets the pinRetries counter to maximum count, and returns CTAP2_OK.
 
+	debug_log(green("new_pin = %s") nl, new_pin);
+
 	uint8_t new_pin_hash[32];
 	SHA256_CTX sha256_ctx;
 	sha256_init(&sha256_ctx);
@@ -720,7 +731,8 @@ uint8_t ctap_client_pin_get_pin_token(
 	// The authenticator returns the encrypted pinUvAuthToken for the specified pinUvAuthProtocol,
 	// i.e. encrypt(shared secret, pinUvAuthToken).
 
-	size_t encrypted_pin_uv_auth_token_length = sizeof(pin_protocol->pin_uv_auth_token) + pin_protocol->encryption_extra_length;
+	size_t encrypted_pin_uv_auth_token_length =
+		sizeof(pin_protocol->pin_uv_auth_token) + pin_protocol->encryption_extra_length;
 	uint8_t encrypted_pin_uv_auth_token[encrypted_pin_uv_auth_token_length];
 	if (pin_protocol->encrypt(
 		shared_secret,
@@ -868,7 +880,8 @@ uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
 	// The authenticator returns the encrypted pinUvAuthToken for the specified pinUvAuthProtocol,
 	// i.e. encrypt(shared secret, pinUvAuthToken).
 
-	size_t encrypted_pin_uv_auth_token_length = sizeof(pin_protocol->pin_uv_auth_token) + pin_protocol->encryption_extra_length;
+	size_t encrypted_pin_uv_auth_token_length =
+		sizeof(pin_protocol->pin_uv_auth_token) + pin_protocol->encryption_extra_length;
 	uint8_t encrypted_pin_uv_auth_token[encrypted_pin_uv_auth_token_length];
 	if (pin_protocol->encrypt(
 		shared_secret,
@@ -927,7 +940,7 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 
 		case CTAP_clientPIN_subCmd_getPINRetries:
 			// start response map
-			cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 2));
+		cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 2));
 			// 1. pinRetries
 			cbor_encoding_check(cbor_encode_int(&map, CTAP_clientPIN_res_pinRetries));
 			cbor_encoding_check(cbor_encode_int(&map, state->persistent.pin_total_remaining_attempts));
@@ -945,7 +958,7 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 
 		case CTAP_clientPIN_subCmd_getKeyAgreement:
 			// start response map
-			cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 1));
+		cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 1));
 			// 1. keyAgreement
 			cbor_encoding_check(cbor_encode_int(&map, CTAP_clientPIN_res_keyAgreement));
 			if ((ret = pin_protocol->get_public_key(pin_protocol, &map)) != CTAP2_OK) {
