@@ -138,7 +138,15 @@ typedef struct LION_ATTR_PACKED ctaphid_init_response_payload {
 	uint8_t capabilities;
 } ctaphid_init_response_payload_t;
 
-static_assert(sizeof(ctaphid_init_response_payload_t) == 17, "unexpected sizeof(ctaphid_init_response_payload_t)");
+static_assert(
+	sizeof(ctaphid_init_response_payload_t) == 17,
+	"unexpected sizeof(ctaphid_init_response_payload_t)"
+);
+static_assert(
+	sizeof(ctaphid_init_response_payload_t) <= CTAPHID_PACKET_INIT_PAYLOAD_SIZE,
+	"sizeof(ctaphid_init_response_payload_t) must be less than or equal to CTAPHID_PACKET_INIT_PAYLOAD_SIZE"
+);
+
 
 // This buffer is used to assemble the incoming (request) message on one specific channel.
 // Message consists of one initialization packet and up to 128 continuation packets.
