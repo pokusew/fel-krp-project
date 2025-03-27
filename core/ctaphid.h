@@ -7,6 +7,7 @@
 #include <assert.h>
 #include "ctap_errors.h"
 #include "compiler.h"
+#include "debug.h"
 
 // 11.2.2. Protocol structure and data framing
 // https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-protocol-and-framing
@@ -181,6 +182,9 @@ typedef enum ctaphid_process_packet_result {
 	CTAPHID_RESULT_BUFFERING,
 	CTAPHID_RESULT_MESSAGE,
 } ctaphid_process_packet_result_t;
+#if LIONKEY_DEBUG_LEVEL > 0
+extern const char *const debug_str_ctaphid_process_packet_result[];
+#endif
 
 void ctaphid_init(ctaphid_state_t *state);
 

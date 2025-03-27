@@ -9,4 +9,6 @@
 	#define LIONKEY_DEBUG_LEVEL 3
 #endif
 
+#define lion_enum_str(enum, value) debug_str_##enum[value]
+
 #endif // LIONKEY_DEBUG_H
