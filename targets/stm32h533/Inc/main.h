@@ -30,6 +30,7 @@ extern "C" {
 #include "stm32h5xx_hal.h"
 #include "stm32h5xx_nucleo.h"
 #include <stdio.h>
+#include <stdnoreturn.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -54,7 +55,7 @@ extern __IO uint32_t BspButtonState;
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
-void Error_Handler(void);
+noreturn void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 
