@@ -188,11 +188,20 @@ static int ctap_pin_protocol_v1_decapsulate(
 		error_log("uECC_shared_secret failed" nl);
 		return 1;
 	}
+	debug_log(yellow("peer_cose_key->pubkey") nl "  ");
+	dump_hex((uint8_t *) &peer_cose_key->pubkey, 64);
+	debug_log(yellow("key_agreement_private_key") nl "  ");
+	dump_hex(protocol->key_agreement_private_key, 32);
+	debug_log(yellow("shared secret before hash ") nl "  ");
+	dump_hex(shared_secret, 32);
 
 	SHA256_CTX sha256_ctx;
 	sha256_init(&sha256_ctx);
 	sha256_update(&sha256_ctx, shared_secret, 32);
 	sha256_final(&sha256_ctx, shared_secret);
+
+	debug_log(yellow("shared secret after hash ") nl "  ");
+	dump_hex(shared_secret, 32);
 
 	return 0;
 }
@@ -535,6 +544,8 @@ static uint8_t set_pin(
 	//   Authenticator remembers newPin length internally as PINCodePointLength.
 	//   Authenticator stores LEFT(SHA-256(newPin), 16) internally as CurrentStoredPIN,
 	//   sets the pinRetries counter to maximum count, and returns CTAP2_OK.
+
+	debug_log(green("new_pin = %s") nl, new_pin);
 
 	uint8_t new_pin_hash[32];
 	SHA256_CTX sha256_ctx;
