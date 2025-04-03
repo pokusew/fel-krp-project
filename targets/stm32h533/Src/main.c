@@ -21,7 +21,6 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "usb.h"
 #include "app.h"
 
 /* USER CODE END Includes */
@@ -119,7 +118,6 @@ int main(void) {
 	}
 
 	/* USER CODE BEGIN BSP */
-	usb_init();
 	/* USER CODE END BSP */
 
 	/* Infinite loop */
