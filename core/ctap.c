@@ -40,7 +40,7 @@ void authenticator_write_state(ctap_state_t *state) {
 
 void ctap_init(ctap_state_t *state) {
 
-	printf("ctap_init" nl);
+	debug_log("ctap_init" nl);
 
 	// crypto_ecc256_init();
 	uECC_set_rng((uECC_RNG_Function) ctap_generate_rng);
@@ -50,7 +50,7 @@ void ctap_init(ctap_state_t *state) {
 	// device_set_status(CTAPHID_STATUS_IDLE);
 
 	// if (false) {
-	// 	printf(
+	// 	debug_log(
 	// 		"auth state is initialized" nl
 	// 		"  is_pin_set = %" wPRIu8 nl
 	// 		"  remaining_tries = %" wPRId8 nl
@@ -277,9 +277,9 @@ uint8_t ctap_request(
 	}
 
 	debug_log(
-		"cbor output structure length %u bytes, status code 0x%02" wPRIx8 nl,
-		state->response.length,
-		status
+		"ctap_request: response status code 0x%02" wPRIx8 ", response length %" PRIsz " bytes" nl,
+		status,
+		state->response.length
 	);
 	dump_hex(state->response.data, state->response.length);
 

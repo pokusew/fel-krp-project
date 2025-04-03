@@ -16,7 +16,7 @@ extern "C" void ctap_rng_reset(uint32_t seed) {
 }
 
 extern "C" int ctap_generate_rng(uint8_t *buffer, size_t length) {
-	debug_log("ctap_generate_rng: %zu bytes to %p" nl, length, buffer);
+	debug_log("ctap_generate_rng: %" PRIsz " bytes to %p" nl, length, buffer);
 	for (size_t i = 0; i < length; ++i) {
 		// TODO: Consider using the full uint32_t output of std::mt19937 rand(),
 		//       i.e., use one rand() output to set (up to) four bytes of the buffer at once.

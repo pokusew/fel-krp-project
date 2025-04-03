@@ -103,6 +103,8 @@ target_link_libraries(core PUBLIC
 target_compile_definitions(core PUBLIC
 		LIONKEY_LOG=1
 		LIONKEY_DEBUG_LEVEL=3
+		# TODO: arm-none-eabi does not support %zu? see https://stackoverflow.com/questions/76837281/zu-format-specifier-with-c99-not-working
+		PRIsz="u"
 )
 
 set(TINYUSB_SRC ../../lib/tinyusb/src)

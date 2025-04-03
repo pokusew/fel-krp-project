@@ -20,6 +20,13 @@
 #define wPRIx8 PRIx16
 #define wPRIX8 PRIX16
 
+// We defined PRIsz so that we can replace %zu with different modifier if needed.
+// TODO: arm-none-eabi does not support %zu?
+//       see https://stackoverflow.com/questions/76837281/zu-format-specifier-with-c99-not-working
+#ifndef PRIsz
+	#define PRIsz "zu"
+#endif
+
 #ifndef nl
 	#define nl "\r\n"
 #endif
@@ -44,8 +51,8 @@
 	#define if_debug(code) ((void) 0)
 	#define debug_log(...) ((void) 0)
 	#define debug_log_str(line) ((void) 0)
-	// defining NDEBUG removes asserts
-	// see https://en.cppreference.com/w/c/error/assert
+// defining NDEBUG removes asserts
+// see https://en.cppreference.com/w/c/error/assert
 	#define NDEBUG
 #endif
 
@@ -74,7 +81,9 @@
 #define IS_BIG_ENDIAN (*(uint16_t *)"\0\xff" < 0x100)
 
 #if LIONKEY_DEBUG_LEVEL > 0
-	void dump_hex(const uint8_t *buf, size_t size);
+
+void dump_hex(const uint8_t *buf, size_t size);
+
 #else
 	#define dump_hex(buf, size) ((void) 0)
 #endif
