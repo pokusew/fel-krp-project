@@ -104,8 +104,28 @@ typedef struct COSE_Key {
 // command parameters are encoded using a CBOR map (CBOR major type 5)
 // The CBOR map MUST be encoded using the definite length variant.
 
+// 6.1. authenticatorMakeCredential (0x01)
+// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorMakeCredential
+// This method is invoked by the host to request generation of a new credential in the authenticator.
+// It takes the following input parameters, several of which correspond
+// to those defined in the authenticatorMakeCredential operation section
+// of the Web Authentication specification:
+#define CTAP_makeCredential_clientDataHash     0x01
+#define CTAP_makeCredential_rp                 0x02
+#define CTAP_makeCredential_user               0x03
+#define CTAP_makeCredential_pubKeyCredParams   0x04
+#define CTAP_makeCredential_excludeList        0x05
+#define CTAP_makeCredential_extensions         0x06
+#define CTAP_makeCredential_options            0x07
 #define CTAP_makeCredential_pinUvAuthParam     0x08
 #define CTAP_makeCredential_pinUvAuthProtocol  0x09
+// On success, the authenticator returns the following authenticatorMakeCredential response structure
+// which contains an attestation object plus additional information.
+#define CTAP_makeCredential_res_fmt           0x01
+#define CTAP_makeCredential_res_authData      0x02
+#define CTAP_makeCredential_res_attStmt       0x03
+#define CTAP_makeCredential_res_epAtt         0x04
+#define CTAP_makeCredential_res_largeBlobKey  0x05
 
 typedef struct CTAP_makeCredential {
 	int pinUvAuthProtocol;
