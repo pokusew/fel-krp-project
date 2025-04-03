@@ -4,6 +4,11 @@
 #include <hmac.h>
 #include <aes.h>
 
+// verify that TinyAES is compiled with AES-256-CBC support
+static_assert(TINYAES_ENABLE_AES256 == 1, "unexpected TINYAES_ENABLE_AES256 value for AES-256-CBC");
+static_assert(TINYAES_ENABLE_CBC == 1, "unexpected TINYAES_ENABLE_CBC value for AES-256-CBC");
+static_assert(TINYAES_AES_KEYLEN == 32, "unexpected TINYAES_AES_KEYLEN value for AES-256-CBC");
+
 /**
  * This function prepares the pinUvAuthToken for use by the platform,
  * which has invoked one of the pinUvAuthToken-issuing operations,
@@ -211,12 +216,12 @@ static int ctap_pin_protocol_v1_encrypt(
 	const uint8_t *plaintext, const size_t plaintext_length,
 	uint8_t *ciphertext
 ) {
-	if (plaintext_length % AES_BLOCKLEN != 0) {
+	if (plaintext_length % TINYAES_AES_BLOCKLEN != 0) {
 		return 1;
 	}
 
-	uint8_t all_zero_iv[AES_BLOCKLEN];
-	memset(all_zero_iv, 0, AES_BLOCKLEN);
+	uint8_t all_zero_iv[TINYAES_AES_BLOCKLEN];
+	memset(all_zero_iv, 0, TINYAES_AES_BLOCKLEN);
 	struct AES_ctx aes_ctx;
 	AES_init_ctx_iv(&aes_ctx, shared_secret, all_zero_iv);
 	memcpy(ciphertext, plaintext, plaintext_length);
@@ -230,12 +235,12 @@ static int ctap_pin_protocol_v1_decrypt(
 	const uint8_t *ciphertext, const size_t ciphertext_length,
 	uint8_t *plaintext
 ) {
-	if (ciphertext_length % AES_BLOCKLEN != 0) {
+	if (ciphertext_length % TINYAES_AES_BLOCKLEN != 0) {
 		return 1;
 	}
 
-	uint8_t all_zero_iv[AES_BLOCKLEN];
-	memset(all_zero_iv, 0, AES_BLOCKLEN);
+	uint8_t all_zero_iv[TINYAES_AES_BLOCKLEN];
+	memset(all_zero_iv, 0, TINYAES_AES_BLOCKLEN);
 	struct AES_ctx aes_ctx;
 	AES_init_ctx_iv(&aes_ctx, shared_secret, all_zero_iv);
 	memcpy(plaintext, ciphertext, ciphertext_length);

@@ -47,7 +47,7 @@ target_sources(tinyaes
 )
 target_compile_definitions(tinyaes
 		# we need only AES-256-CBC
-		PUBLIC TINYAES_ENABLE_AES_256=1 TINYAES_ENABLE_CTR=0 TINYAES_ENABLE_CTR=0
+		PUBLIC TINYAES_ENABLE_AES256=1 TINYAES_ENABLE_CBC=1 TINYAES_ENABLE_ECB=0 TINYAES_ENABLE_CTR=0
 )
 target_include_directories(tinyaes
 		INTERFACE
