@@ -275,3 +275,81 @@ uint8_t ctap_parse_client_pin(const uint8_t *request, size_t length, CTAP_client
 	return CTAP2_OK;
 
 }
+
+uint8_t ctap_parse_make_credential(const uint8_t *request, size_t length, CTAP_makeCredential *mc) {
+
+	CborParser parser;
+	CborValue it;
+
+	uint8_t ret;
+	CborError err;
+
+	CborValue map;
+	size_t map_length;
+	int key;
+
+	memset(mc, 0, sizeof(CTAP_makeCredential));
+
+	cbor_decoding_check(
+		cbor_parser_init(
+			request,
+			length,
+			CborValidateCanonicalFormat,
+			&parser,
+			&it
+		)
+	);
+
+	if (!cbor_value_is_map(&it)) {
+		return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+	}
+
+	cbor_decoding_check(cbor_value_enter_container(&it, &map));
+
+	cbor_decoding_check(cbor_value_get_map_length(&it, &map_length));
+
+	printf("CTAP_makeCredential map has %u elements" nl, map_length);
+
+	for (size_t i = 0; i < map_length; i++) {
+		// read the current key
+		if (!cbor_value_is_integer(&map)) {
+			return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+		}
+		cbor_decoding_check(cbor_value_get_int_checked(&map, &key));
+		// advance to the corresponding value
+		cbor_decoding_check(cbor_value_advance_fixed(&map));
+		// parse the value according to the key
+		switch (key) {
+			case CTAP_makeCredential_pinUvAuthProtocol:
+				printf("CTAP_makeCredential_pinUvAuthProtocol" nl);
+				if (!cbor_value_is_unsigned_integer(&map)) {
+					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+				}
+				cbor_decoding_check(cbor_value_get_int_checked(&map, &mc->pinUvAuthProtocol));
+				cbor_decoding_check(cbor_value_advance_fixed(&map));
+				break;
+			case CTAP_makeCredential_pinUvAuthParam:
+				printf("CTAP_makeCredential_pinUvAuthParam" nl);
+				if ((
+						ret = parse_byte_string(
+							&map,
+							mc->pinUvAuthParam,
+							&mc->pinUvAuthParamSize,
+							0,
+							PIN_UV_AUTH_PARAM_MAX_SIZE,
+							&map
+						)) != CTAP2_OK) {
+					return ret;
+				}
+				mc->pinUvAuthParamPresent = true;
+				break;
+			default:
+				printf("ctap_parse_make_credential: unknown key %d" nl, key);
+				cbor_decoding_check(cbor_value_advance(&map));
+		}
+
+	}
+
+	return CTAP2_OK;
+
+}

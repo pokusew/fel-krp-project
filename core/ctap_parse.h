@@ -104,6 +104,16 @@ typedef struct COSE_Key {
 // command parameters are encoded using a CBOR map (CBOR major type 5)
 // The CBOR map MUST be encoded using the definite length variant.
 
+#define CTAP_makeCredential_pinUvAuthParam     0x08
+#define CTAP_makeCredential_pinUvAuthProtocol  0x09
+
+typedef struct CTAP_makeCredential {
+	int pinUvAuthProtocol;
+	uint8_t pinUvAuthParam[PIN_UV_AUTH_PARAM_MAX_SIZE];
+	size_t pinUvAuthParamSize;
+	bool pinUvAuthParamPresent;
+} CTAP_makeCredential;
+
 // 6.5. authenticatorClientPIN (0x06) command
 
 // 6.5.5. authenticatorClientPIN (0x06) Command Definition
@@ -236,5 +246,7 @@ static inline bool permissions_include_any_of(int permissions, int mask) {
 }
 
 uint8_t ctap_parse_client_pin(const uint8_t *request, size_t length, CTAP_clientPIN *cp);
+
+uint8_t ctap_parse_make_credential(const uint8_t *request, size_t length, CTAP_makeCredential *mc);
 
 #endif // POKUSEW_CTAP_PARSE_H
