@@ -100,16 +100,16 @@ typedef struct COSE_Key {
 
 // newPinEnc pinUvAuthProtocol 1 = 64 bytes
 // newPinEnc pinUvAuthProtocol 2 = 80 bytes (16 + 64)
-#define NEW_PIN_ENC_MAX_SIZE        80 // = max(64, 80)
-#define NEW_PIN_ENC_MIN_SIZE        64 // = min(64, 80)
+#define CTAP_NEW_PIN_ENC_MAX_SIZE        80 // = max(64, 80)
+#define CTAP_NEW_PIN_ENC_MIN_SIZE        64 // = min(64, 80)
 // pinUvAuthParam pinUvAuthProtocol 1 = 16 bytes
 // pinUvAuthParam pinUvAuthProtocol 2 = 32 bytes
-#define PIN_UV_AUTH_PARAM_MAX_SIZE  32 // = max(16, 32)
-#define PIN_UV_AUTH_PARAM_MIN_SIZE  16 // = min(16, 32)
+#define CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE  32 // = max(16, 32)
+#define CTAP_PIN_UV_AUTH_PARAM_MIN_SIZE  16 // = min(16, 32)
 // pinHashEnc pinUvAuthProtocol 1 = 16 bytes
 // pinHashEnc pinUvAuthProtocol 2 = 32 bytes (16 + 16)
-#define PIN_HASH_ENC_MAX_SIZE       32 // = max(16, 32)
-#define PIN_HASH_ENC_MIN_SIZE       16 // = min(16, 32)
+#define CTAP_PIN_HASH_ENC_MAX_SIZE       32 // = max(16, 32)
+#define CTAP_PIN_HASH_ENC_MIN_SIZE       16 // = min(16, 32)
 
 // Command
 // code (one byte)
@@ -200,7 +200,7 @@ typedef struct CTAP_makeCredential {
 	CTAP_userEntity user;
 	CborValue pubKeyCredParams;
 	CborValue excludeList;
-	lion_array(pinUvAuthParam, PIN_UV_AUTH_PARAM_MAX_SIZE);
+	lion_array(pinUvAuthParam, CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE);
 	uint8_t pinUvAuthProtocol;
 } CTAP_makeCredential;
 // On success, the authenticator returns the following authenticatorMakeCredential response structure
@@ -219,9 +219,9 @@ typedef struct CTAP_clientPIN {
 	uint8_t pinUvAuthProtocol; // optional
 	uint8_t subCommand; // REQUIRED
 	COSE_Key keyAgreement; // optional
-	lion_array(pinUvAuthParam, PIN_UV_AUTH_PARAM_MAX_SIZE); // optional
-	lion_array(newPinEnc, NEW_PIN_ENC_MAX_SIZE); // optional
-	lion_array(pinHashEnc, PIN_HASH_ENC_MAX_SIZE); // optional
+	lion_array(pinUvAuthParam, CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE); // optional
+	lion_array(newPinEnc, CTAP_NEW_PIN_ENC_MAX_SIZE); // optional
+	lion_array(pinHashEnc, CTAP_PIN_HASH_ENC_MAX_SIZE); // optional
 	uint32_t permissions; // optional
 	CTAP_rpId rpId; // optional
 } CTAP_clientPIN;

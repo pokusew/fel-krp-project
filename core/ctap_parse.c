@@ -262,8 +262,8 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 					&map,
 					params->pinUvAuthParam,
 					&params->pinUvAuthParam_size,
-					PIN_UV_AUTH_PARAM_MIN_SIZE,
-					PIN_UV_AUTH_PARAM_MAX_SIZE,
+					CTAP_PIN_UV_AUTH_PARAM_MIN_SIZE,
+					CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE,
 					&map
 				));
 				ctap_set_present(params, CTAP_clientPIN_pinUvAuthParam);
@@ -275,8 +275,8 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 					&map,
 					params->newPinEnc,
 					&params->newPinEnc_size,
-					NEW_PIN_ENC_MIN_SIZE,
-					NEW_PIN_ENC_MAX_SIZE,
+					CTAP_NEW_PIN_ENC_MIN_SIZE,
+					CTAP_NEW_PIN_ENC_MAX_SIZE,
 					&map
 				));
 				ctap_set_present(params, CTAP_clientPIN_newPinEnc);
@@ -288,8 +288,8 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 					&map,
 					params->pinHashEnc,
 					&params->pinHashEnc_size,
-					PIN_HASH_ENC_MIN_SIZE,
-					PIN_HASH_ENC_MAX_SIZE,
+					CTAP_PIN_HASH_ENC_MIN_SIZE,
+					CTAP_PIN_HASH_ENC_MAX_SIZE,
 					&map
 				));
 				ctap_set_present(params, CTAP_clientPIN_pinHashEnc);
@@ -490,7 +490,7 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 					params->pinUvAuthParam,
 					&params->pinUvAuthParam_size,
 					0,
-					PIN_UV_AUTH_PARAM_MAX_SIZE,
+					CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE,
 					&map
 				));
 				ctap_set_present(params, CTAP_makeCredential_pinUvAuthParam);
