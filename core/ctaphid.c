@@ -213,6 +213,12 @@ ctaphid_process_packet_result_t ctaphid_process_packet(
 ) {
 	ctaphid_channel_buffer_t *buffer = &state->buffer;
 
+	// TODO: Implement channel timeout:
+	//   Reset the buffer via ctaphid_reset_to_idle() when no packet is received within X seconds
+	//   on the current busy channel (buffer holds an incomplete message).
+	//   This way other channels get chance to communicate and a stuck channel cannot block the communication.
+	//   Once the buffer is reset, we can start receiving (assembling) a new message from any valid (allocated) channel.
+
 	if (is_initialization_packet(packet)) {
 		debug_log(
 			"ctaphid_process_packet"
