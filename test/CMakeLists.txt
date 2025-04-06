@@ -302,6 +302,9 @@ target_link_libraries(test_hmac_sha256 sha256 hex_utils gtest_custom_assertions)
 std_test(ctap_parse_client_pin src/ctap_parse_client_pin_test.cpp)
 target_link_libraries(test_ctap_parse_client_pin core_ctap_parse hex_utils gtest_custom_assertions)
 
+std_test(ctap_parse_make_credential src/ctap_parse_make_credential_test.cpp)
+target_link_libraries(test_ctap_parse_make_credential core_ctap_parse hex_utils gtest_custom_assertions)
+
 std_test(ctap_client_pin src/ctap_client_pin_test.cpp)
 target_link_libraries(test_ctap_client_pin core_ctap hex_utils gtest_custom_assertions)
 

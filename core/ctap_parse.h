@@ -5,7 +5,16 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <cbor.h>
+
 #include "ctap_errors.h"
+#include "compiler.h"
+
+#define ctap_parse_check(expr)                           \
+	if ((ret = (expr)) != CTAP2_OK) {                    \
+		return ret;                                      \
+	}                                                    \
+	((void) 0)
 
 #define cbor_decoding_check(r)                           \
     if ((err = (r)) != CborNoError) {                    \
@@ -32,6 +41,9 @@
 #define lionkey_cbor_error_log(err, line, filename) ((void) 0)
 #endif
 
+#define lion_array(name, max_size) \
+	size_t name##_size; \
+	uint8_t name[max_size]
 
 // https://cbor.io/
 // CBOR Object Signing and Encryption (COSE)
@@ -96,13 +108,71 @@ typedef struct COSE_Key {
 #define PIN_UV_AUTH_PARAM_MIN_SIZE  16 // = min(16, 32)
 // pinHashEnc pinUvAuthProtocol 1 = 16 bytes
 // pinHashEnc pinUvAuthProtocol 2 = 32 bytes (16 + 16)
+#define PIN_HASH_ENC_MAX_SIZE       32 // = max(16, 32)
 #define PIN_HASH_ENC_MIN_SIZE       16 // = min(16, 32)
-#define PIN_HASH_ENC_MAX_SIZE       32 // = min(16, 32)
 
 // Command
 // code (one byte)
 // command parameters are encoded using a CBOR map (CBOR major type 5)
 // The CBOR map MUST be encoded using the definite length variant.
+
+#define CTAP_RP_ID_MAX_SIZE 255
+
+#define CTAP_USER_ENTITY_ID_MAX_SIZE 64
+
+// see https://w3c.github.io/webauthn/#dom-publickeycredentialuserentity-displayname
+//   When storing a displayName member's value,
+//   the value MAY be truncated as described in 6.4.1 String Truncation
+//   (https://w3c.github.io/webauthn/#sctn-strings-truncation)
+//   using a size limit greater than or equal to 64 bytes.
+#define CTAP_USER_ENTITY_DISPLAY_NAME_MAX_SIZE 64
+
+static_assert(
+	sizeof(char) == sizeof(uint8_t),
+	"sizeof(char) == sizeof(uint8_t)"
+);
+
+#define ctap_param_to_mask(number) (1u << (number * lion_static_assert_expr(0 <= number && number < 31, \
+	"number must be in range [0, 31] as it is used as a bitshift")))
+
+static_assert(
+	ctap_param_to_mask(5) == (1u << 5),
+	"ctap_param_to_mask() macro does not work correctly"
+);
+
+LION_ATTR_ALWAYS_INLINE static inline bool ctap_is_present(uint32_t present, uint32_t mask) {
+	return (present & mask) == mask;
+}
+
+LION_ATTR_ALWAYS_INLINE static inline bool ctap_is_present_some(uint32_t present, uint32_t mask) {
+	return (present & mask) != 0u;
+}
+
+#define ctap_set_present(params_ptr, param_number) \
+    (params_ptr)->present |= ctap_param_to_mask(param_number);
+
+#define ctap_param_is_present(params_ptr, param_number) \
+    ctap_is_present((params_ptr)->present, ctap_param_to_mask(param_number))
+
+// https://w3c.github.io/webauthn/#dictdef-publickeycredentialuserentity
+typedef struct CTAP_userEntity {
+	// "an empty account identifier is valid" => id_size might be 0
+	size_t id_size;
+	// The user handle of the user account.
+	// A user handle is an opaque byte sequence with a maximum size of 64 bytes,
+	// and is not meant to be displayed to the user.
+	uint8_t id[CTAP_USER_ENTITY_ID_MAX_SIZE];
+	// The following is possible: displayName_present == true && displayName_size == 0
+	bool displayName_present;
+	size_t displayName_size;
+	uint8_t displayName[CTAP_USER_ENTITY_DISPLAY_NAME_MAX_SIZE];
+} CTAP_userEntity;
+
+// https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
+typedef struct CTAP_rpId {
+	size_t id_size;
+	uint8_t id[CTAP_RP_ID_MAX_SIZE];
+} CTAP_rpId;
 
 // 6.1. authenticatorMakeCredential (0x01)
 // https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorMakeCredential
@@ -119,6 +189,20 @@ typedef struct COSE_Key {
 #define CTAP_makeCredential_options            0x07
 #define CTAP_makeCredential_pinUvAuthParam     0x08
 #define CTAP_makeCredential_pinUvAuthProtocol  0x09
+// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#makecred-option-key
+#define CTAP_makeCredential_option_rk           "rk"
+#define CTAP_makeCredential_option_up           "up"
+#define CTAP_makeCredential_option_uv           "uv"
+typedef struct CTAP_makeCredential {
+	uint32_t present; // not a param, holds parsing info (if param was parsed, i.e., present)
+	uint8_t clientDataHash[32]; // SHA-256 digest (32 bytes)
+	CTAP_rpId rpId;
+	CTAP_userEntity user;
+	CborValue pubKeyCredParams;
+	CborValue excludeList;
+	lion_array(pinUvAuthParam, PIN_UV_AUTH_PARAM_MAX_SIZE);
+	uint8_t pinUvAuthProtocol;
+} CTAP_makeCredential;
 // On success, the authenticator returns the following authenticatorMakeCredential response structure
 // which contains an attestation object plus additional information.
 #define CTAP_makeCredential_res_fmt           0x01
@@ -127,35 +211,20 @@ typedef struct COSE_Key {
 #define CTAP_makeCredential_res_epAtt         0x04
 #define CTAP_makeCredential_res_largeBlobKey  0x05
 
-typedef struct CTAP_makeCredential {
-	int pinUvAuthProtocol;
-	uint8_t pinUvAuthParam[PIN_UV_AUTH_PARAM_MAX_SIZE];
-	size_t pinUvAuthParamSize;
-	bool pinUvAuthParamPresent;
-} CTAP_makeCredential;
-
 // 6.5. authenticatorClientPIN (0x06) command
-
 // 6.5.5. authenticatorClientPIN (0x06) Command Definition
 // https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authnrClientPin-cmd-dfn
 typedef struct CTAP_clientPIN {
-	int pinUvAuthProtocol;
-	int subCommand;
-	COSE_Key keyAgreement;
-	bool keyAgreementPresent;
-	uint8_t pinUvAuthParam[PIN_UV_AUTH_PARAM_MAX_SIZE];
-	size_t pinUvAuthParamSize;
-	bool pinUvAuthParamPresent;
-	uint8_t newPinEnc[NEW_PIN_ENC_MAX_SIZE];
-	size_t newPinEncSize;
-	uint8_t pinHashEnc[PIN_HASH_ENC_MAX_SIZE];
-	size_t pinHashEncSize;
-	int permissions;
-	bool permissionsPresent;
-	int rpId;
-	bool rpIdPresent;
+	uint32_t present; // not a param, holds parsing info (if param was parsed, i.e., present)
+	uint8_t pinUvAuthProtocol; // optional
+	uint8_t subCommand; // REQUIRED
+	COSE_Key keyAgreement; // optional
+	lion_array(pinUvAuthParam, PIN_UV_AUTH_PARAM_MAX_SIZE); // optional
+	lion_array(newPinEnc, NEW_PIN_ENC_MAX_SIZE); // optional
+	lion_array(pinHashEnc, PIN_HASH_ENC_MAX_SIZE); // optional
+	uint32_t permissions; // optional
+	CTAP_rpId rpId; // optional
 } CTAP_clientPIN;
-
 // 6.5.5. authenticatorClientPIN (0x06) Command Definition
 // https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authnrClientPin-cmd-dfn
 // The command takes the following input parameters:
@@ -261,12 +330,31 @@ typedef struct CTAP_clientPIN {
  */
 #define CTAP_clientPIN_pinUvAuthToken_permission_acfg  0x20
 
-static inline bool permissions_include_any_of(int permissions, int mask) {
-	return (permissions & mask) != 0;
+static inline bool permissions_include_any_of(uint32_t permissions, uint32_t mask) {
+	return (permissions & mask) != 0u;
 }
 
-uint8_t ctap_parse_client_pin(const uint8_t *request, size_t length, CTAP_clientPIN *cp);
+LION_ATTR_ALWAYS_INLINE static inline uint8_t ctap_init_cbor_parser(
+	const uint8_t *data,
+	size_t data_size,
+	CborParser *parser,
+	CborValue *it
+) {
+	CborError err;
+	cbor_decoding_check(
+		cbor_parser_init(
+			data,
+			data_size,
+			0,
+			parser,
+			it
+		)
+	);
+	return CTAP2_OK;
+}
 
-uint8_t ctap_parse_make_credential(const uint8_t *request, size_t length, CTAP_makeCredential *mc);
+uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params);
+
+uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params);
 
 #endif // POKUSEW_CTAP_PARSE_H

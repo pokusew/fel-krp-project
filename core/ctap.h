@@ -202,14 +202,14 @@ typedef struct ctap_pin_uv_auth_token_state {
 	/**
 	 * A permissions RP ID, initially null.
 	 */
-	int rpId;
-	bool rpIdSet;
+	CTAP_rpId rpId;
+	bool rpId_set;
 
 	/**
 	 * A permissions set whose possible values are those of pinUvAuthToken permissions.
 	 * It is initially empty.
 	 */
-	int permissions;
+	uint32_t permissions;
 
 	/**
 	 * A usage timer, initially not running.

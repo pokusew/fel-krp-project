@@ -67,8 +67,8 @@ void ctap_pin_uv_auth_token_clear_permissions_except_lbw(ctap_pin_uv_auth_token_
 
 void ctap_pin_uv_auth_token_stop_using(ctap_pin_uv_auth_token_state *token_state) {
 	token_state->in_use = false;
-	token_state->rpId = 0;
-	token_state->rpIdSet = false;
+	memset(&token_state->rpId, 0, sizeof(token_state->rpId));
+	token_state->rpId_set = false;
 	token_state->permissions = 0;
 	token_state->usage_timer.running = false;
 	token_state->usage_timer.start = 0;
@@ -412,12 +412,12 @@ static uint8_t check_pin_hash(
 
 	// Authenticator decrypts pinHashEnc using decrypt(shared secret, pinHashEnc)
 	// and verifies against its internal stored LEFT(SHA-256(curPin), 16).
-	size_t pin_hash_length = cp->pinHashEncSize - pin_protocol->encryption_extra_length;
+	size_t pin_hash_length = cp->pinHashEnc_size - pin_protocol->encryption_extra_length;
 	assert(sizeof(state->persistent.pin_hash) <= pin_hash_length);
 	uint8_t pin_hash[pin_hash_length];
 	if (pin_protocol->decrypt(
 		/* key */ shared_secret,
-		/* ciphertext */ cp->pinHashEnc, cp->pinHashEncSize,
+		/* ciphertext */ cp->pinHashEnc, cp->pinHashEnc_size,
 		/* output: plaintext */ pin_hash
 	) != 0) {
 		return handle_invalid_pin(state, pin_protocol);
@@ -457,7 +457,7 @@ static uint8_t set_pin(
 	// 6.5.5.5. Setting a New PIN:     5.7
 	// 6.5.5.6. Changing existing PIN: 5.10
 	//   If paddedNewPin is NOT 64 bytes long, it returns CTAP1_ERR_INVALID_PARAMETER
-	size_t padded_new_pin_length = cp->newPinEncSize - pin_protocol->encryption_extra_length;
+	size_t padded_new_pin_length = cp->newPinEnc_size - pin_protocol->encryption_extra_length;
 	if (padded_new_pin_length != 64) {
 		return CTAP1_ERR_INVALID_PARAMETER;
 	}
@@ -469,7 +469,7 @@ static uint8_t set_pin(
 	uint8_t padded_new_pin[64];
 	if (pin_protocol->decrypt(
 		/* key */ shared_secret,
-		/* ciphertext */ cp->newPinEnc, cp->newPinEncSize,
+		/* ciphertext */ cp->newPinEnc, cp->newPinEnc_size,
 		/* output: plaintext */ padded_new_pin
 	) != 0) {
 		return CTAP2_ERR_PIN_AUTH_INVALID;
@@ -583,7 +583,11 @@ uint8_t ctap_client_pin_set_pin(
 
 	// 5.1 If the authenticator does not receive mandatory parameters for this command,
 	//     it returns CTAP2_ERR_MISSING_PARAMETER error.
-	if (!cp->keyAgreementPresent || cp->newPinEncSize == 0 || cp->pinUvAuthParamSize == 0) {
+	const uint32_t mandatory_params =
+		ctap_param_to_mask(CTAP_clientPIN_keyAgreement) |
+		ctap_param_to_mask(CTAP_clientPIN_pinUvAuthParam) |
+		ctap_param_to_mask(CTAP_clientPIN_newPinEnc);
+	if (!ctap_is_present(cp->present, mandatory_params)) {
 		return CTAP2_ERR_MISSING_PARAMETER;
 	}
 
@@ -603,11 +607,11 @@ uint8_t ctap_client_pin_set_pin(
 	//     If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
 	hmac_sha256_ctx_t verify_ctx;
 	pin_protocol->verify_init(pin_protocol, &verify_ctx, /* key */ shared_secret, sizeof(shared_secret));
-	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message */ cp->newPinEnc, cp->newPinEncSize);
+	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message */ cp->newPinEnc, cp->newPinEnc_size);
 	if (pin_protocol->verify_final(
 		pin_protocol,
 		&verify_ctx,
-		/* signature */ cp->pinUvAuthParam, cp->pinUvAuthParamSize
+		/* signature */ cp->pinUvAuthParam, cp->pinUvAuthParam_size
 	) != 0) {
 		return CTAP2_ERR_PIN_AUTH_INVALID;
 	}
@@ -628,7 +632,11 @@ uint8_t ctap_client_pin_change_pin(
 
 	// 5.1 If the authenticator does not receive mandatory parameters for this command,
 	//     it returns CTAP2_ERR_MISSING_PARAMETER error.
-	if (!cp->keyAgreementPresent || cp->newPinEncSize == 0 || cp->pinUvAuthParamSize == 0 || cp->pinHashEncSize == 0) {
+	const uint32_t mandatory_params =
+		ctap_param_to_mask(CTAP_clientPIN_keyAgreement) |
+		ctap_param_to_mask(CTAP_clientPIN_newPinEnc) |
+		ctap_param_to_mask(CTAP_clientPIN_pinUvAuthParam);
+	if (!ctap_is_present(cp->present, mandatory_params)) {
 		return CTAP2_ERR_MISSING_PARAMETER;
 	}
 
@@ -648,12 +656,12 @@ uint8_t ctap_client_pin_change_pin(
 	//     If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
 	hmac_sha256_ctx_t verify_ctx;
 	pin_protocol->verify_init(pin_protocol, &verify_ctx, /* key */ shared_secret, sizeof(shared_secret));
-	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message part 1 */ cp->newPinEnc, cp->newPinEncSize);
-	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message part 2 */ cp->pinHashEnc, cp->pinHashEncSize);
+	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message part 1 */ cp->newPinEnc, cp->newPinEnc_size);
+	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message part 2 */ cp->pinHashEnc, cp->pinHashEnc_size);
 	if (pin_protocol->verify_final(
 		pin_protocol,
 		&verify_ctx,
-		/* signature */ cp->pinUvAuthParam, cp->pinUvAuthParamSize
+		/* signature */ cp->pinUvAuthParam, cp->pinUvAuthParam_size
 	) != 0) {
 		return CTAP2_ERR_PIN_AUTH_INVALID;
 	}
@@ -688,7 +696,10 @@ uint8_t ctap_client_pin_get_pin_token(
 
 	// If the authenticator does not receive mandatory parameters for this command,
 	// it returns CTAP2_ERR_MISSING_PARAMETER error.
-	if (!cp->keyAgreementPresent || cp->pinHashEncSize == 0) {
+	const uint32_t mandatory_params =
+		ctap_param_to_mask(CTAP_clientPIN_keyAgreement) |
+		ctap_param_to_mask(CTAP_clientPIN_pinHashEnc);
+	if (!ctap_is_present(cp->present, mandatory_params)) {
 		return CTAP2_ERR_MISSING_PARAMETER;
 	}
 
@@ -696,7 +707,10 @@ uint8_t ctap_client_pin_get_pin_token(
 	// return CTAP1_ERR_INVALID_PARAMETER.
 	// If authenticatorClientPIN's rpId parameter is present in the getPinToken (0x05) subcommand,
 	// return CTAP1_ERR_INVALID_PARAMETER.
-	if (cp->permissionsPresent || cp->rpIdPresent) {
+	const uint32_t extraneous_params =
+		ctap_param_to_mask(CTAP_clientPIN_permissions) |
+		ctap_param_to_mask(CTAP_clientPIN_rpId);
+	if (ctap_is_present_some(cp->present, extraneous_params)) {
 		return CTAP1_ERR_INVALID_PARAMETER;
 	}
 
@@ -736,7 +750,8 @@ uint8_t ctap_client_pin_get_pin_token(
 	// The authenticator returns the encrypted pinUvAuthToken for the specified pinUvAuthProtocol,
 	// i.e. encrypt(shared secret, pinUvAuthToken).
 
-	size_t encrypted_pin_uv_auth_token_length = sizeof(pin_protocol->pin_uv_auth_token) + pin_protocol->encryption_extra_length;
+	size_t encrypted_pin_uv_auth_token_length =
+		sizeof(pin_protocol->pin_uv_auth_token) + pin_protocol->encryption_extra_length;
 	uint8_t encrypted_pin_uv_auth_token[encrypted_pin_uv_auth_token_length];
 	if (pin_protocol->encrypt(
 		shared_secret,
@@ -775,7 +790,11 @@ uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
 
 	// If the authenticator does not receive mandatory parameters for this command,
 	// it returns CTAP2_ERR_MISSING_PARAMETER error.
-	if (!cp->keyAgreementPresent || cp->pinHashEncSize == 0 || cp->permissionsPresent == 0) {
+	const uint32_t mandatory_params =
+		ctap_param_to_mask(CTAP_clientPIN_keyAgreement) |
+		ctap_param_to_mask(CTAP_clientPIN_pinHashEnc) |
+		ctap_param_to_mask(CTAP_clientPIN_permissions);
+	if (!ctap_is_present(cp->present, mandatory_params)) {
 		return CTAP2_ERR_MISSING_PARAMETER;
 	}
 
@@ -786,12 +805,13 @@ uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
 
 	// The following checks are implied by the pinUvAuthToken permissions definition
 	// (the table in 6.5.5.7. Operations to Obtain a pinUvAuthToken)
-	const bool rpIdRequired = permissions_include_any_of(
+	const bool rpId_required = permissions_include_any_of(
 		cp->permissions,
 		CTAP_clientPIN_pinUvAuthToken_permission_mc
 		| CTAP_clientPIN_pinUvAuthToken_permission_ga
 	);
-	if (rpIdRequired && !cp->rpIdPresent) {
+	const bool rpId_present = ctap_param_is_present(cp, CTAP_clientPIN_rpId);
+	if (rpId_required && !rpId_present) {
 		return CTAP1_ERR_INVALID_PARAMETER;
 	}
 
@@ -876,15 +896,16 @@ uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
 	// Note: We do not clear the undefined (unknown) permissions since their presence does not affect anything.
 	state->pin_uv_auth_token_state.permissions = cp->permissions;
 	// If the rpId parameter is present, associate the permissions RP ID with the pinUvAuthToken.
-	if (cp->rpIdPresent) {
+	if (rpId_present) {
 		state->pin_uv_auth_token_state.rpId = cp->rpId;
-		state->pin_uv_auth_token_state.rpIdSet = true;
+		state->pin_uv_auth_token_state.rpId_set = true;
 	}
 
 	// The authenticator returns the encrypted pinUvAuthToken for the specified pinUvAuthProtocol,
 	// i.e. encrypt(shared secret, pinUvAuthToken).
 
-	size_t encrypted_pin_uv_auth_token_length = sizeof(pin_protocol->pin_uv_auth_token) + pin_protocol->encryption_extra_length;
+	size_t encrypted_pin_uv_auth_token_length =
+		sizeof(pin_protocol->pin_uv_auth_token) + pin_protocol->encryption_extra_length;
 	uint8_t encrypted_pin_uv_auth_token[encrypted_pin_uv_auth_token_length];
 	if (pin_protocol->encrypt(
 		shared_secret,
@@ -911,30 +932,35 @@ uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
 
 }
 
-uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t length) {
-
-	uint8_t ret;
-	CborError err;
-
-	CTAP_clientPIN cp;
-	uint8_t status = ctap_parse_client_pin(request, length, &cp);
-	if (status != CTAP2_OK) {
-		return status;
-	}
-
-	if (cp.pinUvAuthProtocol != 1 && cp.pinUvAuthProtocol != 2) {
-		return CTAP1_ERR_INVALID_PARAMETER;
-	}
-
+static inline ctap_pin_protocol_t *get_pin_protocol(ctap_state_t *state, size_t protocol_version) {
 	static_assert(
 		(sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t)) == 2,
 		"unexpected state->pin_protocol array length"
 	);
 	assert(
-		0 <= cp.pinUvAuthProtocol - 1
-		&& cp.pinUvAuthProtocol - 1 < (sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t))
+		1 <= protocol_version
+		&& (protocol_version - 1) < (sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t))
 	);
-	ctap_pin_protocol_t *pin_protocol = &state->pin_protocol[cp.pinUvAuthProtocol - 1];
+	return &state->pin_protocol[protocol_version - 1];
+}
+
+uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t length) {
+
+	uint8_t ret;
+	CborError err;
+
+	CborParser parser;
+	CborValue it;
+	ctap_parse_check(ctap_init_cbor_parser(request, length, &parser, &it));
+
+	CTAP_clientPIN cp;
+	ctap_parse_check(ctap_parse_client_pin(&it, &cp));
+
+	if (cp.pinUvAuthProtocol != 1 && cp.pinUvAuthProtocol != 2) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+
+	ctap_pin_protocol_t *pin_protocol = get_pin_protocol(state, cp.pinUvAuthProtocol);
 
 	CborEncoder *encoder = &state->response.encoder;
 	CborEncoder map;
