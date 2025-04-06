@@ -7,6 +7,19 @@
 #define LION_ATTR_PACKED         __attribute__ ((packed))
 #define LION_ATTR_ALWAYS_INLINE  __attribute__ ((always_inline))
 
+// lion_static_assert_expr(expr, msg) is a static assert that can be used in an expression context
+// (the standard static_assert is a statement and thus cannot be used in an expression)
+// lion_static_assert_expr(expr, msg) is an expression that evaluates to value 1
+#ifndef __cplusplus
+// credits: https://stackoverflow.com/a/78596491
+#define lion_static_assert_expr(expr, msg) \
+	(!!sizeof(struct { static_assert((expr), msg); char c; }))
+#else
+// credits: https://stackoverflow.com/a/31311923
+#define lion_static_assert_expr(expr, msg) \
+	(([]{ static_assert((expr), msg); }), 1)
+#endif
+
 #define lion_bswap16(u16) (__builtin_bswap16(u16))
 #define lion_bswap32(u32) (__builtin_bswap32(u32))
 
