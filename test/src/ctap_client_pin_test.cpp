@@ -157,13 +157,11 @@ constexpr auto create_get_pin_token(
 
 #define EXPECT_ERROR_RESPONSE(expected_status) \
 	EXPECT_EQ(status, expected_status); \
-	EXPECT_EQ(response_status_code, status); \
-	EXPECT_EQ(response_data_length, 0)
+	EXPECT_EQ(response.length, 0)
 
 #define EXPECT_SUCCESS_EMPTY_RESPONSE() \
 	EXPECT_EQ(status, CTAP2_OK); \
-	EXPECT_EQ(response_status_code, status); \
-	EXPECT_EQ(response_data_length, 0)
+	EXPECT_EQ(response.length, 0)
 
 #define EXPECT_PIN_SET_SUCCESSFULLY() \
 	EXPECT_EQ(ctap.persistent.is_pin_set, true); \
@@ -174,9 +172,7 @@ constexpr auto create_get_pin_token(
 class CtapClientPinTest : public testing::Test {
 protected:
 	ctap_state_t ctap{};
-	uint8_t response_status_code{};
-	uint16_t response_data_length{};
-	uint8_t *response_data{};
+	ctap_response_t &response = ctap.response;
 	uint8_t status{};
 
 	CtapClientPinTest() {
@@ -193,10 +189,11 @@ protected:
 
 	template<size_t N>
 	void test_ctap_request(const std::array<uint8_t, N> &request) {
+		static_assert(N >= 1, "request must have at least 1 byte (the CTAP command code)");
 		status = ctap_request(
 			&ctap,
-			N, request.data(),
-			&response_status_code, &response_data_length, &response_data
+			request.data()[0],
+			N - 1, &request.data()[1]
 		);
 	}
 
@@ -221,11 +218,10 @@ TEST_F(CtapClientPinTest, GetPinRetries) {
 	auto request = hex::bytes<"06 a2 01 01 02 01">();
 	test_ctap_request(request);
 	EXPECT_EQ(status, CTAP2_OK);
-	EXPECT_EQ(response_status_code, status);
 	// {3: 8, 4: false}
 	auto expected_response = hex::bytes<"a2 03 08 04 f4">();
-	ASSERT_EQ(response_data_length, expected_response.size());
-	EXPECT_SAME_BYTES_S(response_data_length, response_data, expected_response.data());
+	ASSERT_EQ(response.length, expected_response.size());
+	EXPECT_SAME_BYTES_S(response.length, response.data, expected_response.data());
 }
 
 TEST_F(CtapClientPinTest, GetKeyAgreement) {
@@ -233,7 +229,6 @@ TEST_F(CtapClientPinTest, GetKeyAgreement) {
 	auto request = hex::bytes<"06 a2 01 01 02 02">();
 	test_ctap_request(request);
 	EXPECT_EQ(status, CTAP2_OK);
-	EXPECT_EQ(response_status_code, status);
 	auto expected_response = hex::bytes<
 		// {
 		//     1: {
@@ -255,9 +250,8 @@ TEST_F(CtapClientPinTest, GetKeyAgreement) {
 		"22 58 20"
 		"6d78c07b4cabd8b82f03870a74f23f5a2a655d17703df812dabab1a5f273acfa"
 	>();
-	dump_hex(response_data, response_data_length);
-	ASSERT_EQ(response_data_length, expected_response.size());
-	EXPECT_SAME_BYTES_S(response_data_length, response_data, expected_response.data());
+	ASSERT_EQ(response.length, expected_response.size());
+	EXPECT_SAME_BYTES_S(response.length, response.data, expected_response.data());
 }
 
 TEST_F(CtapClientPinTest, SetPin1234) {
@@ -425,16 +419,14 @@ TEST_F(CtapClientPinTest, GetPinToken) {
 
 	test_ctap_request(request_get_pin_token);
 	EXPECT_EQ(status, CTAP2_OK);
-	EXPECT_EQ(response_status_code, status);
-	dump_hex(response_data, response_data_length);
 	// {3: 8, 4: false}
 	auto expected_response = hex::bytes<
 		"a1"
 		"  02 5820"
 		"     d48de1f5391b32d493be84af08eff0f31ae18ae477b98c7a695415ff9c59dad9"
 	>();
-	ASSERT_EQ(response_data_length, expected_response.size());
-	EXPECT_SAME_BYTES_S(response_data_length, response_data, expected_response.data());
+	ASSERT_EQ(response.length, expected_response.size());
+	EXPECT_SAME_BYTES_S(response.length, response.data, expected_response.data());
 }
 
 } // namespace

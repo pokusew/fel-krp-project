@@ -247,30 +247,24 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 
 uint8_t ctap_request(
 	ctap_state_t *state,
-	uint16_t request_data_length,
-	const uint8_t *request_data,
-	uint8_t *response_status_code,
-	uint16_t *response_data_length,
-	uint8_t **response_data
+	uint8_t cmd,
+	size_t params_size,
+	const uint8_t *params
 ) {
 
 	CborEncoder *encoder = &state->response.encoder;
 
-	uint8_t status = 0;
-	uint8_t cmd = *request_data;
-	request_data++;
-	request_data_length--;
+	uint8_t status;
 
 	cbor_encoder_init(encoder, state->response.data, sizeof(state->response.data), 0);
 
-	debug_log("cbor input structure: %d bytes" nl, request_data_length);
-	debug_log("cbor req: ");
-	dump_hex(request_data, request_data_length);
+	error_log("ctap_request cmd=0x%02" wPRIx8 " params_size=%" PRIsz nl, cmd, params_size);
+	dump_hex(params, params_size);
 
 	switch (cmd) {
 		case CTAP_CMD_MAKE_CREDENTIAL:
 			info_log(magenta("CTAP_CMD_MAKE_CREDENTIAL") nl);
-			status = ctap_make_credential(state, request_data, request_data_length);
+			status = ctap_make_credential(state, params, params_size);
 			break;
 		case CTAP_CMD_GET_INFO:
 			info_log(magenta("CTAP_CMD_GET_INFO") nl);
@@ -281,7 +275,7 @@ uint8_t ctap_request(
 			break;
 		case CTAP_CMD_CLIENT_PIN:
 			info_log(magenta("CTAP_CLIENT_PIN") nl);
-			status = ctap_client_pin(state, request_data, request_data_length);
+			status = ctap_client_pin(state, params, params_size);
 			break;
 		default:
 			status = CTAP1_ERR_INVALID_COMMAND;
@@ -301,11 +295,6 @@ uint8_t ctap_request(
 	);
 	dump_hex(state->response.data, state->response.length);
 
-	*response_status_code = status;
-	*response_data = state->response.data;
-	*response_data_length = state->response.length;
-
-	// TODO: return value is no longer used (status code is returned via the response_status_code reference)
 	return status;
 
 }

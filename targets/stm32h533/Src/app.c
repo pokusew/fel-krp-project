@@ -71,10 +71,7 @@ noreturn void app_run(void) {
 
 	ctaphid_packet_t res;
 
-	// for
-	uint8_t response_status_code;
-	uint16_t response_data_length;
-	uint8_t *response_data;
+	// for ctap_request
 	uint8_t status;
 
 	while (true) {
@@ -140,7 +137,6 @@ noreturn void app_run(void) {
 
 				case CTAPHID_CBOR:
 					debug_log(cyan("CTAPHID_CBOR") nl);
-
 					if (message->payload_length == 0) {
 						info_log(red("error: invalid payload length 0 for CTAPHID_CBOR message") nl);
 						ctaphid_create_error_packet(&res, message->cid, CTAP1_ERR_INVALID_LENGTH);
@@ -148,17 +144,18 @@ noreturn void app_run(void) {
 						ctaphid_reset_to_idle(&app_ctaphid);
 						break;
 					}
-
+					assert(message->payload_length >= 1);
 					status = ctap_request(
 						&app_ctap,
-						message->payload_length, message->payload,
-						&response_status_code, &response_data_length, &response_data
+						message->payload[0],
+						message->payload_length - 1,
+						&message->payload[1]
 					);
 					ctaphid_cbor_response_to_packets(
 						message->cid,
-						response_status_code,
-						response_data_length,
-						response_data,
+						status,
+						app_ctap.response.length,
+						app_ctap.response.data,
 						send_or_queue_ctaphid_packet
 					);
 					ctaphid_reset_to_idle(&app_ctaphid);

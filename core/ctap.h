@@ -68,8 +68,8 @@ typedef struct ctap_persistent_state {
 
 typedef struct ctap_response {
 	CborEncoder encoder;
-	uint8_t data[CTAP_RESPONSE_BUFFER_SIZE];
 	size_t length;
+	uint8_t data[CTAP_RESPONSE_BUFFER_SIZE];
 } ctap_response_t;
 
 #define PIN_TOKEN_SIZE 32
@@ -302,11 +302,9 @@ ctap_user_presence_result_t ctap_wait_for_user_presence(void);
 
 uint8_t ctap_request(
 	ctap_state_t *state,
-	uint16_t request_data_length,
-	const uint8_t *request_data,
-	uint8_t *response_status_code,
-	uint16_t *response_data_length,
-	uint8_t **response_data
+	uint8_t cmd,
+	size_t params_size,
+	const uint8_t *params
 );
 
 void ctap_init(ctap_state_t *state);
