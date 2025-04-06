@@ -288,12 +288,16 @@ uint8_t ctap_request(
 		state->response.length = 0;
 	}
 
-	debug_log(
-		"ctap_request: response status code 0x%02" wPRIx8 ", response length %" PRIsz " bytes" nl,
-		status,
-		state->response.length
-	);
-	dump_hex(state->response.data, state->response.length);
+	if (status == CTAP2_OK) {
+		debug_log(
+			green("ctap_request: response status code 0x%02" wPRIx8 ", response length %" PRIsz " bytes") nl,
+			status,
+			state->response.length
+		);
+		dump_hex(state->response.data, state->response.length);
+	} else {
+		debug_log(red("ctap_request: error response status code 0x%02" wPRIx8) nl, status);
+	}
 
 	return status;
 
