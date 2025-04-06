@@ -64,7 +64,7 @@ include_directories(
 
 		../../fido2
 
-		../../lib/tinycbor/src
+		../../lib/tinycbor-legacy/src
 
 		../../crypto/tiny-AES-c
 		../../crypto/cifra/src
@@ -104,16 +104,16 @@ file(GLOB_RECURSE SOURCES "Startup/*.*" "Src/*.*" "Middlewares/*.*" "Drivers/*.*
 		../../crypto/cifra/src/sha512.c
 		../../crypto/cifra/src/blockwise.c
 
-		../../lib/tinycbor/src/cbortojson.c
-		# ../../lib/tinycbor/src/open_memstream.c
-		../../lib/tinycbor/src/cborvalidation.c
-		../../lib/tinycbor/src/cborparser_dup_string.c
-		../../lib/tinycbor/src/cborpretty_stdio.c
-		../../lib/tinycbor/src/cborencoder_close_container_checked.c
-		../../lib/tinycbor/src/cborpretty.c
-		../../lib/tinycbor/src/cborerrorstrings.c
-		../../lib/tinycbor/src/cborparser.c
-		../../lib/tinycbor/src/cborencoder.c
+		../../lib/tinycbor-legacy/src/cbortojson.c
+		# ../../lib/tinycbor-legacy/src/open_memstream.c
+		../../lib/tinycbor-legacy/src/cborvalidation.c
+		../../lib/tinycbor-legacy/src/cborparser_dup_string.c
+		../../lib/tinycbor-legacy/src/cborpretty_stdio.c
+		../../lib/tinycbor-legacy/src/cborencoder_close_container_checked.c
+		../../lib/tinycbor-legacy/src/cborpretty.c
+		../../lib/tinycbor-legacy/src/cborerrorstrings.c
+		../../lib/tinycbor-legacy/src/cborparser.c
+		../../lib/tinycbor-legacy/src/cborencoder.c
 )
 
 # TINYCBOR_HEADERS = src/cbor.h src/cborjson.h src/tinycbor-version.h

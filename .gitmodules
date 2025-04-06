@@ -3,6 +3,9 @@
 	url = https://github.com/hathach/tinyusb.git
 [submodule "lib/tinycbor"]
 	path = lib/tinycbor
+	url = https://github.com/pokusew/tinycbor.git
+[submodule "lib/tinycbor-legacy"]
+	path = lib/tinycbor-legacy
 	url = https://github.com/intel/tinycbor.git
 [submodule "crypto/micro-ecc"]
 	path = crypto/micro-ecc

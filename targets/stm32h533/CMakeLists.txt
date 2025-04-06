@@ -15,29 +15,21 @@ add_executable(${PROJECT_NAME})
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
 
-
-add_library(
-		tinycbor
-		STATIC
-		../../lib/tinycbor/src/cborerrorstrings.c
-		../../lib/tinycbor/src/cborencoder.c
-		../../lib/tinycbor/src/cborparser.c
-)
-# CTAP2 spec, Section 8. Message Encoding:
-# Because some authenticators are memory constrained,
-# the depth of nested CBOR structures used by all message encodings
-# is limited to at most four (4) levels of any combination of CBOR maps
-# and/or CBOR arrays. Authenticators MUST support at least 4 levels of CBOR nesting.
-# Clients, platforms, and servers MUST NOT use more than 4 levels of CBOR nesting.
-target_compile_definitions(
-		tinycbor
-		PUBLIC
+# TinyCBOR
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+# enabling this option will prevent adding src/cborparser_dup_string.c and src/cborpretty_stdio.c
+# to the tinycbor target sources, but it will also add the -ffreestanding compile option
+# that for some reason breaks the build, so we have to override it
+# by adding the -fno-freestanding option further below (it will negate the -ffreestanding option)
+set(WITH_FREESTANDING ON)
+set(WITH_CBOR2JSON OFF)
+set(WITH_FLOATING_POINT OFF)
+add_subdirectory(../../lib/tinycbor ${CMAKE_BINARY_DIR}/lib/tinycbor)
+target_compile_definitions(tinycbor PUBLIC
 		CBOR_PARSER_MAX_RECURSIONS=4
 )
-target_include_directories(
-		tinycbor
-		INTERFACE
-		../../lib/tinycbor/src
+target_compile_options(tinycbor PUBLIC
+		$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fno-freestanding>
 )
 
 add_library(tinyaes STATIC)

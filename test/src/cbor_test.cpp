@@ -65,7 +65,7 @@ TEST(CborTest, MaxRecursionExceeded) {
 	err = cbor_parser_init(
 		data.data(),
 		data.size(),
-		CborValidateCanonicalFormat,
+		0,
 		&parser,
 		&it
 	);
@@ -92,7 +92,7 @@ TEST(CborTest, MaxRecursion) {
 	err = cbor_parser_init(
 		data.data(),
 		data.size(),
-		CborValidateCanonicalFormat,
+		0,
 		&parser,
 		&it
 	);

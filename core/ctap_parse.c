@@ -177,7 +177,7 @@ uint8_t ctap_parse_client_pin(const uint8_t *request, size_t length, CTAP_client
 		cbor_parser_init(
 			request,
 			length,
-			CborValidateCanonicalFormat,
+			0,
 			&parser,
 			&it
 		)
@@ -297,7 +297,7 @@ uint8_t ctap_parse_make_credential(const uint8_t *request, size_t length, CTAP_m
 		cbor_parser_init(
 			request,
 			length,
-			CborValidateCanonicalFormat,
+			0,
 			&parser,
 			&it
 		)

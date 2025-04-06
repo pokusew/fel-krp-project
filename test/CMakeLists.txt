@@ -29,28 +29,14 @@ FetchContent_MakeAvailable(fmt)
 # see https://cmake.org/cmake/help/latest/manual/cmake-buildsystem.7.html#target-commands
 # see https://cmake.org/cmake/help/latest/manual/cmake-buildsystem.7.html#target-usage-requirements
 
-add_library(
-		tinycbor
-		STATIC
-		../lib/tinycbor/src/cborerrorstrings.c
-		../lib/tinycbor/src/cborencoder.c
-		../lib/tinycbor/src/cborparser.c
-)
-# CTAP2 spec, Section 8. Message Encoding:
-# Because some authenticators are memory constrained,
-# the depth of nested CBOR structures used by all message encodings
-# is limited to at most four (4) levels of any combination of CBOR maps
-# and/or CBOR arrays. Authenticators MUST support at least 4 levels of CBOR nesting.
-# Clients, platforms, and servers MUST NOT use more than 4 levels of CBOR nesting.
-target_compile_definitions(
-		tinycbor
-		PUBLIC
+# TinyCBOR
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+set(WITH_FREESTANDING OFF)
+set(WITH_CBOR2JSON OFF)
+set(WITH_FLOATING_POINT OFF)
+add_subdirectory(../lib/tinycbor ${CMAKE_BINARY_DIR}/lib/tinycbor)
+target_compile_definitions(tinycbor PUBLIC
 		CBOR_PARSER_MAX_RECURSIONS=4
-)
-target_include_directories(
-		tinycbor
-		INTERFACE
-		../lib/tinycbor/src
 )
 
 add_library(tinyaes STATIC)
