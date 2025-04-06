@@ -489,6 +489,7 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 					&map,
 					params->pinUvAuthParam,
 					&params->pinUvAuthParam_size,
+					// The 0 is intentional: The zero-length pinUvAuthParam is allowed for makeCredential.
 					0,
 					CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE,
 					&map
