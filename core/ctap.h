@@ -1,5 +1,5 @@
-#ifndef POKUSEW_CTAP_H
-#define POKUSEW_CTAP_H
+#ifndef LIONKEY_CTAP_H
+#define LIONKEY_CTAP_H
 
 #include "ctap_parse.h"
 #include "compiler.h"
@@ -329,4 +329,4 @@ void ctap_pin_uv_auth_token_clear_permissions_except_lbw(ctap_pin_uv_auth_token_
 
 void ctap_pin_uv_auth_token_stop_using(ctap_pin_uv_auth_token_state *token_state);
 
-#endif // POKUSEW_CTAP_H
+#endif // LIONKEY_CTAP_H

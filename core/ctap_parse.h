@@ -1,5 +1,5 @@
-#ifndef POKUSEW_CTAP_PARSE_H
-#define POKUSEW_CTAP_PARSE_H
+#ifndef LIONKEY_CTAP_PARSE_H
+#define LIONKEY_CTAP_PARSE_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -357,4 +357,4 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params);
 
 uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params);
 
-#endif // POKUSEW_CTAP_PARSE_H
+#endif // LIONKEY_CTAP_PARSE_H
