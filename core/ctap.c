@@ -90,7 +90,7 @@ void ctap_init(ctap_state_t *state) {
 
 }
 
-uint8_t ctap_get_info(ctap_state_t *state, const uint8_t *request, size_t length) {
+uint8_t ctap_get_info(ctap_state_t *state) {
 
 	CborEncoder *encoder = &state->response.encoder;
 	CborEncoder map;
@@ -274,7 +274,10 @@ uint8_t ctap_request(
 			break;
 		case CTAP_CMD_GET_INFO:
 			info_log(magenta("CTAP_CMD_GET_INFO") nl);
-			status = ctap_get_info(state, request_data, request_data_length);
+			// Consider returning an error (e.g., CTAP1_ERR_INVALID_PARAMETER)
+			// if any input parameters are provided (because the authenticatorGetInfo command does not
+			// take any inputs parameters). Currently, we ignore any unexpected parameters.
+			status = ctap_get_info(state);
 			break;
 		case CTAP_CMD_CLIENT_PIN:
 			info_log(magenta("CTAP_CLIENT_PIN") nl);
