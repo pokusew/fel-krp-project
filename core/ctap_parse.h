@@ -65,9 +65,9 @@ typedef struct COSE_Key {
 // Key usage restriction to this algorithm
 #define COSE_KEY_LABEL_ALG      3
 // CRV = curve, values from Table 22
-#define COSE_KEY_LABEL_CRV      -1
-#define COSE_KEY_LABEL_X        -2
-#define COSE_KEY_LABEL_Y        -3
+#define COSE_KEY_LABEL_CRV      (-1)
+#define COSE_KEY_LABEL_X        (-2)
+#define COSE_KEY_LABEL_Y        (-3)
 
 // https://datatracker.ietf.org/doc/html/rfc8152#section-13
 // OKP = Octet Key Pair
@@ -82,11 +82,11 @@ typedef struct COSE_Key {
 
 // ECDSA w/ SHA-256
 // https://datatracker.ietf.org/doc/html/rfc8152#section-8.1
-#define COSE_ALG_ES256            -7
+#define COSE_ALG_ES256             (-7)
 // EdDSA
 // https://datatracker.ietf.org/doc/html/rfc8152#section-8.2
-#define COSE_ALG_EDDSA            -8
-#define COSE_ALG_ECDH_ES_HKDF_256 -25
+#define COSE_ALG_EDDSA             (-8)
+#define COSE_ALG_ECDH_ES_HKDF_256  (-25)
 
 // request (message)
 // CTAPHID_CBOR
@@ -149,7 +149,7 @@ LION_ATTR_ALWAYS_INLINE static inline bool ctap_is_present_some(uint32_t present
 }
 
 #define ctap_set_present(params_ptr, param_number) \
-    (params_ptr)->present |= ctap_param_to_mask(param_number);
+    (params_ptr)->present |= ctap_param_to_mask(param_number)
 
 #define ctap_param_is_present(params_ptr, param_number) \
     ctap_is_present((params_ptr)->present, ctap_param_to_mask(param_number))
