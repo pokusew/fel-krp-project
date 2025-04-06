@@ -54,7 +54,7 @@ typedef enum LION_ATTR_PACKED ctaphid_command {
 	CTAPHID_VENDOR_LAST = (CTAPHID_PACKET_TYPE_INIT | 0x7F),
 } ctaphid_command_t;
 static_assert(sizeof(ctaphid_command_t) == sizeof(uint8_t), "invalid sizeof(ctaphid_command_t)");
-#define ctaphid_get_cmd_number_per_spec(cmd) (cmd & ~CTAPHID_PACKET_TYPE_INIT)
+#define ctaphid_get_cmd_number_per_spec(cmd) ((cmd) & ~CTAPHID_PACKET_TYPE_INIT)
 
 // defined in 11.2.9.1.3. CTAPHID_INIT (0x06):
 //   Response at success:
