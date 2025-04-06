@@ -169,8 +169,9 @@ uint8_t ctap_get_info(ctap_state_t *state, const uint8_t *request, size_t length
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_maxCredentialCountInList));
 	cbor_encoding_check(cbor_encode_uint(&map, 20)); // TODO
 
+	// see Credential ID definition in WebAuthn spec at https://w3c.github.io/webauthn/#credential-id
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_maxCredentialIdLength));
-	cbor_encoding_check(cbor_encode_uint(&map, 128));
+	cbor_encoding_check(cbor_encode_uint(&map, 128)); // TODO: update once we design our Credential ID format
 
 	// close response map
 	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
