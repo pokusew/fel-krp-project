@@ -330,7 +330,7 @@ typedef struct CTAP_clientPIN {
  */
 #define CTAP_clientPIN_pinUvAuthToken_permission_acfg  0x20
 
-static inline bool permissions_include_any_of(uint32_t permissions, uint32_t mask) {
+LION_ATTR_ALWAYS_INLINE static inline bool ctap_permissions_include_any_of(uint32_t permissions, uint32_t mask) {
 	return (permissions & mask) != 0u;
 }
 

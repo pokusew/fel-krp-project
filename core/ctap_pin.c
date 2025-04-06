@@ -805,7 +805,7 @@ uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
 
 	// The following checks are implied by the pinUvAuthToken permissions definition
 	// (the table in 6.5.5.7. Operations to Obtain a pinUvAuthToken)
-	const bool rpId_required = permissions_include_any_of(
+	const bool rpId_required = ctap_permissions_include_any_of(
 		cp->permissions,
 		CTAP_clientPIN_pinUvAuthToken_permission_mc
 		| CTAP_clientPIN_pinUvAuthToken_permission_ga
@@ -858,7 +858,7 @@ uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
 	// 	return CTAP2_ERR_UNAUTHORIZED_PERMISSION;
 	// }
 	// simplified constant version
-	if (permissions_include_any_of(
+	if (ctap_permissions_include_any_of(
 		cp->permissions,
 		CTAP_clientPIN_pinUvAuthToken_permission_be
 		| CTAP_clientPIN_pinUvAuthToken_permission_lbw
