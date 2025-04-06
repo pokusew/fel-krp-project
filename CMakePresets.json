@@ -64,6 +64,13 @@
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug"
 			}
+		},
+		{
+			"name": "stm32h533-release",
+			"inherits": "stm32h533",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Release"
+			}
 		}
 	],
 	"buildPresets": [
@@ -82,6 +89,10 @@
 		{
 			"name": "stm32h533-debug",
 			"configurePreset": "stm32h533-debug"
+		},
+		{
+			"name": "stm32h533-release",
+			"configurePreset": "stm32h533-release"
 		}
 	],
 	"workflowPresets": [
@@ -134,6 +145,19 @@
 				{
 					"type": "build",
 					"name": "stm32h533-debug"
+				}
+			]
+		},
+		{
+			"name": "stm32h533-release",
+			"steps": [
+				{
+					"type": "configure",
+					"name": "stm32h533-release"
+				},
+				{
+					"type": "build",
+					"name": "stm32h533-release"
 				}
 			]
 		}
