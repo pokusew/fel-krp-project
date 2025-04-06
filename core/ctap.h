@@ -248,7 +248,7 @@ typedef struct ctap_pin_uv_auth_token_state {
 	 * may need to accommodate infrequent user interactions. Thus the rolling timer approach
 	 * may be most applicable to authenticatorMakeCredential and authenticatorGetAssertion operations.
 	 */
-	int initial_usage_time_limit;
+	uint32_t initial_usage_time_limit;
 
 	/**
 	 * A user present time limit defining the length of time the user is considered "present",
@@ -257,7 +257,7 @@ typedef struct ctap_pin_uv_auth_token_state {
 	 * as the initial usage time limit, although authenticators MAY use other values
 	 * that are less than the default maximum values, including zero.
 	 */
-	int user_present_time_limit;
+	uint32_t user_present_time_limit;
 
 	/**
 	 * A max usage time period value, which SHOULD default to
@@ -265,7 +265,7 @@ typedef struct ctap_pin_uv_auth_token_state {
 	 * MAY use other values less than the latter default,
 	 * possibly depending upon the use case, e.g., which transport is in use.
 	 */
-	int max_usage_time_period;
+	uint32_t max_usage_time_period;
 
 	/**
 	 * A userVerified flag, initially false
