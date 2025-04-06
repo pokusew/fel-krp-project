@@ -132,7 +132,7 @@ static_assert(
 	"sizeof(char) == sizeof(uint8_t)"
 );
 
-#define ctap_param_to_mask(number) (1u << (number * lion_static_assert_expr(0 <= number && number < 31, \
+#define ctap_param_to_mask(number) (1u << ((number) * lion_static_assert_expr(0 <= (number) && (number) < 31, \
 	"number must be in range [0, 31] as it is used as a bitshift")))
 
 static_assert(
