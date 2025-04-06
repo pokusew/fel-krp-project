@@ -264,6 +264,8 @@ void app_handle_incoming_hid_packet(const ctaphid_packet_t *packet) {
 			// To avoid nested invocations of tud_task() (which is probably not reentrant)
 			// and unnecessary deep stack nesting, we leave the handling of this case to app_run.
 			//
+			// Here is an overview of how it all works together:
+			//
 			// app_run() {
 			//    while(true) {
 			//
@@ -273,10 +275,10 @@ void app_handle_incoming_hid_packet(const ctaphid_packet_t *packet) {
 			//                app_handle_incoming_hid_packet()
 			//                    processes the HID report by invoking ctaphid_process_packet()
 			//                    and immediately handles some of the ctaphid_process_packet_result_t values
-			//                    but leave CTAPHID_RESULT_MESSAGE to app_run
+			//                    but leaves CTAPHID_RESULT_MESSAGE to app_run
 			//
 			//        if (ctaphid_has_complete_message_ready(&app_ctaphid)) {
-			//            ... handle CTAPHID_RESULT_MESSAGE here ...
+			//            ... CTAPHID_RESULT_MESSAGE is handled here ...
 			//            Note that handling CTAPHID_CBOR message (a CTAP request) might involve invoking tud_task()
 			//            (and therefore app_handle_incoming_hid_packet()) during waiting for user presence
 			//            because we still need to process incoming HID packets and respond to some of them,
