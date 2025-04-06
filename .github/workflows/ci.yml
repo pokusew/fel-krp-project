@@ -29,7 +29,7 @@ jobs:
       matrix:
         # https://github.com/actions/runner-images?tab=readme-ov-file#available-images
         os: [ macos-latest ]
-        preset: [ stm32f407-debug, stm32h533-debug ]
+        preset: [ stm32f407-debug, stm32h533-debug, stm32h533-release ]
 
     runs-on: ${{ matrix.os }}
 
