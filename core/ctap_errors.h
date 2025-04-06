@@ -1,3 +1,6 @@
+#ifndef LIONKEY_CTAP_ERRORS_H
+#define LIONKEY_CTAP_ERRORS_H
+
 // 8.2. Status codes
 // https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#error-responses
 // Note that the error codes in the range 0x01 - 0x0B and the error code 0x7F
@@ -56,3 +59,5 @@
 #define CTAP2_ERR_EXTENSION_LAST            0xEF // Extension specific error.
 #define CTAP2_ERR_VENDOR_FIRST              0xF0 // Vendor specific error.
 #define CTAP2_ERR_VENDOR_LAST               0xFF // Vendor specific error.
+
+#endif // LIONKEY_CTAP_ERRORS_H
