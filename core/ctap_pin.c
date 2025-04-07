@@ -941,6 +941,7 @@ static inline ctap_pin_protocol_t *get_pin_protocol(ctap_state_t *state, size_t 
 		1 <= protocol_version
 		&& (protocol_version - 1) < (sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t))
 	);
+	debug_log("pin_protocol version %" PRIsz nl, protocol_version);
 	return &state->pin_protocol[protocol_version - 1];
 }
 
@@ -968,6 +969,7 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 	switch (cp.subCommand) {
 
 		case CTAP_clientPIN_subCmd_getPINRetries:
+			debug_log(magenta("CTAP_clientPIN_subCmd_getPINRetries") nl);
 			// start response map
 			cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 2));
 			// 1. pinRetries
@@ -986,6 +988,7 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 			return CTAP2_OK;
 
 		case CTAP_clientPIN_subCmd_getKeyAgreement:
+			debug_log(magenta("CTAP_clientPIN_subCmd_getKeyAgreement") nl);
 			// start response map
 			cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 1));
 			// 1. keyAgreement
@@ -998,12 +1001,15 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 			return CTAP2_OK;
 
 		case CTAP_clientPIN_subCmd_setPIN:
+			debug_log(magenta("CTAP_clientPIN_subCmd_setPIN") nl);
 			return ctap_client_pin_set_pin(state, pin_protocol, &cp);
 
 		case CTAP_clientPIN_subCmd_changePIN:
+			debug_log(magenta("CTAP_clientPIN_subCmd_changePIN") nl);
 			return ctap_client_pin_change_pin(state, pin_protocol, &cp);
 
 		case CTAP_clientPIN_subCmd_getPinToken:
+			debug_log(magenta("CTAP_clientPIN_subCmd_getPinToken") nl);
 			return ctap_client_pin_get_pin_token(state, pin_protocol, &cp);
 
 		case CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingUvWithPermissions:
@@ -1013,6 +1019,7 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 			return CTAP2_ERR_INVALID_SUBCOMMAND;
 
 		case CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingPinWithPermissions:
+			debug_log(magenta("CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingPinWithPermissions") nl);
 			return ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(state, pin_protocol, &cp);
 
 	}
