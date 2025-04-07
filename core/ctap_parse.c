@@ -312,6 +312,38 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 				ctap_set_present(params, CTAP_clientPIN_pinHashEnc);
 				break;
 
+			case CTAP_clientPIN_permissions:
+				debug_log("CTAP_clientPIN_permissions" nl);
+				if (!cbor_value_is_unsigned_integer(&map)) {
+					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+				}
+				uint64_t permissions;
+				cbor_decoding_check(cbor_value_get_uint64(&map, &permissions));
+				if (permissions > UINT32_MAX) {
+					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+				}
+				params->permissions = (uint32_t) permissions;
+				cbor_decoding_check(cbor_value_advance_fixed(&map));
+				ctap_set_present(params, CTAP_clientPIN_permissions);
+				break;
+
+			case CTAP_clientPIN_rpId:
+				debug_log("CTAP_clientPIN_rpId" nl);
+				ctap_parse_check(parse_text_string(
+					&map,
+					params->rpId.id,
+					&params->rpId.id_size,
+					0,
+					CTAP_RP_ID_MAX_SIZE,
+					&map
+				));
+				debug_log(
+					"CTAP_clientPIN_rpId rpId (%" PRIsz ") = '%.*s'" nl,
+					params->rpId.id_size, (int) params->rpId.id_size, params->rpId.id
+				);
+				ctap_set_present(params, CTAP_clientPIN_rpId);
+				break;
+
 			default:
 				debug_log("ctap_parse_client_pin: unknown key %d" nl, key);
 				cbor_decoding_check(cbor_value_advance(&map));
