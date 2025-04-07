@@ -190,9 +190,9 @@ typedef struct CTAP_rpId {
 #define CTAP_makeCredential_pinUvAuthParam     0x08
 #define CTAP_makeCredential_pinUvAuthProtocol  0x09
 // https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#makecred-option-key
-#define CTAP_makeCredential_option_rk           "rk"
-#define CTAP_makeCredential_option_up           "up"
-#define CTAP_makeCredential_option_uv           "uv"
+#define CTAP_makeCredential_option_rk          (1u << 0)
+#define CTAP_makeCredential_option_up          (1u << 1)
+#define CTAP_makeCredential_option_uv          (1u << 2)
 typedef struct CTAP_makeCredential {
 	uint32_t present; // not a param, holds parsing info (if param was parsed, i.e., present)
 	uint8_t clientDataHash[32]; // SHA-256 digest (32 bytes)
@@ -200,6 +200,8 @@ typedef struct CTAP_makeCredential {
 	CTAP_userEntity user;
 	CborValue pubKeyCredParams;
 	CborValue excludeList;
+	uint8_t options_present;
+	uint8_t options_values;
 	lion_array(pinUvAuthParam, CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE);
 	uint8_t pinUvAuthProtocol;
 } CTAP_makeCredential;

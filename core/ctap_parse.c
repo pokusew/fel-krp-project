@@ -449,6 +449,52 @@ static uint8_t parse_user_entity(CborValue *it, CTAP_userEntity *user) {
 
 }
 
+static uint8_t parse_make_credential_options(CborValue *it, CTAP_makeCredential *params) {
+
+	ctap_parse_map_enter("make_credential_options");
+
+	for (size_t i = 0; i < map_length; ++i) {
+
+		ctap_parse_map_get_string_key(2);
+
+		uint8_t option;
+		bool value;
+
+		if (strncmp(key, "rk", key_length) == 0) {
+			option = CTAP_makeCredential_option_rk;
+		} else if (strncmp(key, "up", key_length) == 0) {
+			option = CTAP_makeCredential_option_up;
+		} else if (strncmp(key, "uv", key_length) == 0) {
+			option = CTAP_makeCredential_option_uv;
+		} else {
+			debug_log("warning: unrecognized option key %.*s" nl, (int) key_length, key);
+			cbor_decoding_check(cbor_value_advance(&map));
+			continue;
+		}
+
+		if (!cbor_value_is_boolean(&map)) {
+			debug_log("error: option %.*s does not have a boolean value" nl, (int) key_length, key);
+			return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+		}
+
+		cbor_decoding_check(cbor_value_get_boolean(&map, &value));
+		params->options_present |= option;
+		if (value) {
+			params->options_values |= option;
+		} // else not needed as we expect the options_values to be zeroed before invoking this function
+		cbor_decoding_check(cbor_value_advance_fixed(&map));
+
+	}
+
+	ctap_parse_map_leave();
+
+	// validate: check that all required parameters are present
+	// nothing to do here
+
+	return CTAP2_OK;
+
+}
+
 uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 
 	ctap_parse_map_enter("authenticatorMakeCredential parameters");
@@ -515,11 +561,10 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 				ctap_set_present(params, CTAP_makeCredential_excludeList);
 				break;
 
-				// case CTAP_makeCredential_options:
-				// 	debug_log("CTAP_makeCredential_options" nl);
-				// 	// TODO
-				// 	mc->params.options = true;
-				// 	break;
+			case CTAP_makeCredential_options:
+				debug_log("CTAP_makeCredential_options" nl);
+				ctap_parse_check(parse_make_credential_options(&map, params));
+				break;
 
 			case CTAP_makeCredential_pinUvAuthParam:
 				debug_log("CTAP_makeCredential_pinUvAuthParam" nl);
