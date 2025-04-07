@@ -30,6 +30,23 @@ static inline CborError ctap_cbor_value_get_uint8(const CborValue *value, uint8_
 #define ctap_parse_map_leave() \
     cbor_decoding_check(cbor_value_leave_container(it, &map))
 
+#define ctap_parse_map_get_string_key(max_length) \
+    char key[max_length]; /* not null terminated */ \
+    size_t key_length = sizeof(key); \
+    if (!cbor_value_is_text_string(&map)) { \
+        return CTAP2_ERR_CBOR_UNEXPECTED_TYPE; \
+    } \
+    size_t actual_key_length; \
+    cbor_decoding_check(cbor_value_get_string_length(&map, &actual_key_length)); \
+    if (actual_key_length > key_length) { \
+        debug_log("ctap_parse_map_get_string_key: skipping unknown too long key" nl); \
+        cbor_decoding_check(cbor_value_advance(&map)); \
+        debug_log("ctap_parse_map_get_string_key: skipping the value for the unknown key" nl); \
+        cbor_decoding_check(cbor_value_advance(&map)); \
+		continue; \
+    } \
+    cbor_decoding_check(cbor_value_copy_text_string(&map, key, &key_length, &map))
+
 static uint8_t parse_fixed_byte_string(
 	const CborValue *value,
 	uint8_t *buffer,
@@ -322,14 +339,8 @@ static uint8_t parse_rp_entity(CborValue *it, CTAP_rpId *rpId) {
 
 	for (size_t i = 0; i < map_length; ++i) {
 
-		char key[2]; // not null terminated
-		size_t key_length = sizeof(key);
-		if (!cbor_value_is_text_string(&map)) {
-			return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-		}
-		cbor_decoding_check(cbor_value_copy_text_string(&map, key, &key_length, &map));
+		ctap_parse_map_get_string_key(2);
 
-		// parse value according to the key
 		if (strncmp(key, "id", key_length) == 0) {
 			ctap_parse_check(parse_text_string(
 				&map,
@@ -366,12 +377,7 @@ static uint8_t parse_user_entity(CborValue *it, CTAP_userEntity *user) {
 
 	for (size_t i = 0; i < map_length; ++i) {
 
-		char key[11]; // not null terminated
-		size_t key_length = sizeof(key);
-		if (!cbor_value_is_text_string(&map)) {
-			return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-		}
-		cbor_decoding_check(cbor_value_copy_text_string(&map, key, &key_length, &map));
+		ctap_parse_map_get_string_key(11);
 
 		if (strncmp(key, "id", key_length) == 0) {
 			ctap_parse_check(parse_byte_string(
