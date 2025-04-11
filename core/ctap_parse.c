@@ -617,6 +617,7 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 			case CTAP_makeCredential_options:
 				debug_log("CTAP_makeCredential_options" nl);
 				ctap_parse_check(parse_make_credential_options(&map, params));
+				ctap_set_present(params, CTAP_makeCredential_options);
 				break;
 
 			case CTAP_makeCredential_pinUvAuthParam:
