@@ -495,6 +495,53 @@ static uint8_t parse_make_credential_options(CborValue *it, CTAP_makeCredential 
 
 }
 
+static uint8_t parse_make_credential_extensions(CborValue *it, CTAP_makeCredential *params) {
+
+	ctap_parse_map_enter("parse_make_credential_extensions");
+
+	for (size_t i = 0; i < map_length; ++i) {
+
+		ctap_parse_map_get_string_key(11);
+
+		// if (strncmp(key, "hmac-secret", key_length) == 0) {
+		//
+		// 	// 12.5. HMAC Secret Extension (hmac-secret)
+		// 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-hmac-secret-extension
+		//
+		// 	// TODO: parse hmac-secret authenticator extension input
+		//
+		// }
+
+		if (strncmp(key, "credProtect", key_length) == 0) {
+
+			// 12.1. Credential Protection (credProtect)
+			// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-credProtect-extension
+
+			debug_log("credProtect" nl);
+			if (!cbor_value_is_unsigned_integer(&map)) {
+				return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+			}
+			cbor_decoding_check(ctap_cbor_value_get_uint8(&map, &params->credProtect));
+			params->extensions_present |= CTAP_extension_credProtect;
+			cbor_decoding_check(cbor_value_advance_fixed(&map));
+
+		} else {
+			debug_log("warning: unsupported extension %.*s" nl, (int) key_length, key);
+			cbor_decoding_check(cbor_value_advance(&map));
+			continue;
+		}
+
+	}
+
+	ctap_parse_map_leave();
+
+	// validate: check that all required parameters are present
+	// nothing to do here
+
+	return CTAP2_OK;
+
+}
+
 uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 
 	ctap_parse_map_enter("authenticatorMakeCredential parameters");
@@ -559,6 +606,12 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 				params->excludeList = map;
 				cbor_decoding_check(cbor_value_advance(&map));
 				ctap_set_present(params, CTAP_makeCredential_excludeList);
+				break;
+
+			case CTAP_makeCredential_extensions:
+				debug_log("CTAP_makeCredential_extensions" nl);
+				ctap_parse_check(parse_make_credential_extensions(&map, params));
+				ctap_set_present(params, CTAP_makeCredential_extensions);
 				break;
 
 			case CTAP_makeCredential_options:

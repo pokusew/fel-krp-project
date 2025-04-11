@@ -174,6 +174,16 @@ typedef struct CTAP_rpId {
 	uint8_t id[CTAP_RP_ID_MAX_SIZE];
 } CTAP_rpId;
 
+// 12. Defined Extensions
+#define CTAP_extension_credProtect   (1u << 0)
+#define CTAP_extension_hmac_secret   (1u << 1)
+#define CTAP_extension_minPinLength  (1u << 2)
+// 12.1. Credential Protection (credProtect)
+// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-credProtect-extension
+#define CTAP_extension_credProtect_userVerificationOptional                      0x01
+#define CTAP_extension_credProtect_userVerificationOptionalWithCredentialIDList  0x02
+#define CTAP_extension_credProtect_userVerificationRequired                      0x03
+
 // 6.1. authenticatorMakeCredential (0x01)
 // https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorMakeCredential
 // This method is invoked by the host to request generation of a new credential in the authenticator.
@@ -200,6 +210,8 @@ typedef struct CTAP_makeCredential {
 	CTAP_userEntity user;
 	CborValue pubKeyCredParams;
 	CborValue excludeList;
+	uint8_t extensions_present;
+	uint8_t credProtect;
 	uint8_t options_present;
 	uint8_t options_values;
 	lion_array(pinUvAuthParam, CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE);
