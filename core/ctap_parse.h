@@ -136,6 +136,20 @@ typedef struct CTAP_rpId {
 	uint8_t id[CTAP_RP_ID_MAX_SIZE];
 } CTAP_rpId;
 
+// WebAuthn 5.8.5. Cryptographic Algorithm Identifier (typedef COSEAlgorithmIdentifier)
+// https://w3c.github.io/webauthn/#typedefdef-cosealgorithmidentifier
+typedef int32_t COSEAlgorithmIdentifier;
+
+// https://w3c.github.io/webauthn/#enumdef-publickeycredentialtype
+#define CTAP_pubKeyCredType_public_key   (1u << 0)
+
+// WebAuthn 5.3. Parameters for Credential Generation (dictionary PublicKeyCredentialParameters)
+// https://w3c.github.io/webauthn/#dictdef-publickeycredentialparameters
+typedef struct CTAP_credParams {
+	uint8_t type;
+	COSEAlgorithmIdentifier alg;
+} CTAP_credParams;
+
 // 12. Defined Extensions
 #define CTAP_extension_credProtect   (1u << 0)
 #define CTAP_extension_hmac_secret   (1u << 1)
@@ -171,6 +185,7 @@ typedef struct CTAP_makeCredential {
 	CTAP_rpId rpId;
 	CTAP_userEntity user;
 	CborValue pubKeyCredParams;
+	CTAP_credParams pubKeyCredParams_chosen;
 	CborValue excludeList;
 	uint8_t extensions_present;
 	uint8_t credProtect;
@@ -332,5 +347,7 @@ LION_ATTR_ALWAYS_INLINE static inline uint8_t ctap_init_cbor_parser(
 uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params);
 
 uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params);
+
+uint8_t ctap_parse_make_credential_pub_key_cred_params(CTAP_makeCredential *params);
 
 #endif // LIONKEY_CTAP_PARSE_H

@@ -6,23 +6,35 @@ extern "C" {
 }
 namespace {
 
-uint8_t test_ctap_parse_make_credential(const uint8_t *data, size_t data_size, CTAP_makeCredential *mc) {
+class CtapParseMakeCredentialTest : public testing::Test {
+protected:
 	CborParser parser;
 	CborValue it;
-	uint8_t ret;
-	ctap_parse_check(ctap_init_cbor_parser(data, data_size, &parser, &it));
-	return ctap_parse_make_credential(&it, mc);
-}
-
-TEST(CtapParseMakeCredentialTest, InvalidCbor) {
-	auto params = hex::bytes<"ff">();
 	CTAP_makeCredential mc;
 	uint8_t status;
-	status = test_ctap_parse_make_credential(params.data(), params.size(), &mc);
+
+	void test_ctap_parse_make_credential(const uint8_t *data, size_t data_size) {
+		status = ctap_init_cbor_parser(data, data_size, &parser, &it);
+		if (status != CTAP2_OK) {
+			return;
+		}
+		status = ctap_parse_make_credential(&it, &mc);
+	}
+
+	void test_ctap_parse_make_credential_pub_key_cred_params() {
+		status = ctap_parse_make_credential_pub_key_cred_params(&mc);
+	}
+
+};
+
+
+TEST_F(CtapParseMakeCredentialTest, InvalidCbor) {
+	auto params = hex::bytes<"ff">();
+	test_ctap_parse_make_credential(params.data(), params.size());
 	ASSERT_EQ(status, CTAP2_ERR_INVALID_CBOR);
 }
 
-TEST(CtapParseMakeCredentialTest, Dummy) {
+TEST_F(CtapParseMakeCredentialTest, Dummy) {
 	auto params = hex::bytes<
 		// {
 		//     1: h'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
@@ -68,9 +80,7 @@ TEST(CtapParseMakeCredentialTest, Dummy) {
 		"   09                                  " //   unsigned(9)
 		"   01                                  " //   unsigned(1)
 	>();
-	CTAP_makeCredential mc;
-	uint8_t status;
-	status = test_ctap_parse_make_credential(params.data(), params.size(), &mc);
+	test_ctap_parse_make_credential(params.data(), params.size());
 	ASSERT_EQ(status, CTAP2_OK);
 
 	constexpr uint32_t expected_present =
@@ -102,7 +112,7 @@ TEST(CtapParseMakeCredentialTest, Dummy) {
 	EXPECT_EQ(mc.pinUvAuthProtocol, 1);
 }
 
-TEST(CtapParseMakeCredentialTest, WebauthnIoTest) {
+TEST_F(CtapParseMakeCredentialTest, WebauthnIoTest) {
 	auto params = hex::bytes<
 		// {
 		//     1: h'fad4059e31ddef7c75449ee9d8b523977b30d161d089f2a0a20c806875edb1aa',
@@ -138,9 +148,7 @@ TEST(CtapParseMakeCredentialTest, WebauthnIoTest) {
 		// }
 		"a9015820fad4059e31ddef7c75449ee9d8b523977b30d161d089f2a0a20c806875edb1aa02a26269646b776562617574686e2e696f646e616d656b776562617574686e2e696f03a36269644f776562617574686e696f2d74657374646e616d6564746573746b646973706c61794e616d6564746573740483a263616c672764747970656a7075626c69632d6b6579a263616c672664747970656a7075626c69632d6b6579a263616c6739010064747970656a7075626c69632d6b65790583a262696458206bc8d540bd105aec6ee56d7f488f0a8107d43fc81ac6106825e7d627ebd8c84164747970656a7075626c69632d6b6579a26269645087289a32d2a94127beffaad16c1b040b64747970656a7075626c69632d6b6579a2626964584fa300582ba270ad3f706caa4dd3d5faa3eeb9a359065b157a394129b4c458c00f51ea32de9a604502e0c559b8acd93e014c68ae3dd838d5f43f70d4031e02508f1f27d4bebfbf25e35973bdac887ab164747970656a7075626c69632d6b657906a16b6372656450726f746563740207a162726bf5085091964252f79f51be8200364abc0e4d3e0901"
 	>();
-	CTAP_makeCredential mc;
-	uint8_t status;
-	status = test_ctap_parse_make_credential(params.data(), params.size(), &mc);
+	test_ctap_parse_make_credential(params.data(), params.size());
 	ASSERT_EQ(status, CTAP2_OK);
 
 	constexpr uint32_t expected_present =
@@ -186,6 +194,12 @@ TEST(CtapParseMakeCredentialTest, WebauthnIoTest) {
 	EXPECT_SAME_BYTES_S(mc.pinUvAuthParam_size, mc.pinUvAuthParam, expected_pinUvAuthParam.data());
 
 	EXPECT_EQ(mc.pinUvAuthProtocol, 1);
+
+	test_ctap_parse_make_credential_pub_key_cred_params();
+	ASSERT_EQ(status, CTAP2_OK);
+
+	EXPECT_EQ(mc.pubKeyCredParams_chosen.type, CTAP_pubKeyCredType_public_key);
+	EXPECT_EQ(mc.pubKeyCredParams_chosen.alg, COSE_ALG_ES256);
 }
 
 } // namespace

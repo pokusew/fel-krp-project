@@ -43,7 +43,7 @@ static inline CborError ctap_cbor_value_get_uint8(const CborValue *value, uint8_
         cbor_decoding_check(cbor_value_advance(&map)); \
         debug_log("ctap_parse_map_get_string_key: skipping the value for the unknown key" nl); \
         cbor_decoding_check(cbor_value_advance(&map)); \
-		continue; \
+        continue; \
     } \
     cbor_decoding_check(cbor_value_copy_text_string(&map, key, &key_length, &map))
 
@@ -662,6 +662,146 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 		ctap_param_to_mask(CTAP_makeCredential_pubKeyCredParams);
 	if (!ctap_is_present(params->present, required_params)) {
 		return CTAP2_ERR_MISSING_PARAMETER;
+	}
+
+	return CTAP2_OK;
+
+}
+
+static uint8_t parse_cred_params(CborValue *it, CTAP_credParams *cred_params) {
+
+	ctap_parse_map_enter("PublicKeyCredentialParameters");
+
+	bool type_parsed = false;
+	bool alg_parsed = false;
+
+	for (size_t i = 0; i < map_length; ++i) {
+
+		ctap_parse_map_get_string_key(4);
+
+		if (strncmp(key, "type", key_length) == 0) {
+
+			char type[10]; // not null terminated
+			size_t type_length = sizeof(type);
+			if (!cbor_value_is_text_string(&map)) {
+				return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+			}
+			size_t actual_type_length;
+			cbor_decoding_check(cbor_value_get_string_length(&map, &actual_type_length));
+			if (actual_type_length > type_length) {
+				debug_log("parse_cred_params: skipping unknown too long type" nl);
+				cbor_decoding_check(cbor_value_advance(&map));
+				continue;
+			}
+			cbor_decoding_check(cbor_value_copy_text_string(&map, type, &type_length, &map));
+
+			type_parsed = true;
+
+			if (strncmp(type, "public-key", type_length) == 0) {
+				cred_params->type = CTAP_pubKeyCredType_public_key;
+			}
+
+		} else if (strncmp(key, "alg", key_length) == 0) {
+
+			if (!cbor_value_is_integer(&map)) {
+				return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+			}
+
+			static_assert(
+				sizeof(cred_params->alg) >= sizeof(int),
+				"cbor_value_get_int_checked cannot be used with cred_params->alg, check sizeof(int)"
+			);
+			cbor_decoding_check(cbor_value_get_int_checked(&map, (int *) &cred_params->alg));
+			alg_parsed = true;
+			cbor_decoding_check(cbor_value_advance_fixed(&map));
+
+		} else {
+			debug_log("warning: unrecognized PublicKeyCredentialParameters key %.*s" nl, (int) key_length, key);
+			cbor_decoding_check(cbor_value_advance(&map));
+		}
+
+	}
+
+	ctap_parse_map_leave();
+
+	// 6.1.2. authenticatorMakeCredential Algorithm:
+	//  3.1.1. If the element is missing required members, including members that are mandatory
+	//         only for the specific type, then return an error, for example CTAP2_ERR_INVALID_CBOR
+	if (!type_parsed || !alg_parsed) {
+		return CTAP2_ERR_INVALID_CBOR;
+	}
+
+	return CTAP2_OK;
+
+}
+
+static bool is_supported_pub_key_alg(const CTAP_credParams *cred_params) {
+	return cred_params->type == CTAP_pubKeyCredType_public_key && (
+		// add supported public-key algorithms here:
+		cred_params->alg == COSE_ALG_ES256
+	);
+}
+
+/**
+ * NOTE! This function must always be preceded by an invocation of ctap_parse_make_credential()
+ *       with the same params argument.
+ *
+ * This function implements the step 3 from the 6.1.2. authenticatorMakeCredential Algorithm
+ * (https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-makeCred-authnr-alg):
+ *   3. Validate pubKeyCredParams with the following steps:
+ *      1. For each element of pubKeyCredParams:
+ *         1. If the element is missing required members, including members that are mandatory
+ *            only for the specific type, then return an error, for example CTAP2_ERR_INVALID_CBOR.
+ *         2. If the values of any known members have the wrong type then return an error,
+ *            for example CTAP2_ERR_CBOR_UNEXPECTED_TYPE.
+ *         3. If the element specifies an algorithm that is supported by the authenticator,
+ *            and no algorithm has yet been chosen by this loop,
+ *            then let the algorithm specified by the current element be the chosen algorithm.
+ *      2. If the loop completes and no algorithm was chosen
+ *         then return CTAP2_ERR_UNSUPPORTED_ALGORITHM.
+ *     Note: This loop chooses the first occurrence of an algorithm identifier supported
+ *     by this authenticator but always iterates over every element of pubKeyCredParams to validate them.
+ *
+ *
+ * @param params the parsed makeCredential command parameters from ctap_parse_make_credential
+ * @returns a CTAP status code (CTAP2_OK on success)
+ */
+uint8_t ctap_parse_make_credential_pub_key_cred_params(CTAP_makeCredential *params) {
+
+	uint8_t ret;
+	CborError err;
+	CborValue array;
+	size_t array_length;
+
+	// This should be guaranteed as this function (ctap_parse_make_credential_pub_key_cred_params)
+	// should always be called only after ctap_parse_make_credential.
+	assert(cbor_value_is_array(&params->pubKeyCredParams));
+
+	cbor_decoding_check(cbor_value_enter_container(&params->pubKeyCredParams, &array));
+	cbor_decoding_check(cbor_value_get_array_length(&params->pubKeyCredParams, &array_length));
+	debug_log("pubKeyCredParams array_length=%" PRIsz nl, array_length);
+
+	// 6.1.2. authenticatorMakeCredential Algorithm:
+	//  3. Note: This loop chooses the first occurrence of an algorithm identifier supported by this authenticator
+	//           but always iterates over every element of pubKeyCredParams to validate them.
+	bool algorithm_chosen = false;
+	for (size_t i = 0; i < array_length; i++) {
+		CTAP_credParams cred_params;
+		ctap_parse_check(parse_cred_params(&array, &cred_params));
+		if (!algorithm_chosen && is_supported_pub_key_alg(&cred_params)) {
+			params->pubKeyCredParams_chosen = cred_params;
+			algorithm_chosen = true;
+		}
+	}
+
+	// Here we intentionally omit call to cbor_value_leave_container
+	// as we do NOT want to update the params->pubKeyCredParams CborValue to point after the array.
+	// cbor_decoding_check(cbor_value_leave_container(&params->pubKeyCredParams, &array));
+
+	// 6.1.2. authenticatorMakeCredential Algorithm:
+	//  3.2. If the loop completes and no algorithm was chosen then return CTAP2_ERR_UNSUPPORTED_ALGORITHM.
+	if (!algorithm_chosen) {
+		return CTAP2_ERR_UNSUPPORTED_ALGORITHM;
 	}
 
 	return CTAP2_OK;
