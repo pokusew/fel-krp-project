@@ -39,7 +39,7 @@ constexpr auto ciphertext = hex::bytes<
 >();
 static_assert(ciphertext.size() % TINYAES_AES_BLOCKLEN == 0);
 
-TEST(TinyAesTest, TINYAES_ENABLE_AES256CbcEncrypt) {
+TEST(TinyAesTest, Aes256CbcEncrypt) {
 	struct AES_ctx aes_ctx; // NOLINT(*-pro-type-member-init)
 	std::array<uint8_t, plaintext.size()> buffer = plaintext;
 	AES_init_ctx_iv(&aes_ctx, key.data(), iv.data());
@@ -49,7 +49,7 @@ TEST(TinyAesTest, TINYAES_ENABLE_AES256CbcEncrypt) {
 	EXPECT_SAME_BYTES_S(TINYAES_AES_BLOCKLEN, aes_ctx.Iv, &ciphertext[ciphertext.size() - TINYAES_AES_BLOCKLEN]);
 }
 
-TEST(TinyAesTest, TINYAES_ENABLE_AES256CbcDecrypt) {
+TEST(TinyAesTest, Aes256CbcDecrypt) {
 	struct AES_ctx aes_ctx; // NOLINT(*-pro-type-member-init)
 	std::array<uint8_t, ciphertext.size()> buffer = ciphertext;
 	AES_init_ctx_iv(&aes_ctx, key.data(), iv.data());
