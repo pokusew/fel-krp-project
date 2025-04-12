@@ -11,10 +11,14 @@
 #include "cose.h"
 #include "compiler.h"
 
-#define ctap_parse_check(expr)                           \
-	if ((ret = (expr)) != CTAP2_OK) {                    \
-		return ret;                                      \
-	}                                                    \
+#define ctap_parse_check(expr)                                                   \
+	if ((ret = (expr)) != CTAP2_OK) {                                            \
+		debug_log(                                                               \
+			red("ctap_parse_check: 0x%02" wPRIx8 " (%" wPRIu8 ") at %s:%d") nl,  \
+			ret, ret, __FILE__, __LINE__                                         \
+		);                                                                       \
+		return ret;                                                              \
+	}                                                                            \
 	((void) 0)
 
 #define cbor_decoding_check(r)                           \
