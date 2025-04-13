@@ -8,10 +8,10 @@ namespace {
 
 class CtapParseMakeCredentialTest : public testing::Test {
 protected:
-	CborParser parser;
-	CborValue it;
-	CTAP_makeCredential mc;
-	uint8_t status;
+	CborParser parser{};
+	CborValue it{};
+	CTAP_makeCredential mc{};
+	uint8_t status{};
 
 	void test_ctap_parse_make_credential(const uint8_t *data, size_t data_size) {
 		status = ctap_init_cbor_parser(data, data_size, &parser, &it);
