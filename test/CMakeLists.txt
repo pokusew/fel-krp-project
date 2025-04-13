@@ -250,6 +250,7 @@ target_link_libraries(test_hmac_sha256 sha256 hex_utils gtest_custom_assertions)
 core_test(ctap_parse_client_pin)
 core_test(ctap_parse_make_credential)
 core_test(ctap_client_pin)
+core_test(ctap_make_credential)
 core_test(ctaphid)
 
 std_test(tusb_fifo src/tusb_fifo_test.cpp)
