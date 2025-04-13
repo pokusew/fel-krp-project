@@ -313,6 +313,12 @@ void ctap_rng_reset(uint32_t seed);
 
 int ctap_generate_rng(uint8_t *buffer, size_t length);
 
+uint8_t ctap_get_info(ctap_state_t *state);
+
+uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t length);
+
+void ctap_pin_protocol_v1_init(ctap_pin_protocol_t *protocol);
+
 void ctap_pin_uv_auth_token_begin_using(ctap_pin_uv_auth_token_state *token_state, bool user_is_present);
 
 void ctap_pin_uv_auth_token_usage_timer_observer(ctap_pin_uv_auth_token_state *token_state);
@@ -326,5 +332,7 @@ void ctap_pin_uv_auth_token_clear_user_present_flag(ctap_pin_uv_auth_token_state
 void ctap_pin_uv_auth_token_clear_permissions_except_lbw(ctap_pin_uv_auth_token_state *token_state);
 
 void ctap_pin_uv_auth_token_stop_using(ctap_pin_uv_auth_token_state *token_state);
+
+uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t length);
 
 #endif // LIONKEY_CTAP_H

@@ -1,4 +1,4 @@
-#include "ctap_pin.h"
+#include "ctap.h"
 #include "utils.h"
 #include <uECC.h>
 #include <hmac.h>

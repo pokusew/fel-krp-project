@@ -87,83 +87,25 @@ target_include_directories(sha256
 		../crypto/sha256
 )
 
-add_library(
-		core_ctap_parse
-		STATIC
-		../core/ctap_parse.c
-)
-target_include_directories(
-		core_ctap_parse
-		INTERFACE
-		../core
-)
-target_link_libraries(
-		core_ctap_parse
-		PUBLIC tinycbor
-)
-target_compile_definitions(
-		core_ctap_parse
-		PUBLIC
-		LIONKEY_LOG=1
-		nl="\\n"
-)
-
-add_library(
-		core_ctap_pin
-		STATIC
-		../core/ctap_pin.c
-)
-target_include_directories(
-		core_ctap_pin
-		INTERFACE
-		../core
-)
-target_link_libraries(
-		core_ctap_pin
-		PUBLIC tinycbor core_ctap_parse micro_ecc sha256 tinyaes
-)
-
-add_library(
-		core_ctap
-		STATIC
+add_library(core STATIC)
+target_sources(core PUBLIC
 		../core/ctap.c
-		src/consistent_prng.cpp
-)
-target_include_directories(
-		core_ctap
-		INTERFACE
-		../core
-)
-target_link_libraries(
-		core_ctap
-		PUBLIC tinycbor core_ctap_parse core_ctap_pin core_utils micro_ecc
-)
-
-add_library(
-		core_utils
-		STATIC
-		../core/utils.c
-)
-target_include_directories(
-		core_utils
-		INTERFACE
-		../core
-		lionkey
-)
-
-add_library(
-		core_ctaphid
-		STATIC
+		../core/ctap_credentials.c
+		../core/ctap_get_info.c
+		../core/ctap_parse.c
+		../core/ctap_pin.c
 		../core/ctaphid.c
+		../core/utils.c
+		lionkey/consistent_prng.cpp
+		lionkey/wait_for_user_presence.c
 )
-target_include_directories(
-		core_ctaphid
-		INTERFACE
-		../core
+target_include_directories(core PUBLIC ../core lionkey)
+target_link_libraries(core PUBLIC
+		tinycbor sha256 tinyaes micro_ecc
 )
-target_link_libraries(
-		core_ctaphid
-		PUBLIC core_utils
+target_compile_definitions(core PUBLIC
+		LIONKEY_LOG=1
+		LIONKEY_DEBUG_LEVEL=3
 )
 
 add_library(tinyusb_fifo_test INTERFACE)
@@ -246,6 +188,12 @@ function(std_test name)
 	)
 endfunction()
 
+function(core_test name)
+	set(sources "${ARGN}")
+	std_test("${name}" "src/${name}_test.cpp" "${sources}")
+	target_link_libraries("test_${name}" core hex_utils gtest_custom_assertions)
+endfunction()
+
 # the custom SameBytes (EXPECT_SAME_BYTES) GoogleTest assertion
 add_library(gtest_custom_assertions STATIC gtest_custom_assertions/gtest_custom_assertions.cpp)
 target_include_directories(gtest_custom_assertions INTERFACE gtest_custom_assertions)
@@ -299,17 +247,10 @@ target_link_libraries(test_sha256 sha256 hex_utils gtest_custom_assertions)
 std_test(hmac_sha256 src/hmac_sha256_test.cpp)
 target_link_libraries(test_hmac_sha256 sha256 hex_utils gtest_custom_assertions)
 
-std_test(ctap_parse_client_pin src/ctap_parse_client_pin_test.cpp)
-target_link_libraries(test_ctap_parse_client_pin core_ctap_parse hex_utils gtest_custom_assertions)
-
-std_test(ctap_parse_make_credential src/ctap_parse_make_credential_test.cpp)
-target_link_libraries(test_ctap_parse_make_credential core_ctap_parse hex_utils gtest_custom_assertions)
-
-std_test(ctap_client_pin src/ctap_client_pin_test.cpp)
-target_link_libraries(test_ctap_client_pin core_ctap hex_utils gtest_custom_assertions)
-
-std_test(ctaphid src/ctaphid_test.cpp)
-target_link_libraries(test_ctaphid core_ctaphid hex_utils gtest_custom_assertions)
+core_test(ctap_parse_client_pin)
+core_test(ctap_parse_make_credential)
+core_test(ctap_client_pin)
+core_test(ctaphid)
 
 std_test(tusb_fifo src/tusb_fifo_test.cpp)
 target_link_libraries(test_tusb_fifo tinyusb_fifo_test)
