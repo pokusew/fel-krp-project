@@ -59,10 +59,20 @@ void ctap_pin_uv_auth_token_clear_user_present_flag(ctap_pin_uv_auth_token_state
 	}
 }
 
+void ctap_pin_uv_auth_token_clear_user_verified_flag(ctap_pin_uv_auth_token_state *token_state) {
+	if (token_state->in_use) {
+		token_state->user_verified = false;
+	}
+}
+
 void ctap_pin_uv_auth_token_clear_permissions_except_lbw(ctap_pin_uv_auth_token_state *token_state) {
 	if (token_state->in_use) {
 		token_state->permissions = token_state->permissions & CTAP_clientPIN_pinUvAuthToken_permission_lbw;
 	}
+}
+
+bool ctap_pin_uv_auth_token_has_permissions(ctap_pin_uv_auth_token_state *token_state, uint32_t permissions) {
+	return (token_state->permissions & permissions) == permissions;
 }
 
 void ctap_pin_uv_auth_token_stop_using(ctap_pin_uv_auth_token_state *token_state) {
@@ -249,18 +259,37 @@ static int ctap_pin_protocol_v1_decrypt(
 	return 0;
 }
 
-static void ctap_pin_protocol_v1_verify_init(
+static void ctap_pin_protocol_v1_verify_init_with_shared_secret(
 	const ctap_pin_protocol_t *protocol,
 	hmac_sha256_ctx_t *hmac_sha256_ctx,
-	const uint8_t *key, const size_t key_length
+	const uint8_t *shared_secret
 ) {
 	// 6.5.6. PIN/UV Auth Protocol One
 	// verify(key, message, signature) → success | error
-	//   1. TODO: If the key parameter value is the current pinUvAuthToken and it is not in use, then return error.
+	//   1. If the key parameter value is the current pinUvAuthToken and it is not in use, then return error.
+	//      (not applicable to this function, see ctap_pin_protocol_v1_verify_init_with_pin_uv_auth_token)
 	//   2. Compute HMAC-SHA-256 with the given key and message.
 	//      Return success if signature is 16 bytes and is equal to the first 16 bytes of the result,
 	//      otherwise return error.
-	hmac_sha256_init(hmac_sha256_ctx, key, key_length);
+	hmac_sha256_init(hmac_sha256_ctx, shared_secret, protocol->shared_secret_length);
+}
+
+static int ctap_pin_protocol_v1_verify_init_with_pin_uv_auth_token(
+	const ctap_pin_protocol_t *protocol,
+	hmac_sha256_ctx_t *hmac_sha256_ctx,
+	const ctap_pin_uv_auth_token_state *pin_uv_auth_token_state
+) {
+	// 6.5.6. PIN/UV Auth Protocol One
+	// verify(key, message, signature) → success | error
+	//   1. If the key parameter value is the current pinUvAuthToken and it is not in use, then return error.
+	if (!pin_uv_auth_token_state->in_use) {
+		return 1;
+	}
+	//   2. Compute HMAC-SHA-256 with the given key and message.
+	//      Return success if signature is 16 bytes and is equal to the first 16 bytes of the result,
+	//      otherwise return error.
+	hmac_sha256_init(hmac_sha256_ctx, protocol->pin_uv_auth_token, sizeof(protocol->pin_uv_auth_token));
+	return 0;
 }
 
 
@@ -311,7 +340,8 @@ void ctap_pin_protocol_v1_init(ctap_pin_protocol_t *protocol) {
 	protocol->decapsulate = ctap_pin_protocol_v1_decapsulate;
 	protocol->encrypt = ctap_pin_protocol_v1_encrypt;
 	protocol->decrypt = ctap_pin_protocol_v1_decrypt;
-	protocol->verify_init = ctap_pin_protocol_v1_verify_init;
+	protocol->verify_init_with_shared_secret = ctap_pin_protocol_v1_verify_init_with_shared_secret;
+	protocol->verify_init_with_pin_uv_auth_token = ctap_pin_protocol_v1_verify_init_with_pin_uv_auth_token;
 	protocol->verify_update = ctap_pin_protocol_v1_verify_update;
 	protocol->verify_final = ctap_pin_protocol_v1_verify_final;
 
@@ -606,7 +636,7 @@ uint8_t ctap_client_pin_set_pin(
 	// 5.5 The authenticator calls verify(shared secret, newPinEnc, pinUvAuthParam)
 	//     If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
 	hmac_sha256_ctx_t verify_ctx;
-	pin_protocol->verify_init(pin_protocol, &verify_ctx, /* key */ shared_secret, sizeof(shared_secret));
+	pin_protocol->verify_init_with_shared_secret(pin_protocol, &verify_ctx, /* key */ shared_secret);
 	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message */ cp->newPinEnc, cp->newPinEnc_size);
 	if (pin_protocol->verify_final(
 		pin_protocol,
@@ -655,7 +685,7 @@ uint8_t ctap_client_pin_change_pin(
 	// 5.5 The authenticator calls verify(shared secret, newPinEnc || pinHashEnc, pinUvAuthParam)
 	//     If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
 	hmac_sha256_ctx_t verify_ctx;
-	pin_protocol->verify_init(pin_protocol, &verify_ctx, /* key */ shared_secret, sizeof(shared_secret));
+	pin_protocol->verify_init_with_shared_secret(pin_protocol, &verify_ctx, /* key */ shared_secret);
 	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message part 1 */ cp->newPinEnc, cp->newPinEnc_size);
 	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message part 2 */ cp->pinHashEnc, cp->pinHashEnc_size);
 	if (pin_protocol->verify_final(
@@ -932,7 +962,10 @@ uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
 
 }
 
-static inline ctap_pin_protocol_t *get_pin_protocol(ctap_state_t *state, size_t protocol_version) {
+uint8_t ctap_get_pin_protocol(ctap_state_t *state, size_t protocol_version, ctap_pin_protocol_t **pin_protocol) {
+	if (protocol_version != 1 && protocol_version != 2) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
 	static_assert(
 		(sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t)) == 2,
 		"unexpected state->pin_protocol array length"
@@ -942,7 +975,8 @@ static inline ctap_pin_protocol_t *get_pin_protocol(ctap_state_t *state, size_t 
 		&& (protocol_version - 1) < (sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t))
 	);
 	debug_log("pin_protocol version %" PRIsz nl, protocol_version);
-	return &state->pin_protocol[protocol_version - 1];
+	*pin_protocol = &state->pin_protocol[protocol_version - 1];
+	return CTAP2_OK;
 }
 
 uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t length) {
@@ -957,11 +991,8 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 	CTAP_clientPIN cp;
 	ctap_parse_check(ctap_parse_client_pin(&it, &cp));
 
-	if (cp.pinUvAuthProtocol != 1 && cp.pinUvAuthProtocol != 2) {
-		return CTAP1_ERR_INVALID_PARAMETER;
-	}
-
-	ctap_pin_protocol_t *pin_protocol = get_pin_protocol(state, cp.pinUvAuthProtocol);
+	ctap_pin_protocol_t *pin_protocol;
+	ctap_parse_check(ctap_get_pin_protocol(state, cp.pinUvAuthProtocol, &pin_protocol));
 
 	CborEncoder *encoder = &state->response.encoder;
 	CborEncoder map;

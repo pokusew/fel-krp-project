@@ -74,118 +74,6 @@ typedef struct ctap_response {
 
 #define PIN_TOKEN_SIZE 32
 
-/// 6.5. authenticatorClientPIN (0x06)
-/// 6.5.4. PIN/UV Auth Protocol Abstract Definition
-///
-/// PIN/UV Auth Protocol exists so that plaintext PINs are not sent to the authenticator.
-/// Instead, a PIN/UV auth protocol (aka pinUvAuthProtocol) ensures that PINs
-/// are encrypted when sent to an authenticator and are exchanged for a pinUvAuthToken
-/// that serves to authenticate subsequent commands.
-/// Additionally, authenticators supporting built-in user verification methods
-/// can provide a pinUvAuthToken upon user verification.
-///
-/// Note:
-///   PIN/UV Auth Protocol One was essentially defined in CTAP2.0.
-///   The difference between the original definition and the definition in CTAP2.1
-///   is that originally the pinToken (pinUvAuthToken in CTAP2.1 terms) length was unlimited.
-///   CTAP2.1 specifies lengths for pinUvAuthTokens
-///   in both PIN/UV Auth Protocol 1 and in PIN/UV Auth Protocol 2.
-typedef struct ctap_pin_protocol {
-
-	uint8_t pin_uv_auth_token[PIN_TOKEN_SIZE];
-	uint8_t key_agreement_public_key[64];
-	uint8_t key_agreement_private_key[32];
-	size_t shared_secret_length;
-	size_t encryption_extra_length;
-
-	/// This process is run by the authenticator at power-on.
-	int (*initialize)(
-		struct ctap_pin_protocol *protocol
-	);
-
-	/// Generates a fresh public key.
-	int (*regenerate)(
-		struct ctap_pin_protocol *protocol
-	);
-
-	/// Generates a fresh pinUvAuthToken.
-	int (*reset_pin_uv_auth_token)(
-		struct ctap_pin_protocol *protocol
-	);
-
-	int (*get_public_key)(
-		struct ctap_pin_protocol *protocol,
-		CborEncoder *encoder
-	);
-
-	/// Processes the output of encapsulate from the peer and produces a shared secret,
-	/// known to both platform and authenticator.
-	int (*decapsulate)(
-		const struct ctap_pin_protocol *protocol,
-		const COSE_Key *peer_cose_key,
-		uint8_t *shared_secret
-	);
-
-	/**
-	 * Encrypt a plaintext using a shared secret as a key and outputs a ciphertext to the given ciphertext buffer.
-	 *
-	 * The plaintext remains unchanged.
-	 *
-	 * @param shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
-	 *                      (32 bytes for v1, 64 bytes for v2)
-	 * @param plaintext the plaintext
-	 * @param plaintext_length the plaintext length in bytes
-	 * @param ciphertext the pointer to an array of size at least (plaintext_length + encryption_extra_length) bytes
-	 *                   where the ciphertext will be written
-	 * @return 0 on success, 1 on error
-	 */
-	int (*encrypt)(
-		const uint8_t *shared_secret,
-		const uint8_t *plaintext, const size_t plaintext_length,
-		uint8_t *ciphertext
-	);
-
-	/**
-	 * Decrypts a ciphertext using a shared secret as a key and outputs a plaintext to the given plaintext buffer.
-	 *
-	 * The ciphertext remains unchanged.
-	 *
-	 * @param shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
-	 *                      (32 bytes for v1, 64 bytes for v2)
-	 * @param ciphertext the ciphertext
-	 * @param ciphertext_length the ciphertext length in bytes
-	 * @param plaintext the pointer to an array of size at least (ciphertext_length - encryption_extra_length) bytes
-	 *                  where
-	 * @return 0 on success, 1 on error
-	 */
-	int (*decrypt)(
-		const uint8_t *shared_secret,
-		const uint8_t *ciphertext, const size_t ciphertext_length,
-		uint8_t *plaintext
-	);
-
-	/// Verifies that the signature is a valid MAC for the given message.
-	/// If the key parameter value is the current pinUvAuthToken,
-	/// it also checks whether the pinUvAuthToken is in use or not.
-	void (*verify_init)(
-		const struct ctap_pin_protocol *protocol,
-		hmac_sha256_ctx_t *ctx,
-		// Note that key is always either a shared_secret (v1 32 bytes or v2 64 bytes)
-		// or pin_uv_auth_token (32 bytes).
-		const uint8_t *key, const size_t key_length
-	);
-	void (*verify_update)(
-		const struct ctap_pin_protocol *protocol,
-		hmac_sha256_ctx_t *ctx,
-		const uint8_t *message_data, const size_t message_data_length
-	);
-	int (*verify_final)(
-		const struct ctap_pin_protocol *protocol,
-		hmac_sha256_ctx_t *ctx,
-		const uint8_t *signature, const size_t signature_length
-	);
-} ctap_pin_protocol_t;
-
 #define CTAP_PIN_UV_AUTH_TOKEN_STATE_INITIAL_USAGE_TIME_LIMIT_USB (30 * 1000)
 
 typedef struct ctap_timer {
@@ -279,6 +167,173 @@ typedef struct ctap_pin_uv_auth_token_state {
 
 } ctap_pin_uv_auth_token_state;
 
+/// 6.5. authenticatorClientPIN (0x06)
+/// 6.5.4. PIN/UV Auth Protocol Abstract Definition
+///
+/// PIN/UV Auth Protocol exists so that plaintext PINs are not sent to the authenticator.
+/// Instead, a PIN/UV auth protocol (aka pinUvAuthProtocol) ensures that PINs
+/// are encrypted when sent to an authenticator and are exchanged for a pinUvAuthToken
+/// that serves to authenticate subsequent commands.
+/// Additionally, authenticators supporting built-in user verification methods
+/// can provide a pinUvAuthToken upon user verification.
+///
+/// Note:
+///   PIN/UV Auth Protocol One was essentially defined in CTAP2.0.
+///   The difference between the original definition and the definition in CTAP2.1
+///   is that originally the pinToken (pinUvAuthToken in CTAP2.1 terms) length was unlimited.
+///   CTAP2.1 specifies lengths for pinUvAuthTokens
+///   in both PIN/UV Auth Protocol 1 and in PIN/UV Auth Protocol 2.
+typedef struct ctap_pin_protocol {
+
+	uint8_t pin_uv_auth_token[PIN_TOKEN_SIZE];
+	uint8_t key_agreement_public_key[64];
+	uint8_t key_agreement_private_key[32];
+	size_t shared_secret_length;
+	size_t encryption_extra_length;
+
+	/// This process is run by the authenticator at power-on.
+	int (*initialize)(
+		struct ctap_pin_protocol *protocol
+	);
+
+	/// Generates a fresh public key.
+	int (*regenerate)(
+		struct ctap_pin_protocol *protocol
+	);
+
+	/// Generates a fresh pinUvAuthToken.
+	int (*reset_pin_uv_auth_token)(
+		struct ctap_pin_protocol *protocol
+	);
+
+	int (*get_public_key)(
+		struct ctap_pin_protocol *protocol,
+		CborEncoder *encoder
+	);
+
+	/// Processes the output of encapsulate from the peer and produces a shared secret,
+	/// known to both platform and authenticator.
+	int (*decapsulate)(
+		const struct ctap_pin_protocol *protocol,
+		const COSE_Key *peer_cose_key,
+		uint8_t *shared_secret
+	);
+
+	/**
+	 * Encrypt a plaintext using a shared secret as a key and outputs a ciphertext to the given ciphertext buffer.
+	 *
+	 * The plaintext remains unchanged.
+	 *
+	 * @param shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
+	 *                      (32 bytes for v1, 64 bytes for v2)
+	 * @param plaintext the plaintext
+	 * @param plaintext_length the plaintext length in bytes
+	 * @param ciphertext the pointer to an array of size at least (plaintext_length + encryption_extra_length) bytes
+	 *                   where the ciphertext will be written
+	 * @return 0 on success, 1 on error
+	 */
+	int (*encrypt)(
+		const uint8_t *shared_secret,
+		const uint8_t *plaintext, const size_t plaintext_length,
+		uint8_t *ciphertext
+	);
+
+	/**
+	 * Decrypts a ciphertext using a shared secret as a key and outputs a plaintext to the given plaintext buffer.
+	 *
+	 * The ciphertext remains unchanged.
+	 *
+	 * @param shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
+	 *                      (32 bytes for v1, 64 bytes for v2)
+	 * @param ciphertext the ciphertext
+	 * @param ciphertext_length the ciphertext length in bytes
+	 * @param plaintext the pointer to an array of size at least (ciphertext_length - encryption_extra_length) bytes
+	 *                  where
+	 * @return 0 on success, 1 on error
+	 */
+	int (*decrypt)(
+		const uint8_t *shared_secret,
+		const uint8_t *ciphertext, const size_t ciphertext_length,
+		uint8_t *plaintext
+	);
+
+	/**
+	 * Verifies that the signature is a valid MAC for the given message.
+	 *
+	 * Uses a shared secret as the HMAC key.
+	 *
+	 * @param protocol the protocol
+	 * @param ctx the pointer to the HMAC-256 context that will be initialized by this call
+	 * @param shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
+	 *                      (32 bytes for v1, 64 bytes for v2)
+	 */
+	void (*verify_init_with_shared_secret)(
+		const struct ctap_pin_protocol *protocol,
+		hmac_sha256_ctx_t *ctx,
+		const uint8_t *shared_secret
+	);
+
+	/**
+	 * Verifies that the signature is a valid MAC for the given message.
+	 *
+	 * Uses the current pinUvAuthToken `protocol.pin_uv_auth_token` as the HMAC key.
+	 * It also checks whether the pinUvAuthToken is in use or not.
+	 * If the pinUvAuthToken is not in use, it returns an error.
+	 *
+	 * @param protocol the protocol
+	 * @param ctx the pointer to the HMAC-256 context that will be initialized by this call
+	 * @param pin_uv_auth_token_state the pinUvAuthToken state
+	 * @return 0 on success, 1 on error (the pinUvAuthToken is NOT in use)
+	 */
+	int (*verify_init_with_pin_uv_auth_token)(
+		const struct ctap_pin_protocol *protocol,
+		hmac_sha256_ctx_t *ctx,
+		const ctap_pin_uv_auth_token_state *pin_uv_auth_token_state
+	);
+
+	/**
+	 * Verifies that the signature is a valid MAC for the given message.
+	 *
+	 * This function might be called multiple times to pass the message in multiple chunks.
+	 * When the message has zero length, this function does not have to be called at all
+	 * (e.g., the following call sequence is completely correct: `verify_init_*() -> verify_final()`).
+	 *
+	 * @param protocol the protocol
+	 * @param ctx the pointer to the HMAC-256 context
+	 *            that has been already initialized by `verify_init_with_shared_secret()`
+	 *            or `verify_init_with_pin_uv_auth_token()`
+	 * @param message_data a chunk of the message
+	 * @param message_data_length the size of the chunk of the message
+	 */
+	void (*verify_update)(
+		const struct ctap_pin_protocol *protocol,
+		hmac_sha256_ctx_t *ctx,
+		const uint8_t *message_data, const size_t message_data_length
+	);
+
+	/**
+	 * Verifies that the signature is a valid MAC for the given message.
+	 *
+	 * This function must be called only after the context has been initialized by `verify_init_*()`
+	 * and the message (if non-zero length) has been passed by one or more `verify_update()` calls.
+	 *
+	 * @param protocol the protocol
+	 * @param ctx the pointer to the HMAC-256 context
+	 *            that has been already initialized by `verify_init_with_shared_secret()`
+	 *            or `verify_init_with_pin_uv_auth_token()`
+	 * @param signature the signature
+	 * @param signature_length the signature length in bytes
+	 * @return 0 on success (the signature matches the computed HMAC-256 digest),
+	 *         1 on error (invalid signature length or the signature does NOT match the computed HMAC-256 digest)
+	 */
+	int (*verify_final)(
+		const struct ctap_pin_protocol *protocol,
+		hmac_sha256_ctx_t *ctx,
+		const uint8_t *signature, const size_t signature_length
+	);
+
+} ctap_pin_protocol_t;
+
 typedef struct ctap_state {
 
 	ctap_persistent_state_t persistent;
@@ -317,6 +372,8 @@ uint8_t ctap_get_info(ctap_state_t *state);
 
 uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t length);
 
+uint8_t ctap_get_pin_protocol(ctap_state_t *state, size_t protocol_version, ctap_pin_protocol_t **pin_protocol);
+
 void ctap_pin_protocol_v1_init(ctap_pin_protocol_t *protocol);
 
 void ctap_pin_uv_auth_token_begin_using(ctap_pin_uv_auth_token_state *token_state, bool user_is_present);
@@ -329,7 +386,11 @@ bool ctap_pin_uv_auth_token_get_user_verified_flag_value(ctap_pin_uv_auth_token_
 
 void ctap_pin_uv_auth_token_clear_user_present_flag(ctap_pin_uv_auth_token_state *token_state);
 
+void ctap_pin_uv_auth_token_clear_user_verified_flag(ctap_pin_uv_auth_token_state *token_state);
+
 void ctap_pin_uv_auth_token_clear_permissions_except_lbw(ctap_pin_uv_auth_token_state *token_state);
+
+bool ctap_pin_uv_auth_token_has_permissions(ctap_pin_uv_auth_token_state *token_state, uint32_t permissions);
 
 void ctap_pin_uv_auth_token_stop_using(ctap_pin_uv_auth_token_state *token_state);
 
