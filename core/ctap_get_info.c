@@ -1,5 +1,44 @@
 #include "ctap.h"
 
+static const uint32_t ctap_get_info_options_present = 0u
+	| CTAP_getInfo_option_plat
+	| CTAP_getInfo_option_rk
+	| CTAP_getInfo_option_clientPin
+	| CTAP_getInfo_option_up
+	| CTAP_getInfo_option_pinUvAuthToken
+	| CTAP_getInfo_option_credMgmt
+	| CTAP_getInfo_option_makeCredUvNotRqd;
+static const uint32_t ctap_get_info_options_static_values = 0u
+	| CTAP_getInfo_option_rk
+	| CTAP_getInfo_option_up
+	| CTAP_getInfo_option_pinUvAuthToken
+	| CTAP_getInfo_option_credMgmt
+	| CTAP_getInfo_option_makeCredUvNotRqd;
+
+bool ctap_get_info_is_option_present(const ctap_state_t *state, const uint32_t option) {
+	return (ctap_get_info_options_present & option) == option;
+}
+
+bool ctap_get_info_is_option_present_with(const ctap_state_t *state, const uint32_t option, const bool value) {
+	if (!ctap_get_info_is_option_present(state, option)) {
+		return false;
+	}
+	// dynamic options
+	if (option == CTAP_getInfo_option_clientPin) {
+		// If present, it indicates that the device is capable of accepting a PIN from the client
+		// ->  if true, it indicates that PIN has been set
+		// -> if false, it indicates that PIN has not been set yet
+		return state->persistent.is_pin_set;
+	}
+	// static options
+	const bool option_value = (ctap_get_info_options_static_values & option) == option;
+	return option_value == value;
+}
+
+bool ctap_get_info_is_option_absent(const ctap_state_t *state, const uint32_t option) {
+	return !ctap_get_info_is_option_present(state, option);
+}
+
 uint8_t ctap_get_info(ctap_state_t *state) {
 
 	CborEncoder *encoder = &state->response.encoder;
@@ -10,10 +49,10 @@ uint8_t ctap_get_info(ctap_state_t *state) {
 	CborEncoder options;
 	CborEncoder pins;
 
-	// Solo v1 aaguid
+	// TODO: Replace Solo v1 AAGUID with custom AAGUID.
 	const uint8_t aaguid[16] = "\x00\x76\x63\x1b\xd4\xa0\x42\x7f\x57\x73\x0e\xc7\x1c\x9e\x02\x79";
 
-	// TODO: review all options
+	// TODO: Review all options
 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorGetInfo
 
 	// start response map
@@ -87,4 +126,5 @@ uint8_t ctap_get_info(ctap_state_t *state) {
 	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
 
 	return CTAP2_OK;
+
 }

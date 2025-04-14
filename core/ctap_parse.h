@@ -196,6 +196,26 @@ static_assert(
 // * Indicates if the authenticator data has extensions.
 #define CTAP_authenticator_data_flags_ed   (1u << 7)
 
+// 6.4. authenticatorGetInfo (0x04) options:
+// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#option-id
+#define CTAP_getInfo_option_plat                             (1u << 0)
+#define CTAP_getInfo_option_rk                               (1u << 1)
+#define CTAP_getInfo_option_clientPin                        (1u << 2)
+#define CTAP_getInfo_option_up                               (1u << 3)
+#define CTAP_getInfo_option_uv                               (1u << 4)
+#define CTAP_getInfo_option_pinUvAuthToken                   (1u << 5)
+#define CTAP_getInfo_option_noMcGaPermissionsWithClientPin   (1u << 6)
+#define CTAP_getInfo_option_largeBlobs                       (1u << 7)
+#define CTAP_getInfo_option_ep                               (1u << 8)
+#define CTAP_getInfo_option_bioEnroll                        (1u << 9)
+#define CTAP_getInfo_option_userVerificationMgmtPreview      (1u << 10)
+#define CTAP_getInfo_option_uvBioEnroll                      (1u << 11)
+#define CTAP_getInfo_option_authnrCfg                        (1u << 12)
+#define CTAP_getInfo_option_uvAcfg                           (1u << 13)
+#define CTAP_getInfo_option_credMgmt                         (1u << 14)
+#define CTAP_getInfo_option_makeCredUvNotRqd                 (1u << 15)
+#define CTAP_getInfo_option_alwaysUv                         (1u << 16)
+
 // 12. Defined Extensions
 #define CTAP_extension_credProtect   (1u << 0)
 #define CTAP_extension_hmac_secret   (1u << 1)

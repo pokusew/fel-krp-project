@@ -370,6 +370,12 @@ int ctap_generate_rng(uint8_t *buffer, size_t length);
 
 uint8_t ctap_get_info(ctap_state_t *state);
 
+bool ctap_get_info_is_option_present(const ctap_state_t *state, uint32_t option);
+
+bool ctap_get_info_is_option_present_with(const ctap_state_t *state, uint32_t option, bool value);
+
+bool ctap_get_info_is_option_absent(const ctap_state_t *state, uint32_t option);
+
 uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t length);
 
 uint8_t ctap_get_pin_protocol(ctap_state_t *state, size_t protocol_version, ctap_pin_protocol_t **pin_protocol);
