@@ -152,6 +152,50 @@ typedef struct CTAP_credParams {
 	COSEAlgorithmIdentifier alg;
 } CTAP_credParams;
 
+// WebAuthn 6.1. Authenticator Data
+// https://w3c.github.io/webauthn/#authenticator-data
+typedef struct LION_ATTR_PACKED CTAP_authenticator_data {
+	uint8_t rpIdHash[32]; // SHA-256 hash of the RP ID the credential is scoped to.
+	uint8_t flags; // Flags (bit 0 is the least significant bit):
+	uint32_t signCount; // Signature counter, 32-bit unsigned big-endian integer.
+	// attestedCredentialData (variable length, may not be present at all)
+	//   attested credential data (if present). See 6.5.1 Attested Credential Data for details.
+	//   Its length depends on the length of the credential ID and credential public key being attested.
+	// extensions (variable length, may not be present at all)
+	//   Extension-defined authenticator data. This is a CBOR [RFC8949] map with extension identifiers as keys,
+	//   and authenticator extension outputs as values. See 9. WebAuthn Extensions for details.
+} CTAP_authenticator_data;
+static_assert(
+	sizeof(CTAP_authenticator_data) == 37,
+	"unexpected sizeof(CTAP_authenticator_data)"
+);
+// Bit 0: User Present (UP) result.
+// * 1 means the user is present.
+// * 0 means the user is not present.
+#define CTAP_authenticator_data_flags_up   (1u << 0)
+// Bit 1: Reserved for future use (RFU1).
+#define CTAP_authenticator_data_flags_rfu1 (1u << 1)
+// Bit 2: User Verified (UV) result.
+// * 1 means the user is verified.
+// * 0 means the user is not verified.
+#define CTAP_authenticator_data_flags_uv   (1u << 2)
+// Bit 3: Backup Eligibility (BE).
+// * 1 means the public key credential source is backup eligible.
+// * 0 means the public key credential source is not backup eligible.
+#define CTAP_authenticator_data_flags_be   (1u << 3)
+// Bit 4: Backup State (BS).
+// * 1 means the public key credential source is currently backed up.
+// * 0 means the public key credential source is not currently backed up.
+#define CTAP_authenticator_data_flags_bs   (1u << 4)
+// Bit 5: Reserved for future use (RFU2).
+#define CTAP_authenticator_data_flags_rfu2 (1u << 5)
+// Bit 6: Attested credential data included (AT).
+// * Indicates whether the authenticator added attested credential data.
+#define CTAP_authenticator_data_flags_at   (1u << 6)
+// Bit 7: Extension data included (ED).
+// * Indicates if the authenticator data has extensions.
+#define CTAP_authenticator_data_flags_ed   (1u << 7)
+
 // 12. Defined Extensions
 #define CTAP_extension_credProtect   (1u << 0)
 #define CTAP_extension_hmac_secret   (1u << 1)
