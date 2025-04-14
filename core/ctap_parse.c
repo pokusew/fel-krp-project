@@ -644,6 +644,19 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 				ctap_set_present(params, CTAP_makeCredential_pinUvAuthProtocol);
 				break;
 
+			case CTAP_makeCredential_enterpriseAttestation:
+				debug_log("CTAP_makeCredential_enterpriseAttestation" nl);
+				if (!cbor_value_is_unsigned_integer(&map)) {
+					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+				}
+				// We don't support the enterprise attestation feature, so we don't need to store the value.
+				cbor_decoding_check(cbor_value_advance_fixed(&map));
+				// However, we have to store the information that the enterpriseAttestation param is present,
+				// so that we can correctly return CTAP1_ERR_INVALID_PARAMETER while processing the command parameters
+				// in ctap_make_credential().
+				ctap_set_present(params, CTAP_makeCredential_enterpriseAttestation);
+				break;
+
 			default:
 				debug_log("ctap_parse_make_credential: unknown key %d" nl, key);
 				cbor_decoding_check(cbor_value_advance(&map));

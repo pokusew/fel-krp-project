@@ -168,15 +168,16 @@ typedef struct CTAP_credParams {
 // It takes the following input parameters, several of which correspond
 // to those defined in the authenticatorMakeCredential operation section
 // of the Web Authentication specification:
-#define CTAP_makeCredential_clientDataHash     0x01
-#define CTAP_makeCredential_rp                 0x02
-#define CTAP_makeCredential_user               0x03
-#define CTAP_makeCredential_pubKeyCredParams   0x04
-#define CTAP_makeCredential_excludeList        0x05
-#define CTAP_makeCredential_extensions         0x06
-#define CTAP_makeCredential_options            0x07
-#define CTAP_makeCredential_pinUvAuthParam     0x08
-#define CTAP_makeCredential_pinUvAuthProtocol  0x09
+#define CTAP_makeCredential_clientDataHash         0x01
+#define CTAP_makeCredential_rp                     0x02
+#define CTAP_makeCredential_user                   0x03
+#define CTAP_makeCredential_pubKeyCredParams       0x04
+#define CTAP_makeCredential_excludeList            0x05
+#define CTAP_makeCredential_extensions             0x06
+#define CTAP_makeCredential_options                0x07
+#define CTAP_makeCredential_pinUvAuthParam         0x08
+#define CTAP_makeCredential_pinUvAuthProtocol      0x09
+#define CTAP_makeCredential_enterpriseAttestation  0x0A
 // https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#makecred-option-key
 #define CTAP_makeCredential_option_rk          (1u << 0)
 #define CTAP_makeCredential_option_up          (1u << 1)
