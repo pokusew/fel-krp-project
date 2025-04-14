@@ -136,6 +136,8 @@ typedef struct CTAP_rpId {
 	uint8_t id[CTAP_RP_ID_MAX_SIZE];
 } CTAP_rpId;
 
+bool ctap_rp_id_matches(const CTAP_rpId *rp_id_a, const CTAP_rpId *rp_id_b);
+
 // WebAuthn 5.8.5. Cryptographic Algorithm Identifier (typedef COSEAlgorithmIdentifier)
 // https://w3c.github.io/webauthn/#typedefdef-cosealgorithmidentifier
 typedef int32_t COSEAlgorithmIdentifier;

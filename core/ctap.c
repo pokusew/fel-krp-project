@@ -13,6 +13,14 @@
 // 	return 1;
 // }
 
+bool ctap_rp_id_matches(const CTAP_rpId *rp_id_a, const CTAP_rpId *rp_id_b) {
+	const size_t size = rp_id_a->id_size;
+	if (size != rp_id_b->id_size) {
+		return false;
+	}
+	return memcmp(rp_id_a->id, rp_id_b->id, size) == 0;
+}
+
 static void ctap_state_init(ctap_persistent_state_t *state) {
 
 	debug_log("ctap_state_init" nl);
