@@ -503,15 +503,6 @@ static uint8_t parse_make_credential_extensions(CborValue *it, CTAP_makeCredenti
 
 		ctap_parse_map_get_string_key(11);
 
-		// if (strncmp(key, "hmac-secret", key_length) == 0) {
-		//
-		// 	// 12.5. HMAC Secret Extension (hmac-secret)
-		// 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-hmac-secret-extension
-		//
-		// 	// TODO: parse hmac-secret authenticator extension input
-		//
-		// }
-
 		if (strncmp(key, "credProtect", key_length) == 0) {
 
 			// 12.1. Credential Protection (credProtect)
@@ -523,6 +514,28 @@ static uint8_t parse_make_credential_extensions(CborValue *it, CTAP_makeCredenti
 			}
 			cbor_decoding_check(ctap_cbor_value_get_uint8(&map, &params->credProtect));
 			params->extensions_present |= CTAP_extension_credProtect;
+			cbor_decoding_check(cbor_value_advance_fixed(&map));
+
+		} else if (strncmp(key, "hmac-secret", key_length) == 0) {
+
+			// 12.5. HMAC Secret Extension (hmac-secret)
+			// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-hmac-secret-extension
+
+			debug_log("hmac-secret" nl);
+			if (!cbor_value_is_boolean(&map)) {
+				return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+			}
+			bool value;
+			cbor_decoding_check(cbor_value_get_boolean(&map, &value));
+			if (value) {
+				// The client should always either send hmac-secret: true or nothing at all
+				// ((hmac-secret: false) should never be sent).
+				params->extensions_present |= CTAP_extension_credProtect;
+			} else {
+				debug_log(
+					"parse_make_credential_extensions: invalid hmac-secret: false, only true allowed, ignoring" nl
+				);
+			}
 			cbor_decoding_check(cbor_value_advance_fixed(&map));
 
 		} else {
