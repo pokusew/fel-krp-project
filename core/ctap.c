@@ -137,6 +137,10 @@ uint8_t ctap_request(
 			info_log(magenta("CTAP_CLIENT_PIN") nl);
 			status = ctap_client_pin(state, params, params_size);
 			break;
+		case CTAP_CMD_RESET:
+			info_log(magenta("CTAP_CMD_RESET") nl);
+			status = CTAP2_OK;
+			break;
 		case CTAP_CMD_SELECTION:
 			info_log(magenta("CTAP_CMD_SELECTION") nl);
 			// Consider returning an error (e.g., CTAP1_ERR_INVALID_PARAMETER)

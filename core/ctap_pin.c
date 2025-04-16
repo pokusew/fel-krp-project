@@ -235,7 +235,7 @@ static int ctap_pin_protocol_v1_encrypt(
 	struct AES_ctx aes_ctx;
 	AES_init_ctx_iv(&aes_ctx, shared_secret, all_zero_iv);
 	memcpy(ciphertext, plaintext, plaintext_length);
-	AES_CBC_decrypt_buffer(&aes_ctx, ciphertext, plaintext_length);
+	AES_CBC_encrypt_buffer(&aes_ctx, ciphertext, plaintext_length);
 
 	return 0;
 }

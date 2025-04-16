@@ -133,6 +133,47 @@ static inline uint8_t verify(
 	return CTAP2_OK;
 }
 
+static uint8_t encode_public_key(
+	CborEncoder *encoder,
+	const uint8_t *public_key
+) {
+
+	const uint8_t *x = public_key;
+	const uint8_t *y = public_key + 32;
+
+	CborError err;
+	CborEncoder map;
+
+	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 5));
+
+	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_KTY));
+	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_KTY_EC2));
+
+	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_ALG));
+	cbor_encoding_check(cbor_encode_int(&map, COSE_ALG_ES256));
+
+	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_CRV));
+	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_CRV_P256));
+
+	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_X));
+	cbor_encoding_check(cbor_encode_byte_string(&map, x, 32));
+
+	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_Y));
+	cbor_encoding_check(cbor_encode_byte_string(&map, y, 32));
+
+	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
+
+	return CTAP2_OK;
+
+}
+
+static void auth_data_compute_rp_id_hash(CTAP_authenticator_data *auth_data, const CTAP_rpId *rp_id) {
+	SHA256_CTX sha256_ctx;
+	sha256_init(&sha256_ctx);
+	sha256_update(&sha256_ctx, rp_id->id, rp_id->id_size);
+	sha256_final(&sha256_ctx, auth_data->fixed_header.rpIdHash);
+}
+
 typedef struct ctap_credentials_map_key {
 	bool used;
 	CTAP_rpId rpId;
@@ -141,6 +182,8 @@ typedef struct ctap_credentials_map_key {
 
 typedef struct ctap_credentials_map_value {
 	bool discoverable;
+	uint32_t signCount;
+	uint8_t id[128];
 	// credProtect extension
 	uint8_t credProtect;
 	// the actual private key
@@ -150,8 +193,148 @@ typedef struct ctap_credentials_map_value {
 	uint8_t CredRandomWithoutUV[32];
 } ctap_credentials_map_value;
 
-#define CTAP_MEMORY_MAX_NUM_CREDENTIALS 10
+static uint8_t create_attested_credential_data(
+	CTAP_authenticator_data_attestedCredentialData *attested_credential_data,
+	size_t *attested_credential_data_size,
+	const uint8_t *public_key,
+	const ctap_credentials_map_value *credential
+) {
 
+	static_assert(
+		sizeof(attested_credential_data->fixed_header.aaguid) == sizeof(ctap_aaguid),
+		"aaguid size mismatch"
+	);
+
+	memcpy(attested_credential_data->fixed_header.aaguid, ctap_aaguid, sizeof(ctap_aaguid));
+
+	static_assert(sizeof(credential->id) <= 1023, "credentialIdLength MUST be <= 1023");
+	attested_credential_data->fixed_header.credentialIdLength = lion_htons(sizeof(credential->id));
+
+	memcpy(attested_credential_data->variable_data, credential->id, sizeof(credential->id));
+
+	CborEncoder encoder;
+	uint8_t ret;
+
+	uint8_t *credentialPublicKey = &attested_credential_data->variable_data[sizeof(credential->id)];
+	const size_t credentialPublicKey_buffer_size =
+		sizeof(attested_credential_data->variable_data) - sizeof(credential->id);
+
+	cbor_encoder_init(&encoder, credentialPublicKey, credentialPublicKey_buffer_size, 0);
+
+	ctap_parse_check(encode_public_key(&encoder, public_key));
+
+	*attested_credential_data_size =
+		sizeof(attested_credential_data->fixed_header)
+		+ sizeof(credential->id)
+		+ cbor_encoder_get_buffer_size(&encoder, credentialPublicKey);
+
+	assert(*attested_credential_data_size <= sizeof(CTAP_authenticator_data_attestedCredentialData));
+
+	return CTAP2_OK;
+
+}
+
+static uint8_t encode_authenticator_data_extensions(
+	uint8_t *buffer,
+	const size_t buffer_size,
+	size_t *extensions_size,
+	const uint8_t extensions_present,
+	const ctap_credentials_map_value *credential
+) {
+
+	CborEncoder encoder;
+	cbor_encoder_init(&encoder, buffer, buffer_size, 0);
+
+	CborError err;
+	CborEncoder map;
+
+	size_t num_extensions_in_output_map = 0;
+	if ((extensions_present & CTAP_extension_credProtect) != 0u) {
+		num_extensions_in_output_map++;
+	}
+	if ((extensions_present & CTAP_extension_hmac_secret) != 0u) {
+		num_extensions_in_output_map++;
+	}
+
+	cbor_encoding_check(cbor_encoder_create_map(&encoder, &map, num_extensions_in_output_map));
+	if ((extensions_present & CTAP_extension_credProtect) != 0u) {
+		cbor_encoding_check(cbor_encode_text_string(&map, "credProtect", 11));
+		cbor_encoding_check(cbor_encode_uint(&map, credential->credProtect));
+	}
+	if ((extensions_present & CTAP_extension_hmac_secret) != 0u) {
+		cbor_encoding_check(cbor_encode_text_string(&map, "hmac-secret", 11));
+		cbor_encoding_check(cbor_encode_boolean(&map, true));
+	}
+	cbor_encoding_check(cbor_encoder_close_container(&encoder, &map));
+
+	*extensions_size = cbor_encoder_get_buffer_size(&encoder, buffer);
+
+	return CTAP2_OK;
+
+}
+
+static uint8_t create_self_attestation_statement(
+	CborEncoder *encoder,
+	const CTAP_authenticator_data *auth_data,
+	const size_t auth_data_size,
+	const uint8_t *client_data_hash,
+	const ctap_credentials_map_value *credential
+) {
+
+	// message_hash = SHA256(authenticatorData || clientDataHash)
+	uint8_t message_hash[32];
+	SHA256_CTX sha256_ctx;
+	sha256_init(&sha256_ctx);
+	sha256_update(&sha256_ctx, (const uint8_t *) auth_data, auth_data_size);
+	sha256_update(&sha256_ctx, client_data_hash, 32);
+	sha256_final(&sha256_ctx, message_hash);
+
+	uint8_t signature[64];
+	if (uECC_sign(
+		credential->private_key,
+		message_hash,
+		sizeof(message_hash),
+		signature,
+		uECC_secp256r1()
+	) != 1) {
+		error_log("uECC_sign failed" nl);
+		return CTAP1_ERR_OTHER;
+	}
+
+	// WebAuthn 6.5.5. Signature Formats for Packed Attestation, FIDO U2F Attestation, and Assertion Signatures
+	// https://w3c.github.io/webauthn/#sctn-signature-attestation-types
+	// For COSEAlgorithmIdentifier -7 (ES256), and other ECDSA-based algorithms,
+	// the sig value MUST be encoded as an ASN.1 DER Ecdsa-Sig-Value, as defined in [RFC3279] section 2.2.3.
+	uint8_t asn1_der_sig[72];
+	size_t asn1_der_sig_size;
+	ctap_convert_to_asn1_der_ecdsa_sig_value(
+		signature,
+		asn1_der_sig,
+		&asn1_der_sig_size
+	);
+
+	CborError err;
+	CborEncoder map;
+
+	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 2));
+	// alg: COSEAlgorithmIdentifier
+	cbor_encoding_check(cbor_encode_text_string(&map, "alg", 3));
+	cbor_encoding_check(cbor_encode_int(&map, COSE_ALG_ES256));
+	// sig: bytes
+	cbor_encoding_check(cbor_encode_text_string(&map, "sig", 3));
+	cbor_encoding_check(cbor_encode_byte_string(
+		&map,
+		asn1_der_sig,
+		asn1_der_sig_size
+	));
+	// close response map
+	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
+
+	return CTAP2_OK;
+
+}
+
+#define CTAP_MEMORY_MAX_NUM_CREDENTIALS 10
 static ctap_credentials_map_key credentials_map_keys[CTAP_MEMORY_MAX_NUM_CREDENTIALS];
 static ctap_credentials_map_value credentials_map_values[CTAP_MEMORY_MAX_NUM_CREDENTIALS];
 
@@ -211,6 +394,8 @@ static uint8_t store_credential(
 
 	ctap_credentials_map_value *value = &credentials_map_values[slot];
 	value->discoverable = credential->discoverable;
+	value->signCount = credential->signCount;
+	memcpy(value->id, credential->id, sizeof(value->id));
 	value->credProtect = credential->credProtect;
 	memcpy(value->private_key, credential->private_key, sizeof(value->private_key));
 	memcpy(value->CredRandomWithUV, credential->CredRandomWithUV, sizeof(value->CredRandomWithUV));
@@ -363,18 +548,18 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 			ctap_parse_check(verify(state, &mc, pin_protocol));
 			// 2. Verify that the pinUvAuthToken has the mc permission,
 			//    if not, then end the operation by returning CTAP2_ERR_PIN_AUTH_INVALID.
-			if (ctap_pin_uv_auth_token_has_permissions(
+			if (!ctap_pin_uv_auth_token_has_permissions(
 				&state->pin_uv_auth_token_state,
 				CTAP_clientPIN_pinUvAuthToken_permission_mc
 			)) {
 				return CTAP2_ERR_PIN_AUTH_INVALID;
 			}
 			// 3. If the pinUvAuthToken has a permissions RP ID associated:
-			//    1. If the permissions RP ID does not match the rp.id in this request,
+			//    1. If the permissions RP ID does NOT match the rp.id in this request,
 			//       then end the operation by returning CTAP2_ERR_PIN_AUTH_INVALID.
 			if ((
 				state->pin_uv_auth_token_state.rpId_set
-				&& ctap_rp_id_matches(&state->pin_uv_auth_token_state.rpId, &mc.rpId)
+				&& !ctap_rp_id_matches(&state->pin_uv_auth_token_state.rpId, &mc.rpId)
 			)) {
 				return CTAP2_ERR_PIN_AUTH_INVALID;
 			}
@@ -424,7 +609,7 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 		}
 	}
 	// 14.3. Set the "up" bit to true in the response.
-	auth_data.flags |= CTAP_authenticator_data_flags_up;
+	auth_data.fixed_header.flags |= CTAP_authenticator_data_flags_up;
 	// 14.4. Call clearUserPresentFlag(), clearUserVerifiedFlag(), and clearPinUvAuthTokenPermissionsExceptLbw().
 	//       Note: This consumes both the "user present state", sometimes referred to as the "cached UP",
 	//       and the "user verified state", sometimes referred to as "cached UV".
@@ -437,6 +622,7 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 
 	ctap_credentials_map_value credential;
 	credential.discoverable = rk;
+	credential.signCount = 1;
 
 	// 12.1. Credential Protection (credProtect)
 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-credProtect-extension
@@ -497,6 +683,8 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 	//     Note: This step is a change from CTAP2.0 where if the "rk" option is false the authenticator
 	//           could optionally create a discoverable credential.
 
+	credential.id[0] = 0x01u; // version
+	ctap_generate_rng(&credential.id[1], sizeof(credential.id) - 1);
 	ctap_generate_rng(credential.private_key, sizeof(credential.private_key));
 	uint8_t public_key[64];
 	if (uECC_compute_public_key(
@@ -513,9 +701,65 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 	//     taking into account the value of the enterpriseAttestation parameter, if present,
 	//     as described above in Step 9.
 
-	// TODO: Generate the attestation statement.
+	auth_data_compute_rp_id_hash(&auth_data, &mc.rpId);
+	auth_data.fixed_header.signCount = credential.signCount;
 
-	return CTAP1_ERR_OTHER;
+	size_t auth_data_variable_size = 0;
+	const size_t auth_data_variable_max_size = sizeof(auth_data.variable_data);
+
+	CTAP_authenticator_data_attestedCredentialData *attested_credential_data =
+		(CTAP_authenticator_data_attestedCredentialData *) &auth_data.variable_data[auth_data_variable_size];
+	size_t attested_credential_data_size;
+	ctap_parse_check(create_attested_credential_data(
+		attested_credential_data,
+		&attested_credential_data_size,
+		public_key,
+		&credential
+	));
+	auth_data_variable_size += attested_credential_data_size;
+
+	size_t extensions_size;
+	ctap_parse_check(encode_authenticator_data_extensions(
+		&auth_data.variable_data[auth_data_variable_size],
+		auth_data_variable_max_size - auth_data_variable_size,
+		&extensions_size,
+		mc.extensions_present,
+		&credential
+	));
+	auth_data_variable_size += extensions_size;
+
+	assert(auth_data_variable_size < auth_data_variable_max_size);
+
+	const size_t auth_data_total_size = sizeof(auth_data.fixed_header) + auth_data_variable_size;
+
+	CborEncoder *encoder = &state->response.encoder;
+	CborEncoder map;
+
+	// start response map
+	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 3));
+	// fmt (0x01)
+	cbor_encoding_check(cbor_encode_uint(&map, CTAP_makeCredential_res_fmt));
+	cbor_encoding_check(cbor_encode_text_string(&map, "packed", 6));
+	// authData (0x02)
+	cbor_encoding_check(cbor_encode_uint(&map, CTAP_makeCredential_res_authData));
+	cbor_encoding_check(cbor_encode_byte_string(
+		&map,
+		(const uint8_t *) &auth_data,
+		auth_data_total_size
+	));
+	// attStmt (0x03)
+	cbor_encoding_check(cbor_encode_uint(&map, CTAP_makeCredential_res_attStmt));
+	ctap_parse_check(create_self_attestation_statement(
+		&map,
+		&auth_data,
+		auth_data_total_size,
+		mc.clientDataHash,
+		&credential
+	));
+	// close response map
+	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
+
+	return CTAP2_OK;
 
 }
 
@@ -546,3 +790,7 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 //
 
 // Each authenticator stores a credentials map, a map from (rpId, userHandle) to public key credential source.
+
+// a301667061636b65640259011274a6ea9213c99c2f74b22492b320cf40262a94c1a950a0397f29250b60841ef001010000000076631bd4a0427f57730ec71c9e02790080015c9418d7491f308121cd0dd94671b19a722a25118c811ad42d34aa68ac767281878b2b5a2f26bedeecbf38adb0dfa30d29c86fdf7806b8840a72a22a4cae77c78abf7d00c51fc7184418ec5f66f19c6ac0d8304d4f3a10c0d67b61782ce205d72c84c9aad82d2db1a0e254a3cd060163136f108944960e4defc264f2b4479ea50102032620012158207ebf02ddcab6a9675a6a9fc5c22edac98f954e9c0b730668314c65fbe58afbb8225820d42fbc2f7f34580caf1d53b96043a73ef4636476814e6874efe986a30d3c3fb1a16b6372656450726f746563740203a263616c67266373696758473045022100f33cbf04ca246a131f99bfcfb4a85e9b242e9e228a088237e7e7570363a918e8022069bd060566a828790b3927311f0fed6ba1f58014e3a725e10fa8d8750c042f2a
+//
+// a301667061636b65640259011274a6ea9213c99c2f74b22492b320cf40262a94c1a950a0397f29250b60841ef001010000000076631bd4a0427f57730ec71c9e0279008001 bdc5d72b200b68d48ab6eba57d9c6fe8021bd3d9973533ae94b51d43232789492997832edab26c031f098a1badc7a73d55612c22a2582185e8ff2400cb22c57eb5fe50be88bd81d17023785ba87424b0194367fc23721e1df1219211dd54fd0245658c2c75fd426f5b55a727cb969e91c6c7125c2b53b1295dae95c959f2e0a5010203262001215820a55c929dabd8694e117bc5b42a508b68b2368679af6d9c990aac3f6361c5b393225820eb8304f47a706f151e504cdad712e034787f94e31c13d6caca3d8ac36d13d839a16b6372656450726f746563740203a263616c6726637369675846304402201f52efe198918cbd6f25dbaff9a91b255aa86bc14b93e6e34e5a48fe6520eac902201ad34c20f6fb2d3aac5a5d055522f929175b9f48998d3b013730ec7b19fba6b8
