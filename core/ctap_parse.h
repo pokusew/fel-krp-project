@@ -234,9 +234,23 @@ static_assert(
 #define CTAP_extension_minPinLength  (1u << 2)
 // 12.1. Credential Protection (credProtect)
 // https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-credProtect-extension
-#define CTAP_extension_credProtect_userVerificationOptional                      0x01
-#define CTAP_extension_credProtect_userVerificationOptionalWithCredentialIDList  0x02
-#define CTAP_extension_credProtect_userVerificationRequired                      0x03
+#define CTAP_extension_credProtect_1_userVerificationOptional                      0x01
+#define CTAP_extension_credProtect_2_userVerificationOptionalWithCredentialIDList  0x02
+#define CTAP_extension_credProtect_3_userVerificationRequired                      0x03
+// 12.5. HMAC Secret Extension (hmac-secret)
+// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-hmac-secret-extension
+// authenticatorGetAssertion additional behaviors
+#define CTAP_getAssertion_hmac_secret_keyAgreement       0x01
+#define CTAP_getAssertion_hmac_secret_saltEnc            0x02
+#define CTAP_getAssertion_hmac_secret_saltAuth           0x03
+#define CTAP_getAssertion_hmac_secret_pinUvAuthProtocol  0x04
+typedef struct CTAP_getAssertion_hmac_secret {
+	uint32_t present; // not a param, holds parsing info (if param was parsed, i.e., present)
+	COSE_Key keyAgreement;
+	lion_array(saltEnc, 64);
+	lion_array(saltAuth, 32);
+	uint8_t pinUvAuthProtocol;
+} CTAP_getAssertion_hmac_secret;
 
 // 6.1. authenticatorMakeCredential (0x01)
 // https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorMakeCredential
@@ -280,6 +294,43 @@ typedef struct CTAP_makeCredential {
 #define CTAP_makeCredential_res_attStmt       0x03
 #define CTAP_makeCredential_res_epAtt         0x04
 #define CTAP_makeCredential_res_largeBlobKey  0x05
+
+// 6.2. authenticatorGetAssertion (0x02)
+// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorGetAssertion
+// This method is invoked by the host to request generation of a new credential in the authenticator.
+// It takes the following input parameters, several of which correspond
+// to those defined in the authenticatorMakeCredential operation section
+// of the Web Authentication specification:
+#define CTAP_getAssertion_rpId                   0x01
+#define CTAP_getAssertion_clientDataHash         0x02
+#define CTAP_getAssertion_allowList              0x03
+#define CTAP_getAssertion_extensions             0x04
+#define CTAP_getAssertion_options                0x05
+#define CTAP_getAssertion_pinUvAuthParam         0x06
+#define CTAP_getAssertion_pinUvAuthProtocol      0x07
+// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#getassert-option-key
+#define CTAP_getAssertion_option_up          (1u << 1)
+#define CTAP_getAssertion_option_uv          (1u << 2)
+typedef struct CTAP_getAssertion {
+	uint32_t present; // not a param, holds parsing info (if param was parsed, i.e., present)
+	CTAP_rpId rpId;
+	uint8_t clientDataHash[32]; // SHA-256 digest (32 bytes)
+	CborValue allowList;
+	uint8_t extensions_present;
+	CTAP_getAssertion_hmac_secret hmac_secret;
+	uint8_t options_present;
+	uint8_t options_values;
+	lion_array(pinUvAuthParam, CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE);
+	uint8_t pinUvAuthProtocol;
+} CTAP_getAssertion;
+// On success, the authenticator returns the following authenticatorGetAssertion response structure:
+#define CTAP_getAssertion_res_credential           0x01
+#define CTAP_getAssertion_res_authData             0x02
+#define CTAP_getAssertion_res_signature            0x03
+#define CTAP_getAssertion_res_user                 0x04
+#define CTAP_getAssertion_res_numberOfCredentials  0x05
+#define CTAP_getAssertion_res_userSelected         0x06
+#define CTAP_getAssertion_res_largeBlobKey         0x07
 
 // 6.5. authenticatorClientPIN (0x06) command
 // 6.5.5. authenticatorClientPIN (0x06) Command Definition
