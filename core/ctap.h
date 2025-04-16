@@ -402,4 +402,6 @@ void ctap_pin_uv_auth_token_stop_using(ctap_pin_uv_auth_token_state *token_state
 
 uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t length);
 
+uint8_t ctap_selection(ctap_state_t *state);
+
 #endif // LIONKEY_CTAP_H

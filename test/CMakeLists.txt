@@ -94,6 +94,7 @@ target_sources(core PUBLIC
 		../core/ctap_get_info.c
 		../core/ctap_parse.c
 		../core/ctap_pin.c
+		../core/ctap_selection.c
 		../core/ctaphid.c
 		../core/utils.c
 		lionkey/consistent_prng.cpp
