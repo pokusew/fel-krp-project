@@ -78,8 +78,12 @@
 // command parameters are encoded using a CBOR map (CBOR major type 5)
 // The CBOR map MUST be encoded using the definite length variant.
 
+// We chose this limit in our implementation (LionKey) to simplify operations with RP IDs
+// (to reduce memory requirements).
 #define CTAP_RP_ID_MAX_SIZE 255
 
+// This limit is imposed by the WebAuthn spec
+// https://w3c.github.io/webauthn/#dom-publickeycredentialuserentity-id
 #define CTAP_USER_ENTITY_ID_MAX_SIZE 64
 
 // see https://w3c.github.io/webauthn/#dom-publickeycredentialuserentity-displayname
@@ -116,14 +120,20 @@ LION_ATTR_ALWAYS_INLINE static inline bool ctap_is_present_some(uint32_t present
 #define ctap_param_is_present(params_ptr, param_number) \
     ctap_is_present((params_ptr)->present, ctap_param_to_mask(param_number))
 
-// https://w3c.github.io/webauthn/#dictdef-publickeycredentialuserentity
-typedef struct CTAP_userEntity {
+// https://w3c.github.io/webauthn/#user-handle
+// https://w3c.github.io/webauthn/#dom-publickeycredentialuserentity-id
+typedef struct CTAP_userHandle {
 	// "an empty account identifier is valid" => id_size might be 0
 	size_t id_size;
 	// The user handle of the user account.
 	// A user handle is an opaque byte sequence with a maximum size of 64 bytes,
 	// and is not meant to be displayed to the user.
 	uint8_t id[CTAP_USER_ENTITY_ID_MAX_SIZE];
+} CTAP_userHandle;
+
+// https://w3c.github.io/webauthn/#dictdef-publickeycredentialuserentity
+typedef struct CTAP_userEntity {
+	CTAP_userHandle id;
 	// The following is possible: displayName_present == true && displayName_size == 0
 	bool displayName_present;
 	size_t displayName_size;
@@ -137,6 +147,8 @@ typedef struct CTAP_rpId {
 } CTAP_rpId;
 
 bool ctap_rp_id_matches(const CTAP_rpId *rp_id_a, const CTAP_rpId *rp_id_b);
+
+bool ctap_user_handle_matches(const CTAP_userHandle *handle_a, const CTAP_userHandle *handle_b);
 
 // WebAuthn 5.8.5. Cryptographic Algorithm Identifier (typedef COSEAlgorithmIdentifier)
 // https://w3c.github.io/webauthn/#typedefdef-cosealgorithmidentifier

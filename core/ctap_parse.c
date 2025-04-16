@@ -414,8 +414,8 @@ static uint8_t parse_user_entity(CborValue *it, CTAP_userEntity *user) {
 		if (strncmp(key, "id", key_length) == 0) {
 			ctap_parse_check(parse_byte_string(
 				&map,
-				user->id,
-				&user->id_size,
+				user->id.id,
+				&user->id.id_size,
 				0,
 				CTAP_USER_ENTITY_ID_MAX_SIZE,
 				&map

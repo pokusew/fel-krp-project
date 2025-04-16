@@ -103,8 +103,8 @@ TEST_F(CtapParseMakeCredentialTest, Dummy) {
 	EXPECT_EQ(mc.rpId.id_size, sizeof(expected_rpId) - 1);
 	EXPECT_SAME_BYTES_S(mc.rpId.id_size, mc.rpId.id, expected_rpId);
 
-	EXPECT_EQ(mc.user.id_size, expected_userId.size());
-	EXPECT_SAME_BYTES_S(mc.user.id_size, mc.user.id, expected_userId.data());
+	EXPECT_EQ(mc.user.id.id_size, expected_userId.size());
+	EXPECT_SAME_BYTES_S(mc.user.id.id_size, mc.user.id.id, expected_userId.data());
 	EXPECT_EQ(mc.user.displayName_present, false);
 
 	EXPECT_EQ(mc.pinUvAuthParam_size, 0);
@@ -178,8 +178,8 @@ TEST_F(CtapParseMakeCredentialTest, WebauthnIoTest) {
 	EXPECT_EQ(mc.rpId.id_size, sizeof(expected_rpId) - 1);
 	EXPECT_SAME_BYTES_S(mc.rpId.id_size, mc.rpId.id, expected_rpId);
 
-	EXPECT_EQ(mc.user.id_size, expected_userId.size());
-	EXPECT_SAME_BYTES_S(mc.user.id_size, mc.user.id, expected_userId.data());
+	EXPECT_EQ(mc.user.id.id_size, expected_userId.size());
+	EXPECT_SAME_BYTES_S(mc.user.id.id_size, mc.user.id.id, expected_userId.data());
 	EXPECT_EQ(mc.user.displayName_present, true);
 	EXPECT_EQ(mc.user.displayName_size, sizeof(expected_userDisplayName) - 1);
 	EXPECT_SAME_BYTES_S(mc.user.displayName_size, mc.user.displayName, expected_userDisplayName);
