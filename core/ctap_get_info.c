@@ -19,6 +19,9 @@ bool ctap_get_info_is_option_present(const ctap_state_t *state, const uint32_t o
 	return (ctap_get_info_options_present & option) == option;
 }
 
+// TODO: Replace Solo v1 AAGUID with custom AAGUID.
+const uint8_t ctap_aaguid[CTAP_AAGUID_SIZE] = "\x00\x76\x63\x1b\xd4\xa0\x42\x7f\x57\x73\x0e\xc7\x1c\x9e\x02\x79";
+
 bool ctap_get_info_is_option_present_with(const ctap_state_t *state, const uint32_t option, const bool value) {
 	if (!ctap_get_info_is_option_present(state, option)) {
 		return false;
@@ -49,9 +52,6 @@ uint8_t ctap_get_info(ctap_state_t *state) {
 	CborEncoder options;
 	CborEncoder pins;
 
-	// TODO: Replace Solo v1 AAGUID with custom AAGUID.
-	const uint8_t aaguid[16] = "\x00\x76\x63\x1b\xd4\xa0\x42\x7f\x57\x73\x0e\xc7\x1c\x9e\x02\x79";
-
 	// TODO: Review all options
 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorGetInfo
 
@@ -70,7 +70,7 @@ uint8_t ctap_get_info(ctap_state_t *state) {
 	cbor_encoding_check(cbor_encoder_close_container(&map, &array));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_aaguid));
-	cbor_encoding_check(cbor_encode_byte_string(&map, aaguid, 16));
+	cbor_encoding_check(cbor_encode_byte_string(&map, ctap_aaguid, sizeof(ctap_aaguid)));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_options));
 	cbor_encoding_check(cbor_encoder_create_map(&map, &options, 7));

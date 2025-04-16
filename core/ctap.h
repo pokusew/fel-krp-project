@@ -370,6 +370,8 @@ int ctap_generate_rng(uint8_t *buffer, size_t length);
 
 uint8_t ctap_get_info(ctap_state_t *state);
 
+extern const uint8_t ctap_aaguid[CTAP_AAGUID_SIZE];
+
 bool ctap_get_info_is_option_present(const ctap_state_t *state, uint32_t option);
 
 bool ctap_get_info_is_option_present_with(const ctap_state_t *state, uint32_t option, bool value);

@@ -164,6 +164,7 @@ typedef struct CTAP_credParams {
 	COSEAlgorithmIdentifier alg;
 } CTAP_credParams;
 
+#define CTAP_AAGUID_SIZE 16
 // WebAuthn 6.1. Authenticator Data
 // https://w3c.github.io/webauthn/#authenticator-data
 typedef struct LION_ATTR_PACKED CTAP_authenticator_data {
