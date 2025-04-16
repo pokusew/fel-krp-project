@@ -59,15 +59,14 @@ uint8_t ctap_get_info(ctap_state_t *state) {
 	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 8));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_versions));
-	cbor_encoding_check(cbor_encoder_create_array(&map, &array, 2));
-	cbor_encoding_check(cbor_encode_text_stringz(&array, "FIDO_2_0"));
-	cbor_encoding_check(cbor_encode_text_stringz(&array, "FIDO_2_1_PRE"));
+	cbor_encoding_check(cbor_encoder_create_array(&map, &array, 1));
+	cbor_encoding_check(cbor_encode_text_string(&array, "FIDO_2_1", 8));
 	cbor_encoding_check(cbor_encoder_close_container(&map, &array));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_extensions));
 	cbor_encoding_check(cbor_encoder_create_array(&map, &array, 2));
-	cbor_encoding_check(cbor_encode_text_stringz(&array, "credProtect"));
-	cbor_encoding_check(cbor_encode_text_stringz(&array, "hmac-secret"));
+	cbor_encoding_check(cbor_encode_text_string(&array, "credProtect", 11));
+	cbor_encoding_check(cbor_encode_text_string(&array, "hmac-secret", 11));
 	cbor_encoding_check(cbor_encoder_close_container(&map, &array));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_aaguid));
