@@ -402,6 +402,12 @@ bool ctap_pin_uv_auth_token_has_permissions(ctap_pin_uv_auth_token_state *token_
 
 void ctap_pin_uv_auth_token_stop_using(ctap_pin_uv_auth_token_state *token_state);
 
+void ctap_convert_to_asn1_der_ecdsa_sig_value(
+	const uint8_t *signature,
+	uint8_t *asn1_der_signature,
+	size_t *asn1_der_signature_size
+);
+
 uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t length);
 
 uint8_t ctap_selection(ctap_state_t *state);

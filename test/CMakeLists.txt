@@ -252,6 +252,7 @@ core_test(ctap_parse_client_pin)
 core_test(ctap_parse_make_credential)
 core_test(ctap_client_pin)
 core_test(ctap_make_credential)
+core_test(ctap_asn1)
 core_test(ctaphid)
 
 std_test(tusb_fifo src/tusb_fifo_test.cpp)
