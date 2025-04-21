@@ -64,6 +64,12 @@ int Debug_UART_Get_Byte() {
 	if (__HAL_UART_GET_FLAG(hcom_uart, UART_FLAG_RXNE) == SET) {
 		return (uint8_t) (hcom_uart->Instance->RDR & (uint8_t) 0x00FF);
 	}
+	// If overrun error occurred, clear the Overrun Error (ORE) flag
+	// by setting the ORECF bit in the USART_ICR register, so that we can continue receiving data.
+	// Until the ORE flag is cleared, no new data is written to the USART_RDR register.
+	if (__HAL_UART_GET_FLAG(hcom_uart, UART_FLAG_ORE) == SET) {
+		__HAL_UART_CLEAR_OREFLAG(hcom_uart);
+	}
 	return -1;
 }
 
