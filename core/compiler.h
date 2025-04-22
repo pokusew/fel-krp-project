@@ -7,6 +7,8 @@
 #define LION_ATTR_PACKED         __attribute__ ((packed))
 #define LION_ATTR_ALWAYS_INLINE  __attribute__ ((always_inline))
 
+#define lion_unused(x) ((void) (x))
+
 // lion_static_assert_expr(expr, msg) is a static assert that can be used in an expression context
 // (the standard static_assert is a statement and thus cannot be used in an expression)
 // lion_static_assert_expr(expr, msg) is an expression that evaluates to value 1
