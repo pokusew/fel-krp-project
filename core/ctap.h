@@ -69,7 +69,8 @@ typedef struct ctap_persistent_state {
 typedef struct ctap_response {
 	CborEncoder encoder;
 	size_t length;
-	uint8_t data[CTAP_RESPONSE_BUFFER_SIZE];
+	const size_t data_max_size;
+	uint8_t *const data;
 } ctap_response_t;
 
 #define PIN_TOKEN_SIZE 32

@@ -22,7 +22,13 @@ int ctap_generate_rng(uint8_t *buffer, size_t length) {
 // Green  main loop running
 
 ctaphid_state_t app_ctaphid;
-ctap_state_t app_ctap;
+static uint8_t app_ctaphid_cbor_response_buffer[1 + 4096];
+ctap_state_t app_ctap = {
+	.response = {
+		.data_max_size = sizeof(app_ctaphid_cbor_response_buffer) - 1,
+		.data = &app_ctaphid_cbor_response_buffer[1],
+	},
+};
 
 ctap_user_presence_result_t ctap_wait_for_user_presence(void) {
 

@@ -116,7 +116,8 @@ uint8_t ctap_request(
 
 	uint8_t status;
 
-	cbor_encoder_init(encoder, state->response.data, sizeof(state->response.data), 0);
+	assert(state->response.data != NULL && state->response.data_max_size != 0);
+	cbor_encoder_init(encoder, state->response.data, state->response.data_max_size, 0);
 
 	error_log("ctap_request cmd=0x%02" wPRIx8 " params_size=%" PRIsz nl, cmd, params_size);
 	dump_hex(params, params_size);
