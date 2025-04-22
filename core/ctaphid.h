@@ -79,6 +79,8 @@ static_assert(sizeof(ctaphid_command_t) == sizeof(uint8_t), "invalid sizeof(ctap
 //    this means that the maximum message payload length is (64 - 7) + (128 * (64 - 5)) = 7609 bytes.
 // one initialization packet + 128 continuation packets (packet sequence number is the 7-bit SEQ = 0..127 -> 128)
 #define CTAPHID_MAX_PAYLOAD_LENGTH (CTAPHID_PACKET_INIT_PAYLOAD_SIZE + (128 * CTAPHID_PACKET_CONT_PAYLOAD_SIZE))
+// 1 initialization packet + 128 continuation packets (packet sequence number is the 7-bit SEQ = 0..127 -> 128)
+#define CTAPHID_MESSAGE_MAX_NUM_PACKETS (1 + 128)
 // a static assert with one test case to make sure our CTAPHID size-related macros work correctly
 static_assert(
 	CTAPHID_PACKET_SIZE != 64 || CTAPHID_MAX_PAYLOAD_LENGTH == 7609,
