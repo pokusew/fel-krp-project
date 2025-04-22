@@ -317,7 +317,7 @@ void app_handle_incoming_hid_packet(const ctaphid_packet_t *packet) {
 				break;
 			}
 
-			ctaphid_create_init_response_packet(
+			ctaphid_create_ctaphid_init_response_packet(
 				&res,
 				packet->pkt.init.payload,
 				CTAPHID_BROADCAST_CID,
@@ -335,7 +335,7 @@ void app_handle_incoming_hid_packet(const ctaphid_packet_t *packet) {
 			//     https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-hid-init
 			//     ... The device then responds with the CID of the channel it received the INIT on,
 			//         using that channel.
-			ctaphid_create_init_response_packet(
+			ctaphid_create_ctaphid_init_response_packet(
 				&res,
 				packet->pkt.init.payload,
 				packet->cid,

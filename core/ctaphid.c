@@ -46,7 +46,7 @@ void ctaphid_create_error_packet(ctaphid_packet_t *packet, uint32_t cid, uint8_t
 	packet->pkt.init.payload[0] = error_code;
 }
 
-void ctaphid_create_init_response_packet(
+void ctaphid_create_ctaphid_init_response_packet(
 	ctaphid_packet_t *packet,
 	const uint8_t *nonce,
 	uint32_t transport_cid,
