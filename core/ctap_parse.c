@@ -371,7 +371,7 @@ static uint8_t parse_rp_entity(CborValue *it, CTAP_rpId *rpId) {
 
 	for (size_t i = 0; i < map_length; ++i) {
 
-		ctap_parse_map_get_string_key(2);
+		ctap_parse_map_get_string_key(4);
 
 		if (strncmp(key, "id", key_length) == 0) {
 			ctap_parse_check(parse_text_string(
@@ -384,7 +384,20 @@ static uint8_t parse_rp_entity(CborValue *it, CTAP_rpId *rpId) {
 			));
 			id_parsed = true;
 		} else {
-			debug_log("warning: unrecognized PublicKeyCredentialRpEntity key %.*s" nl, (int) key_length, key);
+			// Currently, we do not use name and icon in any way, but we at least validate their types
+			// for compliance reasons (FIDO Conformance Tools checks this).
+			if (strncmp(key, "name", key_length) == 0) {
+				if (!cbor_value_is_text_string(&map)) {
+					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+				}
+			} else if (strncmp(key, "icon", key_length) == 0) {
+				if (!cbor_value_is_byte_string(&map)) {
+					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+				}
+			} else {
+				debug_log("warning: unrecognized PublicKeyCredentialRpEntity key %.*s" nl, (int) key_length, key);
+			}
+			// important: skip over the unused value
 			cbor_decoding_check(cbor_value_advance(&map));
 		}
 
@@ -432,7 +445,20 @@ static uint8_t parse_user_entity(CborValue *it, CTAP_userEntity *user) {
 			));
 			user->displayName_present = true;
 		} else {
-			debug_log("warning: unrecognized PublicKeyCredentialUserEntity key %.*s" nl, (int) key_length, key);
+			// Currently, we do not use name and icon in any way, but we at least validate their types
+			// for compliance reasons (FIDO Conformance Tools checks this).
+			if (strncmp(key, "name", key_length) == 0) {
+				if (!cbor_value_is_text_string(&map)) {
+					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+				}
+			} else if (strncmp(key, "icon", key_length) == 0) {
+				if (!cbor_value_is_byte_string(&map)) {
+					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+				}
+			} else {
+				debug_log("warning: unrecognized PublicKeyCredentialUserEntity key %.*s" nl, (int) key_length, key);
+			}
+			// important: skip over the unused value
 			cbor_decoding_check(cbor_value_advance(&map));
 		}
 
