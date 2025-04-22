@@ -163,6 +163,19 @@ noreturn void app_run(void) {
 
 			switch (cmd) {
 
+				case CTAPHID_PING:
+					debug_log(cyan("CTAPHID_PING") nl);
+					ctaphid_message_to_packets(
+						message->cid,
+						CTAPHID_PING,
+						message->payload_length,
+						message->payload,
+						handle_packet_using_send_or_queue_ctaphid_packet,
+						NULL
+					);
+					ctaphid_reset_to_idle(&app_ctaphid);
+					break;
+
 				case CTAPHID_WINK:
 					debug_log(cyan("CTAPHID_WINK") nl);
 					if (message->payload_length != 0) {
