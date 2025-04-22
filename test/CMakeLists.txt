@@ -100,6 +100,7 @@ target_sources(core PUBLIC
 		../core/utils.c
 		lionkey/consistent_prng.cpp
 		lionkey/wait_for_user_presence.c
+		lionkey/keepalive.c
 )
 target_include_directories(core PUBLIC ../core lionkey)
 target_link_libraries(core PUBLIC
