@@ -425,7 +425,7 @@ TEST_F(CtapClientPinTest, GetPinToken) {
 	auto expected_response = hex::bytes<
 		"a1"
 		"  02 5820"
-		"     d48de1f5391b32d493be84af08eff0f31ae18ae477b98c7a695415ff9c59dad9"
+		"     497a5f4bb68cde5052d220c0aa900fc7f1989bfdd39419141f3d710b6ac362f0"
 	>();
 	ASSERT_EQ(response.length, expected_response.size());
 	EXPECT_SAME_BYTES_S(response.length, response.data, expected_response.data());
