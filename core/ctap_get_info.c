@@ -19,8 +19,7 @@ bool ctap_get_info_is_option_present(const ctap_state_t *state, const uint32_t o
 	return (ctap_get_info_options_present & option) == option;
 }
 
-// TODO: Replace Solo v1 AAGUID with custom AAGUID.
-const uint8_t ctap_aaguid[CTAP_AAGUID_SIZE] = "\x00\x76\x63\x1b\xd4\xa0\x42\x7f\x57\x73\x0e\xc7\x1c\x9e\x02\x79";
+const uint8_t ctap_aaguid[CTAP_AAGUID_SIZE] = "\xa8\xa1\x47\x32\x6b\x7d\x12\x0d\xfb\x91\x73\x56\xbc\x18\x98\x03";
 
 bool ctap_get_info_is_option_present_with(const ctap_state_t *state, const uint32_t option, const bool value) {
 	if (!ctap_get_info_is_option_present(state, option)) {
