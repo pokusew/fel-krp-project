@@ -78,6 +78,8 @@ void ctaphid_message_to_packets(
 ) {
 	assert(payload_length <= CTAPHID_MAX_PAYLOAD_LENGTH);
 	assert(payload_length <= 0xFFFF);
+	assert(payload_length == 0 || payload != NULL);
+	assert(on_packet != NULL);
 
 	ctaphid_packet_t packet;
 
@@ -85,14 +87,22 @@ void ctaphid_message_to_packets(
 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-message-and-packet-structure
 
 	// init packet
+	// note that ctaphid_create_init_packet() fills the whole packet with zeros (including the payload)
 	ctaphid_create_init_packet(
 		&packet,
 		cid,
 		cmd,
 		payload_length
 	);
+	// fast path
+	if (payload_length == 0) {
+		dump_hex((const uint8_t *) &packet, sizeof(packet));
+		on_packet(&packet, on_packet_ctx);
+		return;
+	}
 	const size_t init_packet_data_size = min(payload_length, CTAPHID_PACKET_INIT_PAYLOAD_SIZE);
 	memcpy(&packet.pkt.init.payload, payload, init_packet_data_size);
+	// no need to zero the rest of the payload (ctaphid_create_init_packet() already ensures that)
 	dump_hex((const uint8_t *) &packet, sizeof(packet));
 	on_packet(&packet, on_packet_ctx);
 
