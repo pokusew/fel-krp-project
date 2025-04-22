@@ -225,6 +225,7 @@ noreturn void app_run(void) {
 						ctaphid_reset_to_idle(&app_ctaphid);
 						break;
 					}
+					// TODO: Do a LED blinking sequence to provide a "visual identification" of the authenticator.
 					ctaphid_create_init_packet(&res, message->cid, CTAPHID_WINK, 0);
 					app_hid_report_send_queue_add(&res);
 					ctaphid_reset_to_idle(&app_ctaphid);
