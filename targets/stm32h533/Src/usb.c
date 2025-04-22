@@ -14,9 +14,12 @@ TU_FIFO_DEF(app_hid_report_send_queue, (CTAPHID_MESSAGE_MAX_NUM_PACKETS + 1), ct
 
 void app_hid_report_send_queue_add(const ctaphid_packet_t *packet) {
 
+#if LIONKEY_DEBUG_LEVEL > 0
+	// do not log keepalive messages at all
 	if (packet->pkt.init.cmd != CTAPHID_KEEPALIVE) {
 		debug_log("app_hid_report_send_queue_add" nl);
 	}
+#endif
 
 	if (!tu_fifo_write(&app_hid_report_send_queue, packet)) {
 		error_log(red("app_hid_report_send_queue_add: fatal error: tu_fifo_write failed, the queue is full") nl);
@@ -182,11 +185,17 @@ void tud_hid_set_report_cb(
 // Note: For composite reports, report[0] is report ID
 void tud_hid_report_complete_cb(uint8_t instance, const uint8_t *report, uint16_t len) {
 
+#if LIONKEY_DEBUG_LEVEL > 0
+	// do not log keepalive messages at all
+	if (len == CTAPHID_PACKET_SIZE && report[4] == CTAPHID_KEEPALIVE) {
+		return;
+	}
 	debug_log(
 		"tud_hid_report_complete_cb instance=%" wPRIu8 " report=%p len=%" PRIu16 nl "  ",
 		instance, report, len
 	);
 	dump_hex(report, len);
+#endif
 
 	UNUSED(instance);
 	UNUSED(report);
