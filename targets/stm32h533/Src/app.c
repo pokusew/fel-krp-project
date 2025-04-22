@@ -178,7 +178,7 @@ noreturn void app_run(void) {
 						red("unsupported ctaphid command 0x%02" wPRIx8) nl,
 						ctaphid_get_cmd_number_per_spec(cmd)
 					);
-					ctaphid_create_error_packet(&res, message->cid, CTAP1_ERR_INVALID_LENGTH);
+					ctaphid_create_error_packet(&res, message->cid, CTAP1_ERR_INVALID_COMMAND);
 					send_or_queue_ctaphid_packet(&res);
 					ctaphid_reset_to_idle(&app_ctaphid);
 
