@@ -30,6 +30,11 @@ ctap_state_t app_ctap = {
 	},
 };
 
+static inline void app_hid_task(void) {
+	tud_task(); // tinyusb device task
+	app_hid_report_send_queue_send_one_if_possible();
+}
+
 ctap_user_presence_result_t ctap_wait_for_user_presence(void) {
 
 	debug_log(yellow("waiting for user presence (press the ") cyan("BLUE") yellow(" button) ...") nl);
@@ -42,7 +47,7 @@ ctap_user_presence_result_t ctap_wait_for_user_presence(void) {
 	}
 
 	while (true) {
-		tud_task(); // tinyusb device task
+		app_hid_task();
 		if (app_ctaphid.buffer.cancel) {
 			debug_log(yellow("ctap_wait_for_user_presence: ") red("got CANCEL via CTAPHID") nl);
 			return CTAP_UP_RESULT_CANCEL;
@@ -63,7 +68,7 @@ ctap_user_presence_result_t ctap_wait_for_user_presence(void) {
 
 static void handle_packet_using_send_or_queue_ctaphid_packet(const ctaphid_packet_t *packet, void *ctx) {
 	UNUSED(ctx);
-	send_or_queue_ctaphid_packet(packet);
+	app_hid_report_send_queue_add(packet);
 }
 
 noreturn void app_run(void) {
@@ -85,11 +90,12 @@ noreturn void app_run(void) {
 
 	int debug_uart_rx;
 
+	uint32_t message_wait_time_start = 0;
 	ctaphid_packet_t res;
 
 	while (true) {
 
-		tud_task(); // tinyusb device task
+		app_hid_task();
 
 		if ((debug_uart_rx = Debug_UART_Get_Byte()) != -1) {
 
@@ -117,6 +123,31 @@ noreturn void app_run(void) {
 
 		if (ctaphid_has_complete_message_ready(&app_ctaphid)) {
 
+			// Before processing the new message, ensure that the CTAPHID sending queue is completely empty.
+			// (i.e., the response to the previous message has been completely sent).
+			// Rationale:
+			//   While processing the message, the sending does not progress (because tud_task() is only invoked
+			//   here in the app_run() while loop and as a part of the ctap_wait_for_user_presence()).
+			//   If we received a request (commands) that resulted in a maximum-length long response
+			//   while the sending queue had already been partially full, we could not add the response to the queue.
+			//
+			// Note the CTAPHID layer (ctaphid_process_packet) will correctly reject any new messages
+			// with the CTAP1_ERR_CHANNEL_BUSY error code until the message is cleared
+			// by calling ctaphid_reset_to_idle() (usually after the message is processed)
+			// (see the CTAPHID_RESULT_ERROR case in app_handle_incoming_hid_packet()).
+			if (!app_hid_report_send_queue_is_empty()) {
+				if (message_wait_time_start == 0) {
+					debug_log(yellow("postponing message processing until the ctaphid queue is empty") nl);
+					message_wait_time_start = HAL_GetTick();
+				}
+				continue;
+			} else if (message_wait_time_start != 0) {
+				debug_log(
+					"waited %" PRId32 " ms for the ctaphid queue to be emptied" nl,
+					HAL_GetTick() - message_wait_time_start
+				);
+				message_wait_time_start = 0;
+			}
 
 			const ctaphid_channel_buffer_t *message = &app_ctaphid.buffer;
 			const uint8_t cmd = message->cmd;
@@ -137,12 +168,12 @@ noreturn void app_run(void) {
 					if (message->payload_length != 0) {
 						info_log(red("error: invalid payload length 0 for CTAPHID_WINK message") nl);
 						ctaphid_create_error_packet(&res, message->cid, CTAP1_ERR_INVALID_LENGTH);
-						send_or_queue_ctaphid_packet(&res);
+						app_hid_report_send_queue_add(&res);
 						ctaphid_reset_to_idle(&app_ctaphid);
 						break;
 					}
 					ctaphid_create_init_packet(&res, message->cid, CTAPHID_WINK, 0);
-					send_or_queue_ctaphid_packet(&res);
+					app_hid_report_send_queue_add(&res);
 					ctaphid_reset_to_idle(&app_ctaphid);
 					break;
 
@@ -151,7 +182,7 @@ noreturn void app_run(void) {
 					if (message->payload_length == 0) {
 						info_log(red("error: invalid payload length 0 for CTAPHID_CBOR message") nl);
 						ctaphid_create_error_packet(&res, message->cid, CTAP1_ERR_INVALID_LENGTH);
-						send_or_queue_ctaphid_packet(&res);
+						app_hid_report_send_queue_add(&res);
 						ctaphid_reset_to_idle(&app_ctaphid);
 						break;
 					}
@@ -179,7 +210,7 @@ noreturn void app_run(void) {
 						ctaphid_get_cmd_number_per_spec(cmd)
 					);
 					ctaphid_create_error_packet(&res, message->cid, CTAP1_ERR_INVALID_COMMAND);
-					send_or_queue_ctaphid_packet(&res);
+					app_hid_report_send_queue_add(&res);
 					ctaphid_reset_to_idle(&app_ctaphid);
 
 			}
@@ -205,7 +236,7 @@ void app_handle_incoming_hid_packet(const ctaphid_packet_t *packet) {
 	uint32_t new_channel_id;
 
 	debug_log(
-		"app_handle_incoming_hid_packet %s (%d)" nl,
+		"app_handle_incoming_hid_packet %s (%d)" nl "  ",
 		lion_enum_str(ctaphid_process_packet_result, result),
 		result
 	);
@@ -215,7 +246,7 @@ void app_handle_incoming_hid_packet(const ctaphid_packet_t *packet) {
 
 		case CTAPHID_RESULT_ERROR:
 			ctaphid_create_error_packet(&res, packet->cid, error_code);
-			send_or_queue_ctaphid_packet(&res);
+			app_hid_report_send_queue_add(&res);
 			break;
 
 		case CTAPHID_RESULT_ALLOCATE_CHANNEL:
@@ -227,7 +258,7 @@ void app_handle_incoming_hid_packet(const ctaphid_packet_t *packet) {
 					"app_handle_incoming_hid_packet: CTAPHID_RESULT_ALLOCATE_CHANNEL error no channel IDs left"
 				) nl);
 				ctaphid_create_error_packet(&res, packet->cid, error_code);
-				send_or_queue_ctaphid_packet(&res);
+				app_hid_report_send_queue_add(&res);
 				break;
 			}
 
@@ -237,7 +268,7 @@ void app_handle_incoming_hid_packet(const ctaphid_packet_t *packet) {
 				CTAPHID_BROADCAST_CID,
 				app_ctaphid.highest_allocated_cid
 			);
-			send_or_queue_ctaphid_packet(&res);
+			app_hid_report_send_queue_add(&res);
 			break;
 
 		case CTAPHID_RESULT_DISCARD_INCOMPLETE_MESSAGE:
@@ -255,7 +286,7 @@ void app_handle_incoming_hid_packet(const ctaphid_packet_t *packet) {
 				packet->cid,
 				app_ctaphid.highest_allocated_cid
 			);
-			send_or_queue_ctaphid_packet(&res);
+			app_hid_report_send_queue_add(&res);
 			break;
 
 		case CTAPHID_RESULT_IGNORED:
