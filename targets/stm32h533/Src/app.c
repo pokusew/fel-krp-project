@@ -130,7 +130,6 @@ noreturn void app_run(void) {
 				message->cid, ctaphid_get_cmd_number_per_spec(cmd), message->payload_length
 			);
 
-
 			switch (cmd) {
 
 				case CTAPHID_WINK:
@@ -146,7 +145,6 @@ noreturn void app_run(void) {
 					send_or_queue_ctaphid_packet(&res);
 					ctaphid_reset_to_idle(&app_ctaphid);
 					break;
-
 
 				case CTAPHID_CBOR:
 					debug_log(cyan("CTAPHID_CBOR") nl);
