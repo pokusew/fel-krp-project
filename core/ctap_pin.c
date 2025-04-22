@@ -518,9 +518,15 @@ static uint8_t set_pin(
 		new_pin_length--;
 	}
 	// Authenticators MUST enforce "Maximum PIN Length: 63 bytes"
-	// Note: This case (and error code) is not explicitly stated in the spec.
+	// Note:
+	//   This case, i.e., when the new_pin_length > 63 (at this point in the code, it implies new_pin_length == 64)
+	//   after the step "The authenticator drops all trailing 0x00 bytes from paddedNewPin to produce newPin."
+	//   is not explicitly mentioned in the spec.
+	//   However, the FIDO Conformance Tools v1.7.22: CTAP2.1 - MDS3
+	//   expects the authenticator to return CTAP2_ERR_PIN_POLICY_VIOLATION
+	//   (Authr-ClientPin1-Policy Check, F-2).
 	if (new_pin_length > 63) {
-		return CTAP1_ERR_INVALID_PARAMETER;
+		return CTAP2_ERR_PIN_POLICY_VIOLATION;
 	}
 
 	// 6.5.5.5. Setting a New PIN:     5.9
