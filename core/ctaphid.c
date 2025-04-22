@@ -32,6 +32,7 @@ void ctaphid_create_init_packet(
 	uint8_t cmd,
 	size_t payload_length
 ) {
+	assert((cmd & 0x80) == 0x80);
 	assert(payload_length <= CTAPHID_MAX_PAYLOAD_LENGTH);
 	assert(payload_length <= 0xFFFF);
 	memset(packet, 0, sizeof(ctaphid_packet_t));
