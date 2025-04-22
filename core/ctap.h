@@ -354,6 +354,33 @@ typedef enum ctap_user_presence_result {
 	CTAP_UP_RESULT_ALLOW,
 } ctap_user_presence_result_t;
 
+// we internationally define the keepalive status codes
+// to match the status codes defined in the CTAPHID layer (11.2.9.1.7. CTAPHID_KEEPALIVE (0x3B))
+typedef enum LION_ATTR_PACKED ctap_keepalive_status {
+	CTAP_STATUS_PROCESSING = 1,
+	CTAP_STATUS_UPNEEDED = 2,
+} ctap_keepalive_status_t;
+static_assert(sizeof(ctap_keepalive_status_t) == 1, "sizeof(ctap_keepalive_status_t) == 1");
+
+/**
+ * Inform the CTAPHID layer about the current CTAP request (CTAPHID_CBOR message)
+ * processing status.
+ *
+ * The CTAPHID layer must periodically send a CTAPHID_KEEPALIVE message while processing a CTAPHID_CBOR request.
+ * See 11.2.9.1.7. CTAPHID_KEEPALIVE (0x3B)
+ *   https://fidoalliance.org/specs/fido-v2.2-ps-20250228/fido-client-to-authenticator-protocol-v2.2-ps-20250228.html#usb-hid-keepalive
+ * NOTE!
+ *   There is a typo in the spec! The spec, even the latest iteration (as of 2025-04-22),
+ *   CTAP 2.2 Proposed Standard from February 28, 2025, erroneously claims that CTAPHID_KEEPALIVE
+ *   is only used with the CTAPHID_MSG command, when IN FACT it is only used with the CTAPHID_CBOR command.
+ *   See the following message (and the corresponding thread) in the FIDO Dev (fido-dev) mailing list,
+ *   where the typo is discussed and confirmed:
+ *     https://groups.google.com/a/fidoalliance.org/g/fido-dev/c/HsGfTlbhQqY/m/3R1WPzzBAAAJ
+ *
+ * @param current_status the current status
+ */
+void ctap_send_keepalive_if_needed(ctap_keepalive_status_t current_status);
+
 ctap_user_presence_result_t ctap_wait_for_user_presence(void);
 
 uint8_t ctap_request(

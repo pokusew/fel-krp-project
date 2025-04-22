@@ -32,6 +32,7 @@ uint8_t ctap_reset(ctap_state_t *state) {
 		case CTAP_UP_RESULT_ALLOW:
 			// If all conditions are met (1. evidence of user interaction collected
 			// and 2. the request came within 10 seconds of powering up), authenticator returns CTAP2_OK.
+			ctap_send_keepalive_if_needed(CTAP_STATUS_PROCESSING);
 			ctap_init(state); // TODO: Update once we implement the state persistence.
 			return CTAP2_OK;
 	}

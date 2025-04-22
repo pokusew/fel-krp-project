@@ -612,6 +612,7 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 				return CTAP2_ERR_OPERATION_DENIED;
 			case CTAP_UP_RESULT_ALLOW:
 				// continue
+				ctap_send_keepalive_if_needed(CTAP_STATUS_PROCESSING);
 				break;
 		}
 	}
