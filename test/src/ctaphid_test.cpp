@@ -440,4 +440,151 @@ TEST_F(CtapCtaphidTest, InitPacketWhileOtherChannelBusyWithMessage) {
 
 }
 
+class CtaphidMessageToPacketsTest : public testing::Test {
+protected:
+	ctaphid_packet_t packets[CTAPHID_MESSAGE_MAX_NUM_PACKETS]{};
+	size_t num_packets{};
+	constexpr static const ctaphid_packet_t zero_packet = {};
+
+	CtaphidMessageToPacketsTest() = default;
+
+	void packet_handler(const ctaphid_packet_t *packet) {
+		// memcpy(packets[num_packets], packet, sizeof(ctaphid_packet_t));
+		constexpr size_t max_num_packets = sizeof(packets) / sizeof(ctaphid_packet_t);
+		// ignore any packets that do not fit into the buffer
+		if (num_packets < max_num_packets) {
+			packets[num_packets] = *packet;
+		}
+		// but still count the total number of packets
+		num_packets++;
+		// the first time the limit is reached, fail this test case
+		if (num_packets == max_num_packets) {
+			GTEST_FATAL_FAILURE_("max_num_packets reached");
+		}
+	}
+
+	template<size_t N>
+	void test_ctaphid_message_to_packets(uint32_t cid, uint8_t cmd, const std::array<uint8_t, N> &payload) {
+		num_packets = 0;
+		auto handler = [this](const ctaphid_packet_t *packet) {
+			packet_handler(packet);
+		};
+		ctaphid_message_to_packets(
+			cid,
+			cmd,
+			payload.size(),
+			payload.data(),
+			[](const ctaphid_packet_t *packet, void *ctx) {
+				(*reinterpret_cast<decltype(&handler)>(ctx))(packet);
+			},
+			&handler
+		);
+		// alternatively we could use this directly instead of the helper handler lambda
+		// ctaphid_message_to_packets(
+		// 	cid,
+		// 	cmd,
+		// 	payload.size(),
+		// 	payload.data(),
+		// 	[](const ctaphid_packet_t *packet, void *ctx) {
+		// 		auto _this = reinterpret_cast<decltype(this)>(ctx);
+		// 		_this->packet_handler(packet);
+		// 	},
+		// 	this
+		// );
+	}
+
+};
+
+// bcnt field is not aligned, AddressSanitizer throws warnings when pkt.init.bcnt is used
+// directly in EXPECT_EQ
+//   Reference binding to misaligned address ... for type 'const unsigned short',
+//   which requires 2 byte alignment
+// To avoid those, we use the following solution:
+#define EXPECT_BCNT_EQ(unaligned_bcnt_field, expected_value) \
+    {                                                        \
+        uint16_t bcnt = (unaligned_bcnt_field);              \
+        EXPECT_EQ(bcnt, expected_value);                     \
+    }                                                        \
+    ((void) 0)
+
+TEST_F(CtaphidMessageToPacketsTest, ZeroLengthPayload) {
+	const uint32_t test_cid = 11259375;
+	const uint8_t test_cmd = CTAPHID_PING;
+	auto payload = hex::bytes<"">();
+	test_ctaphid_message_to_packets(test_cid, test_cmd, payload);
+	ASSERT_EQ(num_packets, 1);
+	const auto &init_p = packets[0];
+	EXPECT_EQ(init_p.cid, test_cid);
+	EXPECT_EQ(init_p.pkt.init.cmd, test_cmd);
+	EXPECT_BCNT_EQ(init_p.pkt.init.bcnt, lion_ntohs(payload.size()));
+	EXPECT_SAME_BYTES(init_p.pkt.init.payload, zero_packet.pkt.init.payload);
+}
+
+TEST_F(CtaphidMessageToPacketsTest, PayloadFitsExactlyIntoInit) {
+	const uint32_t test_cid = 11259375;
+	const uint8_t test_cmd = CTAPHID_PING;
+	auto payload = std::array<uint8_t, CTAPHID_PACKET_INIT_PAYLOAD_SIZE>{0xab};
+	test_ctaphid_message_to_packets(test_cid, test_cmd, payload);
+	ASSERT_EQ(num_packets, 1);
+	const auto &init = packets[0];
+	EXPECT_EQ(init.cid, test_cid);
+	EXPECT_EQ(init.pkt.init.cmd, test_cmd);
+	EXPECT_BCNT_EQ(init.pkt.init.bcnt, lion_ntohs(payload.size()));
+	EXPECT_SAME_BYTES(init.pkt.init.payload, payload.data());
+}
+
+TEST_F(CtaphidMessageToPacketsTest, InitAndSingleCont) {
+	const uint32_t test_cid = 11259375;
+	const uint8_t test_cmd = CTAPHID_PING;
+	auto payload = std::array<uint8_t, CTAPHID_PACKET_INIT_PAYLOAD_SIZE + 1>{0xab};
+	payload[CTAPHID_PACKET_INIT_PAYLOAD_SIZE] = 0xcd;
+	test_ctaphid_message_to_packets(test_cid, test_cmd, payload);
+	ASSERT_EQ(num_packets, 2);
+	const auto &init = packets[0];
+	EXPECT_EQ(init.cid, test_cid);
+	EXPECT_EQ(init.pkt.init.cmd, test_cmd);
+	EXPECT_BCNT_EQ(init.pkt.init.bcnt, lion_ntohs(payload.size()));
+	EXPECT_SAME_BYTES(init.pkt.init.payload, &payload[0]);
+	const auto &cont = packets[1];
+	EXPECT_EQ(cont.cid, test_cid);
+	EXPECT_EQ(cont.pkt.cont.seq, 0);
+	EXPECT_SAME_BYTES_S(1, cont.pkt.cont.payload, &payload[CTAPHID_PACKET_INIT_PAYLOAD_SIZE]);
+	// check that the rest of the continuation packet is correctly zeroed
+	EXPECT_SAME_BYTES_S(
+		CTAPHID_PACKET_CONT_PAYLOAD_SIZE - 1,
+		&cont.pkt.cont.payload[1],
+		zero_packet.pkt.cont.payload
+	);
+}
+
+TEST_F(CtaphidMessageToPacketsTest, InitAndTwoConts) {
+	const uint32_t test_cid = 11259375;
+	const uint8_t test_cmd = CTAPHID_PING;
+	constexpr size_t test_payload_length = CTAPHID_PACKET_INIT_PAYLOAD_SIZE + CTAPHID_PACKET_CONT_PAYLOAD_SIZE + 1;
+	auto payload = std::array<uint8_t, test_payload_length>{0xab};
+	payload[CTAPHID_PACKET_INIT_PAYLOAD_SIZE] = 0xcd;
+	payload[CTAPHID_PACKET_CONT_PAYLOAD_SIZE] = 0xef;
+	test_ctaphid_message_to_packets(test_cid, test_cmd, payload);
+	ASSERT_EQ(num_packets, 3);
+	const auto &init = packets[0];
+	EXPECT_EQ(init.cid, test_cid);
+	EXPECT_EQ(init.pkt.init.cmd, test_cmd);
+	EXPECT_BCNT_EQ(init.pkt.init.bcnt, lion_ntohs(payload.size()));
+	EXPECT_SAME_BYTES(init.pkt.init.payload, &payload[0]);
+	const auto &cont0 = packets[1];
+	EXPECT_EQ(cont0.cid, test_cid);
+	EXPECT_EQ(cont0.pkt.cont.seq, 0);
+	EXPECT_SAME_BYTES(cont0.pkt.cont.payload, &payload[CTAPHID_PACKET_INIT_PAYLOAD_SIZE]);
+	const auto &cont1 = packets[2];
+	EXPECT_EQ(cont1.cid, test_cid);
+	EXPECT_EQ(cont1.pkt.cont.seq, 1);
+	EXPECT_SAME_BYTES_S(1, cont1.pkt.cont.payload, &payload[CTAPHID_PACKET_INIT_PAYLOAD_SIZE + CTAPHID_PACKET_CONT_PAYLOAD_SIZE]);
+	// check that the rest of the continuation packet is correctly zeroed
+	EXPECT_SAME_BYTES_S(
+		CTAPHID_PACKET_CONT_PAYLOAD_SIZE - 1,
+		&cont1.pkt.cont.payload[1],
+		zero_packet.pkt.cont.payload
+	);
+}
+
 } // namespace

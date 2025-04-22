@@ -222,14 +222,15 @@ void ctaphid_create_init_response_packet(
 	uint32_t response_cid
 );
 
-typedef void (*packet_handler)(const ctaphid_packet_t *packet);
+typedef void (*ctap_packet_handler_t)(const ctaphid_packet_t *packet, void *ctx);
 
-void ctaphid_cbor_response_to_packets(
+void ctaphid_message_to_packets(
 	uint32_t cid,
-	uint8_t ctap_status_code,
-	size_t data_size,
-	const uint8_t *data,
-	packet_handler on_packet
+	uint8_t cmd,
+	size_t payload_length,
+	const uint8_t *payload,
+	ctap_packet_handler_t on_packet,
+	void *on_packet_ctx
 );
 
 #endif // LIONKEY_CTAPHID_H

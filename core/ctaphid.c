@@ -68,48 +68,49 @@ void ctaphid_create_init_response_packet(
 	init_res->capabilities = LIONKEY_CONFIG_CTAPHID_CAPABILITY;
 }
 
-void ctaphid_cbor_response_to_packets(
+void ctaphid_message_to_packets(
 	uint32_t cid,
-	uint8_t ctap_status_code,
-	size_t data_size,
-	const uint8_t *data,
-	packet_handler on_packet
+	uint8_t cmd,
+	size_t payload_length,
+	const uint8_t *payload,
+	ctap_packet_handler_t on_packet,
+	void *on_packet_ctx
 ) {
-	assert(data_size <= CTAPHID_MAX_PAYLOAD_LENGTH);
-	assert(data_size <= 0xFFFF);
+	assert(payload_length <= CTAPHID_MAX_PAYLOAD_LENGTH);
+	assert(payload_length <= 0xFFFF);
 
 	ctaphid_packet_t packet;
 
-	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-hid-cbor
+	// 11.2.4. Message and packet structure
+	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-message-and-packet-structure
 
 	// init packet
 	ctaphid_create_init_packet(
 		&packet,
 		cid,
-		CTAPHID_CBOR,
-		data_size + 1
+		cmd,
+		payload_length
 	);
-	packet.pkt.init.payload[0] = ctap_status_code;
-	const size_t init_packet_data_size = min(data_size, CTAPHID_PACKET_INIT_PAYLOAD_SIZE - 1);
-	memcpy(&packet.pkt.init.payload[1], data, init_packet_data_size);
+	const size_t init_packet_data_size = min(payload_length, CTAPHID_PACKET_INIT_PAYLOAD_SIZE);
+	memcpy(&packet.pkt.init.payload, payload, init_packet_data_size);
 	dump_hex((const uint8_t *) &packet, sizeof(packet));
-	on_packet(&packet);
+	on_packet(&packet, on_packet_ctx);
 
 	// continuation packets (if necessary)
 	size_t offset = init_packet_data_size;
-	size_t remaining_data_size = data_size - init_packet_data_size;
+	size_t remaining_data_size = payload_length - init_packet_data_size;
 	uint8_t seq = 0;
 	while (remaining_data_size > 0) {
 
 		packet.cid = cid;
 		packet.pkt.cont.seq = seq;
 		size_t payload_size = min(remaining_data_size, CTAPHID_PACKET_CONT_PAYLOAD_SIZE);
-		memcpy(packet.pkt.cont.payload, &data[offset], payload_size);
+		memcpy(packet.pkt.cont.payload, &payload[offset], payload_size);
 		if (payload_size < CTAPHID_PACKET_CONT_PAYLOAD_SIZE) {
 			memset(&packet.pkt.cont.payload[payload_size], 0, CTAPHID_PACKET_CONT_PAYLOAD_SIZE - payload_size);
 		}
 		dump_hex((const uint8_t *) &packet, sizeof(packet));
-		on_packet(&packet);
+		on_packet(&packet, on_packet_ctx);
 
 		assert(remaining_data_size >= payload_size);
 		remaining_data_size -= payload_size;

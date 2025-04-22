@@ -61,6 +61,11 @@ ctap_user_presence_result_t ctap_wait_for_user_presence(void) {
 
 }
 
+static void handle_packet_using_send_or_queue_ctaphid_packet(const ctaphid_packet_t *packet, void *ctx) {
+	UNUSED(ctx);
+	send_or_queue_ctaphid_packet(packet);
+}
+
 noreturn void app_run(void) {
 
 	info_log(nl nl cyan("app_run") nl);
@@ -81,9 +86,6 @@ noreturn void app_run(void) {
 	int debug_uart_rx;
 
 	ctaphid_packet_t res;
-
-	// for ctap_request
-	uint8_t status;
 
 	while (true) {
 
@@ -156,18 +158,19 @@ noreturn void app_run(void) {
 						break;
 					}
 					assert(message->payload_length >= 1);
-					status = ctap_request(
+					app_ctaphid_cbor_response_buffer[0] = ctap_request(
 						&app_ctap,
 						message->payload[0],
 						message->payload_length - 1,
 						&message->payload[1]
 					);
-					ctaphid_cbor_response_to_packets(
+					ctaphid_message_to_packets(
 						message->cid,
-						status,
-						app_ctap.response.length,
-						app_ctap.response.data,
-						send_or_queue_ctaphid_packet
+						CTAPHID_CBOR,
+						1 + app_ctap.response.length,
+						app_ctaphid_cbor_response_buffer,
+						handle_packet_using_send_or_queue_ctaphid_packet,
+						NULL
 					);
 					ctaphid_reset_to_idle(&app_ctaphid);
 					break;
