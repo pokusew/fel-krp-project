@@ -165,23 +165,60 @@ typedef struct CTAP_credParams {
 } CTAP_credParams;
 
 #define CTAP_AAGUID_SIZE 16
+
+#define CTAP_CREDENTIAL_ID_MAX_SIZE 128
+
+// {
+//     "credProtect": 1, // or 2 or 3
+//     "hmac-secret": true,
+// }
+#define CTAP_authenticator_data_extensions_MAX_SIZE 27
+
+// WebAuthn 6.5.1. Attested Credential Data
+// https://w3c.github.io/webauthn/#attested-credential-data
+#define CTAP_CREDENTIAL_PUBLIC_KEY_COSE_ENCODED_MAX_SIZE 100 // TODO: review and update this max_site
+typedef struct LION_ATTR_PACKED CTAP_authenticator_data_attestedCredentialData {
+	struct LION_ATTR_PACKED {
+		// 	The AAGUID of the authenticator.
+		uint8_t aaguid[CTAP_AAGUID_SIZE];
+		// Byte length L of credentialId, 16-bit unsigned big-endian integer. Value MUST be <= 1023.
+		uint16_t credentialIdLength;
+	} fixed_header;
+	// credentialId:
+	//   Credential ID
+	// credentialPublicKey:
+	//   The credential public key encoded in COSE_Key format,
+	//   as defined in Section 7 of [RFC9052], using the CTAP2 canonical CBOR encoding form.
+	uint8_t variable_data[CTAP_CREDENTIAL_ID_MAX_SIZE + CTAP_CREDENTIAL_PUBLIC_KEY_COSE_ENCODED_MAX_SIZE];
+} CTAP_authenticator_data_attestedCredentialData;
+
 // WebAuthn 6.1. Authenticator Data
 // https://w3c.github.io/webauthn/#authenticator-data
 typedef struct LION_ATTR_PACKED CTAP_authenticator_data {
-	uint8_t rpIdHash[32]; // SHA-256 hash of the RP ID the credential is scoped to.
-	uint8_t flags; // Flags (bit 0 is the least significant bit):
-	uint32_t signCount; // Signature counter, 32-bit unsigned big-endian integer.
+	struct LION_ATTR_PACKED {
+		uint8_t rpIdHash[32]; // SHA-256 hash of the RP ID the credential is scoped to.
+		uint8_t flags; // Flags (bit 0 is the least significant bit):
+		uint32_t signCount; // Signature counter, 32-bit unsigned big-endian integer.
+	} fixed_header;
 	// attestedCredentialData (variable length, may not be present at all)
 	//   attested credential data (if present). See 6.5.1 Attested Credential Data for details.
 	//   Its length depends on the length of the credential ID and credential public key being attested.
 	// extensions (variable length, may not be present at all)
 	//   Extension-defined authenticator data. This is a CBOR [RFC8949] map with extension identifiers as keys,
 	//   and authenticator extension outputs as values. See 9. WebAuthn Extensions for details.
+	uint8_t variable_data[
+		sizeof(CTAP_authenticator_data_attestedCredentialData)
+		+ CTAP_authenticator_data_extensions_MAX_SIZE
+	];
 } CTAP_authenticator_data;
 static_assert(
-	sizeof(CTAP_authenticator_data) == 37,
+	sizeof(CTAP_authenticator_data) ==
+	37 // fixed_header
+	+ CTAP_authenticator_data_extensions_MAX_SIZE
+	+ sizeof(CTAP_authenticator_data_attestedCredentialData),
 	"unexpected sizeof(CTAP_authenticator_data)"
 );
+
 // Bit 0: User Present (UP) result.
 // * 1 means the user is present.
 // * 0 means the user is not present.
