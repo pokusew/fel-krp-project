@@ -440,11 +440,49 @@ TEST_F(CtapCtaphidTest, InitPacketWhileOtherChannelBusyWithMessage) {
 
 }
 
+TEST_F(CtapCtaphidTest, ExplicitResetToIdle) {
+
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), 1);
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), 2);
+	EXPECT_EQ(ctaphid_is_idle(&ctaphid), true);
+
+	test_ctaphid_process_packet(init_packet(
+		1,
+		CTAPHID_PING,
+		1
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_MESSAGE);
+	EXPECT_EQ(ctaphid_is_idle(&ctaphid), false);
+	EXPECT_EQ(ctaphid_has_complete_message_ready(&ctaphid), true);
+
+	test_ctaphid_process_packet(init_packet(
+		2,
+		CTAPHID_PING,
+		0
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_ERROR);
+	EXPECT_EQ(error_code, CTAP1_ERR_CHANNEL_BUSY);
+
+	ctaphid_reset_to_idle(&ctaphid);
+	EXPECT_EQ(ctaphid_is_idle(&ctaphid), true);
+	EXPECT_EQ(ctaphid_has_complete_message_ready(&ctaphid), false);
+
+	test_ctaphid_process_packet(init_packet(
+		2,
+		CTAPHID_PING,
+		0
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_MESSAGE);
+	EXPECT_EQ(ctaphid_is_idle(&ctaphid), false);
+	EXPECT_EQ(ctaphid_has_complete_message_ready(&ctaphid), true);
+
+}
+
 class CtaphidMessageToPacketsTest : public testing::Test {
 protected:
 	ctaphid_packet_t packets[CTAPHID_MESSAGE_MAX_NUM_PACKETS]{};
 	size_t num_packets{};
-	constexpr static const ctaphid_packet_t zero_packet = {};
+	constexpr static ctaphid_packet_t zero_packet{};
 
 	CtaphidMessageToPacketsTest() = default;
 
@@ -578,12 +616,60 @@ TEST_F(CtaphidMessageToPacketsTest, InitAndTwoConts) {
 	const auto &cont1 = packets[2];
 	EXPECT_EQ(cont1.cid, test_cid);
 	EXPECT_EQ(cont1.pkt.cont.seq, 1);
-	EXPECT_SAME_BYTES_S(1, cont1.pkt.cont.payload, &payload[CTAPHID_PACKET_INIT_PAYLOAD_SIZE + CTAPHID_PACKET_CONT_PAYLOAD_SIZE]);
+	EXPECT_SAME_BYTES_S(
+		1,
+		cont1.pkt.cont.payload,
+		&payload[CTAPHID_PACKET_INIT_PAYLOAD_SIZE + CTAPHID_PACKET_CONT_PAYLOAD_SIZE]
+	);
 	// check that the rest of the continuation packet is correctly zeroed
 	EXPECT_SAME_BYTES_S(
 		CTAPHID_PACKET_CONT_PAYLOAD_SIZE - 1,
 		&cont1.pkt.cont.payload[1],
 		zero_packet.pkt.cont.payload
+	);
+}
+
+TEST(CtaphidCreateErrorPacketTest, SampleErrorCodes) {
+	constexpr ctaphid_packet_t zero_packet{};
+	ctaphid_packet_t packet;
+	const uint32_t test_cid = 11259375;
+	// value-parameterized test would be an overkill here
+	const std::array<uint8_t, 2> error_codes = {CTAP2_OK, CTAP1_ERR_OTHER};
+	for (const uint8_t &error_code : error_codes) {
+		ctaphid_create_error_packet(&packet, test_cid, error_code);
+		EXPECT_EQ(packet.pkt.init.cmd, CTAPHID_ERROR);
+		EXPECT_BCNT_EQ(packet.pkt.init.bcnt, lion_htons(1));
+		EXPECT_EQ(packet.pkt.init.payload[0], error_code);
+		EXPECT_SAME_BYTES_S(
+			sizeof(packet.pkt.init.payload) - 1,
+			&packet.pkt.init.payload[1],
+			&zero_packet.pkt.init.payload[1]
+		);
+	}
+}
+
+TEST(CtaphidCreateCtaphidInitResponsePacket, BasicChecks) {
+	constexpr ctaphid_packet_t zero_packet{};
+	ctaphid_packet_t packet;
+	const uint32_t test_transport_cid = CTAPHID_BROADCAST_CID;
+	const uint32_t test_response_cid = 11259375;
+	constexpr auto test_nonce = hex::bytes<"a1b2c3d4e5f6a7b8">();
+	ctaphid_create_ctaphid_init_response_packet(
+		&packet,
+		test_nonce.data(),
+		test_transport_cid,
+		test_response_cid
+	);
+	static_assert(sizeof(packet.pkt.init.payload) >= sizeof(ctaphid_init_response_payload_t));
+	EXPECT_EQ(packet.pkt.init.cmd, CTAPHID_INIT);
+	EXPECT_BCNT_EQ(packet.pkt.init.bcnt, lion_htons(sizeof(ctaphid_init_response_payload_t)));
+	auto payload = reinterpret_cast<ctaphid_init_response_payload_t *const>(&packet.pkt.init.payload);
+	EXPECT_SAME_BYTES_S(test_nonce.size(), payload->nonce, test_nonce.data());
+	EXPECT_EQ(payload->protocol_version, CTAPHID_PROTOCOL_VERSION);
+	EXPECT_SAME_BYTES_S(
+		sizeof(packet.pkt.init.payload) - sizeof(ctaphid_init_response_payload_t),
+		&packet.pkt.init.payload[sizeof(ctaphid_init_response_payload_t)],
+		&zero_packet.pkt.init.payload[sizeof(ctaphid_init_response_payload_t)]
 	);
 }
 
