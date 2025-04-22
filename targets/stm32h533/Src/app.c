@@ -35,9 +35,48 @@ static inline void app_hid_task(void) {
 	app_hid_report_send_queue_send_one_if_possible();
 }
 
+static ctap_keepalive_status_t app_ctap_last_status = CTAP_STATUS_PROCESSING;
+static uint32_t app_ctap_last_status_message_timestamp = 0;
+
+static inline void app_ctap_reset_keepalive(void) {
+	app_ctap_last_status = CTAP_STATUS_PROCESSING;
+	app_ctap_last_status_message_timestamp = 0;
+}
+
+static void app_ctaphid_send_keepalive(ctap_keepalive_status_t status) {
+	// debug_log("sending CTAPHID_KEEPALIVE" nl);
+	assert(ctaphid_has_complete_message_ready(&app_ctaphid));
+	const ctaphid_channel_buffer_t *message = &app_ctaphid.buffer;
+	ctaphid_packet_t res;
+	ctaphid_create_init_packet(&res, message->cid, CTAPHID_KEEPALIVE, 1);
+	res.pkt.init.payload[0] = status;
+	app_hid_report_send_queue_add(&res);
+	app_ctap_last_status_message_timestamp = HAL_GetTick();
+}
+
+void ctap_send_keepalive_if_needed(ctap_keepalive_status_t current_status) {
+
+	// send immediately whenever the status changes
+	if (current_status != app_ctap_last_status) {
+		app_ctap_last_status = current_status;
+		app_ctaphid_send_keepalive(current_status);
+		return;
+	}
+
+	// but at least every 100ms
+	uint32_t elapsed_since_last_keepalive = HAL_GetTick() - app_ctap_last_status_message_timestamp;
+	// use a smaller value here to guarantee that the keepalive messages are sent frequently enough
+	// even if ctap_send_keepalive_if_needed() is sometimes invoked late
+	if (elapsed_since_last_keepalive > 80) {
+		app_ctaphid_send_keepalive(current_status);
+	}
+
+}
+
 ctap_user_presence_result_t ctap_wait_for_user_presence(void) {
 
 	debug_log(yellow("waiting for user presence (press the ") cyan("BLUE") yellow(" button) ...") nl);
+	ctap_send_keepalive_if_needed(CTAP_STATUS_UPNEEDED);
 
 	const uint32_t timeout_ms = 30 * 1000; // 30 seconds
 	uint32_t start_timestamp = HAL_GetTick();
@@ -62,6 +101,7 @@ ctap_user_presence_result_t ctap_wait_for_user_presence(void) {
 			debug_log(yellow("ctap_wait_for_user_presence: ") green("ALLOW") nl);
 			return CTAP_UP_RESULT_ALLOW;
 		}
+		ctap_send_keepalive_if_needed(CTAP_STATUS_UPNEEDED);
 	}
 
 }
@@ -200,6 +240,7 @@ noreturn void app_run(void) {
 						break;
 					}
 					assert(message->payload_length >= 1);
+					app_ctap_reset_keepalive();
 					app_ctaphid_cbor_response_buffer[0] = ctap_request(
 						&app_ctap,
 						message->payload[0],
