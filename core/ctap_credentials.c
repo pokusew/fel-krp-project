@@ -405,25 +405,25 @@ static uint8_t store_credential(
 
 }
 
-uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t length) {
-
+/**
+ * This functions implements step 1 (handling of the legacy CTAP2.0 selection behavior)
+ * and step 2 (validating pinUvAuthProtocol and getting the pointer to the corresponding ctap_pin_protocol_t).
+ *
+ * These steps are common to both 6.1.2. authenticatorMakeCredential Algorithm
+ * and 6.2.2. authenticatorGetAssertion Algorithm.
+ *
+ * @return CTAP2_OK if the caller function should continue with the request processing,
+ *         otherwise the caller function should stop processing the request and return the error code
+ */
+static uint8_t handle_pin_uv_auth_param_and_protocol(
+	ctap_state_t *state,
+	const bool pinUvAuthParam_present,
+	const size_t pinUvAuthParam_size,
+	const bool pinUvAuthProtocol_present,
+	const uint8_t pinUvAuthProtocol,
+	ctap_pin_protocol_t **pin_protocol
+) {
 	uint8_t ret;
-	CborError err;
-
-	CborParser parser;
-	CborValue it;
-	ctap_check(ctap_init_cbor_parser(request, length, &parser, &it));
-
-	CTAP_makeCredential mc;
-	ctap_check(ctap_parse_make_credential(&it, &mc));
-
-	const bool pinUvAuthParam_present = ctap_param_is_present(&mc, CTAP_makeCredential_pinUvAuthParam);
-	ctap_pin_protocol_t *pin_protocol = NULL;
-
-	// 6.1.2. authenticatorMakeCredential Algorithm
-	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-makeCred-authnr-alg
-	// see also WebAuthn 6.3.2. The authenticatorMakeCredential Operation
-	// https://w3c.github.io/webauthn/#sctn-op-make-cred
 
 	// 1. If authenticator supports either pinUvAuthToken or clientPin features
 	//    and the platform sends a zero length pinUvAuthParam:
@@ -433,7 +433,7 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 	//      wants to enforce pinUvAuthToken feature semantics, but the user has to select
 	//      which authenticator to get the pinUvAuthToken from.
 	//      CTAP2.1 platforms SHOULD use 6.9 authenticatorSelection (0x0B).
-	if (pinUvAuthParam_present && mc.pinUvAuthParam_size == 0) {
+	if (pinUvAuthParam_present && pinUvAuthParam_size == 0) {
 		// 1. Request evidence of user interaction in an authenticator-specific way (e.g., flash the LED light).
 		ctap_user_presence_result_t up_result = ctap_wait_for_user_presence();
 		switch (up_result) {
@@ -456,13 +456,47 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 	if (pinUvAuthParam_present) {
 		// 2. If the pinUvAuthProtocol parameter is absent,
 		//    return CTAP2_ERR_MISSING_PARAMETER error.
-		if (!ctap_param_is_present(&mc, CTAP_makeCredential_pinUvAuthProtocol)) {
+		if (!pinUvAuthProtocol_present) {
 			return CTAP2_ERR_MISSING_PARAMETER;
 		}
 		// 1. If the pinUvAuthProtocol parameter's value is not supported,
 		//    return CTAP1_ERR_INVALID_PARAMETER error.
-		ctap_check(ctap_get_pin_protocol(state, mc.pinUvAuthProtocol, &pin_protocol));
+		ctap_check(ctap_get_pin_protocol(state, pinUvAuthProtocol, pin_protocol));
 	}
+
+	// the caller function should continue with the request processing
+	return CTAP2_OK;
+}
+
+uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t length) {
+
+	uint8_t ret;
+	CborError err;
+
+	CborParser parser;
+	CborValue it;
+	ctap_check(ctap_init_cbor_parser(request, length, &parser, &it));
+
+	CTAP_makeCredential mc;
+	ctap_check(ctap_parse_make_credential(&it, &mc));
+
+	const bool pinUvAuthParam_present = ctap_param_is_present(&mc, CTAP_makeCredential_pinUvAuthParam);
+	ctap_pin_protocol_t *pin_protocol = NULL;
+
+	// 6.1.2. authenticatorMakeCredential Algorithm
+	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-makeCred-authnr-alg
+	// see also WebAuthn 6.3.2. The authenticatorMakeCredential Operation
+	// https://w3c.github.io/webauthn/#sctn-op-make-cred
+
+	// 1. + 2.
+	ctap_check(handle_pin_uv_auth_param_and_protocol(
+		state,
+		pinUvAuthParam_present,
+		mc.pinUvAuthParam_size,
+		ctap_param_is_present(&mc, CTAP_makeCredential_pinUvAuthProtocol),
+		mc.pinUvAuthProtocol,
+		&pin_protocol
+	));
 
 	// 3. Validate pubKeyCredParams and choose the first supported algorithm.
 	ctap_check(ctap_parse_make_credential_pub_key_cred_params(&mc));
@@ -472,7 +506,7 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 	//    and initialize both its "uv" bit and "up" bit as false.
 	CTAP_authenticator_data auth_data;
 	memset(&auth_data, 0, sizeof(auth_data));
-	// alls flags are initialized to 0 (false)
+	// thanks to the memset above, alls flags are initialized to 0 (false)
 
 	const bool rk = get_option_value_or_false(&mc, CTAP_makeCredential_option_rk);
 	debug_log("option rk=%d" nl, rk);
