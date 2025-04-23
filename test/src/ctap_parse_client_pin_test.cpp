@@ -10,7 +10,7 @@ uint8_t test_ctap_parse_client_pin(const uint8_t *data, size_t data_size, CTAP_c
 	CborParser parser;
 	CborValue it;
 	uint8_t ret;
-	ctap_parse_check(ctap_init_cbor_parser(data, data_size, &parser, &it));
+	ctap_check(ctap_init_cbor_parser(data, data_size, &parser, &it));
 	return ctap_parse_client_pin(&it, cp);
 }
 

@@ -201,13 +201,13 @@ static uint8_t parse_cose_key(CborValue *it, COSE_Key *cose) {
 
 			case COSE_KEY_LABEL_X:
 				debug_log("COSE_KEY_LABEL_X" nl);
-				ctap_parse_check(parse_fixed_byte_string(&map, cose->pubkey.x, 32, &map));
+				ctap_check(parse_fixed_byte_string(&map, cose->pubkey.x, 32, &map));
 				pubkey_x_parsed = true;
 				break;
 
 			case COSE_KEY_LABEL_Y:
 				debug_log("COSE_KEY_LABEL_Y" nl);
-				ctap_parse_check(parse_fixed_byte_string(&map, cose->pubkey.y, 32, &map));
+				ctap_check(parse_fixed_byte_string(&map, cose->pubkey.y, 32, &map));
 				pubkey_y_parsed = true;
 				break;
 
@@ -269,13 +269,13 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 
 			case CTAP_clientPIN_keyAgreement:
 				debug_log("CTAP_clientPIN_keyAgreement" nl);
-				ctap_parse_check(parse_cose_key(&map, &params->keyAgreement));
+				ctap_check(parse_cose_key(&map, &params->keyAgreement));
 				ctap_set_present(params, CTAP_clientPIN_keyAgreement);
 				break;
 
 			case CTAP_clientPIN_pinUvAuthParam:
 				debug_log("CTAP_clientPIN_pinUvAuthParam" nl);
-				ctap_parse_check(parse_byte_string(
+				ctap_check(parse_byte_string(
 					&map,
 					params->pinUvAuthParam,
 					&params->pinUvAuthParam_size,
@@ -288,7 +288,7 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 
 			case CTAP_clientPIN_newPinEnc:
 				debug_log("CTAP_clientPIN_newPinEnc" nl);
-				ctap_parse_check(parse_byte_string(
+				ctap_check(parse_byte_string(
 					&map,
 					params->newPinEnc,
 					&params->newPinEnc_size,
@@ -301,7 +301,7 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 
 			case CTAP_clientPIN_pinHashEnc:
 				debug_log("CTAP_clientPIN_pinHashEnc" nl);
-				ctap_parse_check(parse_byte_string(
+				ctap_check(parse_byte_string(
 					&map,
 					params->pinHashEnc,
 					&params->pinHashEnc_size,
@@ -329,7 +329,7 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 
 			case CTAP_clientPIN_rpId:
 				debug_log("CTAP_clientPIN_rpId" nl);
-				ctap_parse_check(parse_text_string(
+				ctap_check(parse_text_string(
 					&map,
 					params->rpId.id,
 					&params->rpId.id_size,
@@ -374,7 +374,7 @@ static uint8_t parse_rp_entity(CborValue *it, CTAP_rpId *rpId) {
 		ctap_parse_map_get_string_key(4);
 
 		if (strncmp(key, "id", key_length) == 0) {
-			ctap_parse_check(parse_text_string(
+			ctap_check(parse_text_string(
 				&map,
 				rpId->id,
 				&rpId->id_size,
@@ -425,7 +425,7 @@ static uint8_t parse_user_entity(CborValue *it, CTAP_userEntity *user) {
 		ctap_parse_map_get_string_key(11);
 
 		if (strncmp(key, "id", key_length) == 0) {
-			ctap_parse_check(parse_byte_string(
+			ctap_check(parse_byte_string(
 				&map,
 				user->id.id,
 				&user->id.id_size,
@@ -435,7 +435,7 @@ static uint8_t parse_user_entity(CborValue *it, CTAP_userEntity *user) {
 			));
 			id_parsed = true;
 		} else if (strncmp(key, "displayName", key_length) == 0) {
-			ctap_parse_check(parse_text_string(
+			ctap_check(parse_text_string(
 				&map,
 				user->displayName,
 				&user->displayName_size,
@@ -600,7 +600,7 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 
 			case CTAP_makeCredential_clientDataHash:
 				debug_log("CTAP_makeCredential_clientDataHash" nl);
-				ctap_parse_check(parse_fixed_byte_string(
+				ctap_check(parse_fixed_byte_string(
 					&map,
 					params->clientDataHash,
 					sizeof(params->clientDataHash),
@@ -611,7 +611,7 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 
 			case CTAP_makeCredential_rp:
 				debug_log("CTAP_makeCredential_rp" nl);
-				ctap_parse_check(parse_rp_entity(
+				ctap_check(parse_rp_entity(
 					&map,
 					&params->rpId
 				));
@@ -620,7 +620,7 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 
 			case CTAP_makeCredential_user:
 				debug_log("CTAP_makeCredential_user" nl);
-				ctap_parse_check(parse_user_entity(
+				ctap_check(parse_user_entity(
 					&map,
 					&params->user
 				));
@@ -649,19 +649,19 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 
 			case CTAP_makeCredential_extensions:
 				debug_log("CTAP_makeCredential_extensions" nl);
-				ctap_parse_check(parse_make_credential_extensions(&map, params));
+				ctap_check(parse_make_credential_extensions(&map, params));
 				ctap_set_present(params, CTAP_makeCredential_extensions);
 				break;
 
 			case CTAP_makeCredential_options:
 				debug_log("CTAP_makeCredential_options" nl);
-				ctap_parse_check(parse_make_credential_options(&map, params));
+				ctap_check(parse_make_credential_options(&map, params));
 				ctap_set_present(params, CTAP_makeCredential_options);
 				break;
 
 			case CTAP_makeCredential_pinUvAuthParam:
 				debug_log("CTAP_makeCredential_pinUvAuthParam" nl);
-				ctap_parse_check(parse_byte_string(
+				ctap_check(parse_byte_string(
 					&map,
 					params->pinUvAuthParam,
 					&params->pinUvAuthParam_size,
@@ -839,7 +839,7 @@ uint8_t ctap_parse_make_credential_pub_key_cred_params(CTAP_makeCredential *para
 	bool algorithm_chosen = false;
 	for (size_t i = 0; i < array_length; i++) {
 		CTAP_credParams cred_params;
-		ctap_parse_check(parse_cred_params(&array, &cred_params));
+		ctap_check(parse_cred_params(&array, &cred_params));
 		if (!algorithm_chosen && is_supported_pub_key_alg(&cred_params)) {
 			params->pubKeyCredParams_chosen = cred_params;
 			algorithm_chosen = true;

@@ -221,7 +221,7 @@ static uint8_t create_attested_credential_data(
 
 	cbor_encoder_init(&encoder, credentialPublicKey, credentialPublicKey_buffer_size, 0);
 
-	ctap_parse_check(encode_public_key(&encoder, public_key));
+	ctap_check(encode_public_key(&encoder, public_key));
 
 	*attested_credential_data_size =
 		sizeof(attested_credential_data->fixed_header)
@@ -412,10 +412,10 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 
 	CborParser parser;
 	CborValue it;
-	ctap_parse_check(ctap_init_cbor_parser(request, length, &parser, &it));
+	ctap_check(ctap_init_cbor_parser(request, length, &parser, &it));
 
 	CTAP_makeCredential mc;
-	ctap_parse_check(ctap_parse_make_credential(&it, &mc));
+	ctap_check(ctap_parse_make_credential(&it, &mc));
 
 	const bool pinUvAuthParam_present = ctap_param_is_present(&mc, CTAP_makeCredential_pinUvAuthParam);
 	ctap_pin_protocol_t *pin_protocol = NULL;
@@ -461,11 +461,11 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 		}
 		// 1. If the pinUvAuthProtocol parameter's value is not supported,
 		//    return CTAP1_ERR_INVALID_PARAMETER error.
-		ctap_parse_check(ctap_get_pin_protocol(state, mc.pinUvAuthProtocol, &pin_protocol));
+		ctap_check(ctap_get_pin_protocol(state, mc.pinUvAuthProtocol, &pin_protocol));
 	}
 
 	// 3. Validate pubKeyCredParams and choose the first supported algorithm.
-	ctap_parse_check(ctap_parse_make_credential_pub_key_cred_params(&mc));
+	ctap_check(ctap_parse_make_credential_pub_key_cred_params(&mc));
 	debug_log("chosen algorithm = %" PRId32 nl, mc.pubKeyCredParams_chosen.alg);
 
 	// 4. Create a new authenticatorMakeCredential response structure
@@ -545,7 +545,7 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 			// 1. Call verify(pinUvAuthToken, clientDataHash, pinUvAuthParam).
 			//    1. If the verification returns error,
 			//       then end the operation by returning CTAP2_ERR_PIN_AUTH_INVALID error.
-			ctap_parse_check(verify(state, &mc, pin_protocol));
+			ctap_check(verify(state, &mc, pin_protocol));
 			// 2. Verify that the pinUvAuthToken has the mc permission,
 			//    if not, then end the operation by returning CTAP2_ERR_PIN_AUTH_INVALID.
 			if (!ctap_pin_uv_auth_token_has_permissions(
@@ -703,7 +703,7 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 		error_log("uECC_compute_public_key failed" nl);
 		return CTAP1_ERR_OTHER;
 	}
-	ctap_parse_check(store_credential(&mc.rpId, &mc.user.id, &credential));
+	ctap_check(store_credential(&mc.rpId, &mc.user.id, &credential));
 
 	// 19. Generate an attestation statement for the newly-created credential using clientDataHash,
 	//     taking into account the value of the enterpriseAttestation parameter, if present,
@@ -718,7 +718,7 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 	CTAP_authenticator_data_attestedCredentialData *attested_credential_data =
 		(CTAP_authenticator_data_attestedCredentialData *) &auth_data.variable_data[auth_data_variable_size];
 	size_t attested_credential_data_size;
-	ctap_parse_check(create_attested_credential_data(
+	ctap_check(create_attested_credential_data(
 		attested_credential_data,
 		&attested_credential_data_size,
 		public_key,
@@ -729,7 +729,7 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 
 	if (ctap_param_is_present(&mc, CTAP_makeCredential_extensions)) {
 		size_t extensions_size;
-		ctap_parse_check(encode_authenticator_data_extensions(
+		ctap_check(encode_authenticator_data_extensions(
 			&auth_data.variable_data[auth_data_variable_size],
 			auth_data_variable_max_size - auth_data_variable_size,
 			&extensions_size,
@@ -761,7 +761,7 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 	));
 	// attStmt (0x03)
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_makeCredential_res_attStmt));
-	ctap_parse_check(create_self_attestation_statement(
+	ctap_check(create_self_attestation_statement(
 		&map,
 		&auth_data,
 		auth_data_total_size,

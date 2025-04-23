@@ -992,13 +992,13 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 
 	CborParser parser;
 	CborValue it;
-	ctap_parse_check(ctap_init_cbor_parser(request, length, &parser, &it));
+	ctap_check(ctap_init_cbor_parser(request, length, &parser, &it));
 
 	CTAP_clientPIN cp;
-	ctap_parse_check(ctap_parse_client_pin(&it, &cp));
+	ctap_check(ctap_parse_client_pin(&it, &cp));
 
 	ctap_pin_protocol_t *pin_protocol;
-	ctap_parse_check(ctap_get_pin_protocol(state, cp.pinUvAuthProtocol, &pin_protocol));
+	ctap_check(ctap_get_pin_protocol(state, cp.pinUvAuthProtocol, &pin_protocol));
 
 	CborEncoder *encoder = &state->response.encoder;
 	CborEncoder map;
