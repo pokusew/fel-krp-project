@@ -438,6 +438,8 @@ void ctap_convert_to_asn1_der_ecdsa_sig_value(
 
 uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t length);
 
+uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t length);
+
 uint8_t ctap_reset(ctap_state_t *state);
 
 uint8_t ctap_selection(ctap_state_t *state);

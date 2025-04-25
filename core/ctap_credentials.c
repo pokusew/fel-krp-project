@@ -171,6 +171,57 @@ static uint8_t encode_public_key(
 
 }
 
+static uint8_t encode_pub_key_cred_desc(
+	CborEncoder *encoder,
+	const size_t cred_id_size,
+	const uint8_t *cred_id_data
+) {
+
+	CborError err;
+	CborEncoder map;
+
+	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 2));
+
+	cbor_encoding_check(cbor_encode_text_string(&map, "id", 2));
+	cbor_encoding_check(cbor_encode_byte_string(&map, cred_id_data, cred_id_size));
+
+	cbor_encoding_check(cbor_encode_text_string(&map, "type", 4));
+	cbor_encoding_check(cbor_encode_text_string(&map, "public-key", 10));
+
+	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
+
+	return CTAP2_OK;
+
+}
+
+static uint8_t encode_pub_key_cred_user_entity(
+	CborEncoder *encoder,
+	const CTAP_userEntity *user
+) {
+
+	CborError err;
+	CborEncoder map;
+
+	cbor_encoding_check(cbor_encoder_create_map(
+		encoder,
+		&map,
+		user->displayName_present ? 2 : 1)
+	);
+
+	cbor_encoding_check(cbor_encode_text_string(&map, "id", 2));
+	cbor_encoding_check(cbor_encode_byte_string(&map, user->id.id, user->id.id_size));
+
+	if (user->displayName_present) {
+		cbor_encoding_check(cbor_encode_text_string(&map, "displayName", 11));
+		cbor_encoding_check(cbor_encode_byte_string(&map, user->displayName, user->displayName_size));
+	}
+
+	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
+
+	return CTAP2_OK;
+
+}
+
 static void auth_data_compute_rp_id_hash(CTAP_authenticator_data *auth_data, const CTAP_rpId *rp_id) {
 	SHA256_CTX sha256_ctx;
 	sha256_init(&sha256_ctx);
@@ -868,6 +919,221 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 		params->clientDataHash,
 		&credential
 	));
+	// close response map
+	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
+
+	return CTAP2_OK;
+
+}
+
+uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t length) {
+
+	uint8_t ret;
+	CborError err;
+
+	CborParser parser;
+	CborValue it;
+	ctap_check(ctap_init_cbor_parser(request, length, &parser, &it));
+
+	CTAP_getAssertion ga;
+	CTAP_mc_ga_common *const params = &ga.common;
+	ctap_check(ctap_parse_get_assertion(&it, &ga));
+
+	const bool pinUvAuthParam_present = ctap_param_is_present(params, CTAP_makeCredential_pinUvAuthParam);
+	ctap_pin_protocol_t *pin_protocol = NULL;
+
+	// 6.2.2. authenticatorGetAssertion Algorithm
+	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-getAssert-authnr-alg
+	// see also WebAuthn 6.3.3. The authenticatorGetAssertion Operation
+	// https://w3c.github.io/webauthn/#sctn-op-get-assertion
+
+	// 1. + 2.
+	ctap_check(handle_pin_uv_auth_param_and_protocol(
+		state,
+		pinUvAuthParam_present,
+		params->pinUvAuthParam_size,
+		ctap_param_is_present(params, CTAP_makeCredential_pinUvAuthProtocol),
+		params->pinUvAuthProtocol,
+		&pin_protocol
+	));
+
+	// 3. Create a new authenticatorGetAssertion response structure
+	//    and initialize both its "uv" bit and "up" bit as false.
+	CTAP_authenticator_data auth_data;
+	memset(&auth_data, 0, sizeof(auth_data));
+	// thanks to the memset above, alls flags are initialized to 0 (false)
+
+	// 4. If the options parameter is present, process all option keys and values present in the parameter.
+	//    Treat any option keys that are not understood as absent.
+	// 4.5. If the "up" option is not present then, let the "up" option be treated
+	//      as being present with the value true.
+	const bool up = get_option_value_or_true(&params->options, CTAP_ma_ga_option_up);
+	debug_log("option up=%d" nl, up);
+	if (ctap_param_is_present(params, CTAP_makeCredential_options)) {
+		// 1. +. 2. + 3.
+		ctap_check(ensure_uv_option_false(pinUvAuthParam_present, &params->options));
+		// 4. If the "rk" option is present then, return CTAP2_ERR_UNSUPPORTED_OPTION.
+		if (is_option_present(&params->options, CTAP_ma_ga_option_rk)) {
+			return CTAP2_ERR_UNSUPPORTED_OPTION;
+		}
+	}
+
+	// 5. (not applicable to LionKey) If the alwaysUv option ID is present and true and ...
+
+	// 6. If the authenticator is protected by some form of user verification , then:
+	if (state->persistent.is_pin_set) {
+		// 1. If pinUvAuthParam parameter is present (implying the "uv" option is false (see Step 4)):
+		if (pinUvAuthParam_present) {
+			assert(pin_protocol != NULL); // <- this should be ensured by Step 2
+			ctap_check(ensure_valid_pin_uv_auth_param(
+				state,
+				params,
+				pin_protocol,
+				CTAP_clientPIN_pinUvAuthToken_permission_ga
+			));
+			auth_data.fixed_header.flags |= CTAP_authenticator_data_flags_uv;
+		}
+		// 2. If the "uv" option is present and set to true (implying the pinUvAuthParam parameter is not present,
+		//    and that the authenticator supports an enabled built-in user verification method, see Step 4):
+		//    (not applicable to LionKey)
+	}
+
+	// TODO: 7. Locate all credentials that are eligible for retrieval under the specified criteria:
+	//
+	//   1. If the allowList parameter is present and is non-empty,
+	//      locate all denoted credentials created by this authenticator and bound to the specified rpId.
+	//   2. If an allowList is not present, locate all discoverable credentials
+	//      that are created by this authenticator and bound to the specified rpId.
+	//   3. Create an applicable credentials list populated with the located credentials.
+	//   4. Iterate through the applicable credentials list, and if credential protection for a credential
+	//      is marked as userVerificationRequired, and the "uv" bit is false in the response,
+	//      remove that credential from the applicable credentials list.
+	//   5. Iterate through the applicable credentials list, and if credential protection for a credential
+	//      is marked as userVerificationOptionalWithCredentialIDList and there is no allowList passed by
+	//      the client and the "uv" bit is false in the response, remove that credential
+	//      from the applicable credentials list.
+	//   6. If the applicable credentials list is empty, return CTAP2_ERR_NO_CREDENTIALS.
+	//   7. Let numberOfCredentials be the number of applicable credentials found.
+	// TODO: This is just for a demo.
+	ctap_credentials_map_key *credential_key = &credentials_map_keys[0];
+	ctap_credentials_map_value *credential = &credentials_map_values[0];
+	if (!credential_key->used) {
+		return CTAP2_ERR_NO_CREDENTIALS;
+	}
+
+	// 8. (not applicable to LionKey) If evidence of user interaction was provided as part of Step 6.2
+	//    (i.e., by invoking performBuiltInUv()): ...
+
+	// 9. If the "up" option is set to true or not present
+	//    (not present has already been replaced with true, the default, in Step 4):
+	if (up) {
+		// 9.1. and 9.2. together (since we do not perform Step 8, the "up" bit in the response
+		// can never be true at this point and thus the 9.2.1. check is unnecessary).
+		ctap_check(ensure_user_present(state, pinUvAuthParam_present));
+		// 9.3. Set the "up" bit to true in the response.
+		auth_data.fixed_header.flags |= CTAP_authenticator_data_flags_up;
+		// 9.4. Call clearUserPresentFlag(), clearUserVerifiedFlag(), and clearPinUvAuthTokenPermissionsExceptLbw().
+		//      Note: This consumes both the "user present state", sometimes referred to as the "cached UP",
+		//      and the "user verified state", sometimes referred to as "cached UV".
+		//      These functions are no-ops if there is not an in-use pinUvAuthToken.
+		ctap_pin_uv_auth_token_clear_user_present_flag(&state->pin_uv_auth_token_state);
+		ctap_pin_uv_auth_token_clear_user_verified_flag(&state->pin_uv_auth_token_state);
+		ctap_pin_uv_auth_token_clear_permissions_except_lbw(&state->pin_uv_auth_token_state);
+	}
+
+	// extensions processing
+
+	// 10. If the extensions parameter is present:
+	if (ctap_param_is_present(params, CTAP_makeCredential_extensions)) {
+		// 1. Process any extensions that this authenticator supports,
+		//    ignoring any that it does not support.
+		// 2. Authenticator extension outputs generated by the authenticator
+		//    extension processing are returned in the authenticator data.
+		//    The set of keys in the authenticator extension outputs map MUST
+		//    be equal to, or a subset of, the keys of the authenticator extension inputs map.
+		// Note: Some extensions may produce different output depending on the state of
+		// the "uv" bit and/or "up" bit in the response.
+		if ((params->extensions_present & CTAP_extension_hmac_secret) != 0u) {
+			// TODO
+		}
+	}
+
+	// TODO: 11. If the allowList parameter is present: ...
+	// TODO: 12. If allowList is not present: ...
+
+	// 13. Sign the clientDataHash along with authData with the selected credential
+	//     using the structure specified in
+
+	uint8_t public_key[64];
+	if (uECC_compute_public_key(
+		credential->private_key,
+		public_key,
+		uECC_secp256r1()
+	) != 1) {
+		error_log("uECC_compute_public_key failed" nl);
+		return CTAP1_ERR_OTHER;
+	}
+
+	auth_data_compute_rp_id_hash(&auth_data, &params->rpId);
+	credential->signCount++;
+	auth_data.fixed_header.signCount = lion_htonl(credential->signCount);
+
+	size_t auth_data_variable_size = 0;
+	const size_t auth_data_variable_max_size = sizeof(auth_data.variable_data);
+
+	// if (ctap_param_is_present(params, CTAP_makeCredential_extensions)) {
+	// 	size_t extensions_size;
+	// 	ctap_check(encode_authenticator_data_extensions(
+	// 		&auth_data.variable_data[auth_data_variable_size],
+	// 		auth_data_variable_max_size - auth_data_variable_size,
+	// 		&extensions_size,
+	// 		params->extensions_present,
+	// 		credential
+	// 	));
+	// 	auth_data_variable_size += extensions_size;
+	// 	auth_data.fixed_header.flags |= CTAP_authenticator_data_flags_ed;
+	// }
+
+	assert(auth_data_variable_size < auth_data_variable_max_size);
+
+	const size_t auth_data_total_size = sizeof(auth_data.fixed_header) + auth_data_variable_size;
+
+	uint8_t asn1_der_sig[72];
+	size_t asn1_der_sig_size;
+	ctap_check(compute_signature(
+		&auth_data,
+		auth_data_total_size,
+		params->clientDataHash,
+		credential,
+		asn1_der_sig,
+		&asn1_der_sig_size
+	));
+
+	CborEncoder *encoder = &state->response.encoder;
+	CborEncoder map;
+
+	// start response map
+	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 4));
+	// credential (0x01)
+	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_credential));
+	ctap_check(encode_pub_key_cred_desc(&map, sizeof(credential->id), credential->id));
+	// authData (0x02)
+	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_authData));
+	cbor_encoding_check(cbor_encode_byte_string(
+		&map,
+		(const uint8_t *) &auth_data,
+		auth_data_total_size
+	));
+	// signature (0x03)
+	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_signature));
+	cbor_encoding_check(cbor_encode_byte_string(
+		&map,
+		asn1_der_sig,
+		asn1_der_sig_size
+	));
+	// user (0x04)
+	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_user));
+	ctap_check(encode_pub_key_cred_user_entity(&map, &credential_key->user));
 	// close response map
 	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
 

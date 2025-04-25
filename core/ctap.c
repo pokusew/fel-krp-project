@@ -127,6 +127,10 @@ uint8_t ctap_request(
 			info_log(magenta("CTAP_CMD_MAKE_CREDENTIAL") nl);
 			status = ctap_make_credential(state, params, params_size);
 			break;
+		case CTAP_CMD_GET_ASSERTION:
+			info_log(magenta("CTAP_CMD_GET_ASSERTION") nl);
+			status = ctap_get_assertion(state, params, params_size);
+			break;
 		case CTAP_CMD_GET_INFO:
 			info_log(magenta("CTAP_CMD_GET_INFO") nl);
 			// Consider returning an error (e.g., CTAP1_ERR_INVALID_PARAMETER)
