@@ -574,8 +574,9 @@ static uint8_t set_pin(
 	// We need to count the number of Unicode code points in the new_pin
 	// in order to comply with the CTAP2.1 standard, which states in 6.5.1. PIN Composition Requirements
 	// that "Authenticators MUST enforce the minimum PIN Length of 4 Unicode code points".
-	size_t new_pin_code_point_length = count_unicode_code_points_in_utf8_string(new_pin, new_pin_length);
-	if (new_pin_code_point_length < 4) {
+	const size_t new_pin_code_point_length = count_unicode_code_points_in_utf8_string(new_pin, new_pin_length);
+	const size_t pin_min_code_point_length = state->persistent.pin_min_code_point_length;
+	if (new_pin_code_point_length < pin_min_code_point_length) {
 		return CTAP2_ERR_PIN_POLICY_VIOLATION;
 	}
 	assert(new_pin_code_point_length <= 63);

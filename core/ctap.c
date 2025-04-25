@@ -42,6 +42,14 @@ static void ctap_state_init(ctap_persistent_state_t *state) {
 
 	state->is_initialized = INITIALIZED_MARKER;
 	state->pin_total_remaining_attempts = PIN_TOTAL_ATTEMPTS;
+
+	// The default pre-configured minimum PIN length is at least 4 Unicode code points
+	//   See 6.4. authenticatorGetInfo (0x04) minPINLength (0x0D)
+	//     https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#getinfo-minpinlength
+	//   See also 6.5.1. PIN Composition Requirements
+	//     https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authnrClientPin-pin-composition
+	state->pin_min_code_point_length = 4;
+
 	state->is_pin_set = 0;
 	state->num_rk_stored = 0;
 

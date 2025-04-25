@@ -41,6 +41,7 @@ static_assert(
 typedef struct ctap_persistent_state {
 
 	// PIN information
+	uint8_t pin_min_code_point_length;
 	bool is_pin_set;
 	// from the spec we can derive that 4 <= pin_code_point_length <= 63
 	uint8_t pin_code_point_length;
