@@ -868,3 +868,144 @@ uint8_t ctap_parse_make_credential_pub_key_cred_params(CTAP_makeCredential *para
 	return CTAP2_OK;
 
 }
+
+static uint8_t parse_get_assertion_extensions(CborValue *it, CTAP_getAssertion *ga) {
+
+	CTAP_mc_ga_common *const params = &ga->common;
+
+	ctap_parse_map_enter("parse_get_assertion_extensions");
+
+	for (size_t i = 0; i < map_length; ++i) {
+
+		ctap_parse_map_get_string_key(11);
+
+		// TODO
+		// if (strncmp(key, "hmac-secret", key_length) == 0) {
+		//
+		// 	// 12.5. HMAC Secret Extension (hmac-secret)
+		// 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-hmac-secret-extension
+		// } else {
+
+		debug_log("warning: unsupported extension %.*s" nl, (int) key_length, key);
+		cbor_decoding_check(cbor_value_advance(&map));
+
+	}
+
+	ctap_parse_map_leave();
+
+	// validate: check that all required parameters are present
+	// nothing to do here
+
+	return CTAP2_OK;
+
+}
+
+uint8_t ctap_parse_get_assertion(CborValue *it, CTAP_getAssertion *ga) {
+
+	ctap_parse_map_enter("authenticatorGetAssertion parameters");
+
+	memset(ga, 0, sizeof(CTAP_getAssertion));
+	CTAP_mc_ga_common *const params = &ga->common;
+
+	for (size_t i = 0; i < map_length; i++) {
+
+		int key;
+		ctap_cbor_ensure_type(cbor_value_is_integer(&map));
+		cbor_decoding_check(cbor_value_get_int_checked(&map, &key));
+		cbor_decoding_check(cbor_value_advance_fixed(&map));
+
+		switch (key) {
+
+			case CTAP_getAssertion_rpId:
+				debug_log("CTAP_getAssertion_rpId" nl);
+				ctap_check(parse_text_string(
+					&map,
+					params->rpId.id,
+					&params->rpId.id_size,
+					0,
+					CTAP_RP_ID_MAX_SIZE,
+					&map
+				));
+				debug_log(
+					"CTAP_getAssertion_rpId rpId (%" PRIsz ") = '%.*s'" nl,
+					params->rpId.id_size, (int) params->rpId.id_size, params->rpId.id
+				);
+				ctap_set_present(params, CTAP_getAssertion_rpId);
+				break;
+
+			case CTAP_getAssertion_clientDataHash:
+				debug_log("CTAP_getAssertion_clientDataHash" nl);
+				ctap_check(parse_fixed_byte_string(
+					&map,
+					params->clientDataHash,
+					sizeof(params->clientDataHash),
+					&map
+				));
+				ctap_set_present(params, CTAP_getAssertion_clientDataHash);
+				break;
+
+			case CTAP_getAssertion_allowList:
+				debug_log("CTAP_getAssertion_allowList" nl);
+				ctap_cbor_ensure_type(cbor_value_is_array(&map));
+				ga->allowList = map;
+				cbor_decoding_check(cbor_value_advance(&map));
+				ctap_set_present(params, CTAP_getAssertion_allowList);
+				break;
+
+			case CTAP_getAssertion_extensions:
+				debug_log("CTAP_getAssertion_extensions" nl);
+				ctap_check(parse_get_assertion_extensions(&map, ga));
+				ctap_set_present(params, CTAP_getAssertion_extensions);
+				break;
+
+			case CTAP_getAssertion_options:
+				debug_log("CTAP_getAssertion_options" nl);
+				ctap_check(parse_mc_ga_options(&map, &params->options));
+				ctap_set_present(params, CTAP_getAssertion_options);
+				break;
+
+			case CTAP_getAssertion_pinUvAuthParam:
+				debug_log("CTAP_getAssertion_pinUvAuthParam" nl);
+				ctap_check(parse_byte_string(
+					&map,
+					params->pinUvAuthParam,
+					&params->pinUvAuthParam_size,
+					// The 0 is intentional: The zero-length pinUvAuthParam is allowed for getAssertion.
+					0,
+					CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE,
+					&map
+				));
+				ctap_set_present(params, CTAP_getAssertion_pinUvAuthParam);
+				break;
+
+			case CTAP_getAssertion_pinUvAuthProtocol:
+				debug_log("CTAP_getAssertion_pinUvAuthProtocol" nl);
+				if (!cbor_value_is_unsigned_integer(&map)) {
+					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+				}
+				cbor_decoding_check(ctap_cbor_value_get_uint8(&map, &params->pinUvAuthProtocol));
+				cbor_decoding_check(cbor_value_advance_fixed(&map));
+				ctap_set_present(params, CTAP_getAssertion_pinUvAuthProtocol);
+				break;
+
+			default:
+				debug_log("ctap_parse_make_credential: unknown key %d" nl, key);
+				cbor_decoding_check(cbor_value_advance(&map));
+
+		}
+
+	}
+
+	ctap_parse_map_leave();
+
+	// validate: check that all required parameters are present
+	const uint32_t required_params =
+		ctap_param_to_mask(CTAP_getAssertion_rpId) |
+		ctap_param_to_mask(CTAP_getAssertion_clientDataHash);
+	if (!ctap_is_present(params->present, required_params)) {
+		return CTAP2_ERR_MISSING_PARAMETER;
+	}
+
+	return CTAP2_OK;
+
+}

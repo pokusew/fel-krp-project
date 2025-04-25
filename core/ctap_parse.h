@@ -520,4 +520,6 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params);
 
 uint8_t ctap_parse_make_credential_pub_key_cred_params(CTAP_makeCredential *params);
 
+uint8_t ctap_parse_get_assertion(CborValue *it, CTAP_getAssertion *params);
+
 #endif // LIONKEY_CTAP_PARSE_H
