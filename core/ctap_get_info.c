@@ -47,33 +47,37 @@ uint8_t ctap_get_info(ctap_state_t *state) {
 	CborEncoder map;
 	CborError err;
 
-	CborEncoder array;
-	CborEncoder options;
-	CborEncoder pins;
-
-	// TODO: Review all options
+	// see 6.4. authenticatorGetInfo (0x04)
 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorGetInfo
 
 	// start response map
 	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 8));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_versions));
-	cbor_encoding_check(cbor_encoder_create_array(&map, &array, 1));
-	cbor_encoding_check(cbor_encode_text_string(&array, "FIDO_2_1", 8));
-	cbor_encoding_check(cbor_encoder_close_container(&map, &array));
+	{
+		CborEncoder array;
+		cbor_encoding_check(cbor_encoder_create_array(&map, &array, 1));
+		cbor_encoding_check(cbor_encode_text_string(&array, "FIDO_2_1", 8));
+		cbor_encoding_check(cbor_encoder_close_container(&map, &array));
+	}
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_extensions));
-	cbor_encoding_check(cbor_encoder_create_array(&map, &array, 2));
-	cbor_encoding_check(cbor_encode_text_string(&array, "credProtect", 11));
-	cbor_encoding_check(cbor_encode_text_string(&array, "hmac-secret", 11));
-	cbor_encoding_check(cbor_encoder_close_container(&map, &array));
+	{
+		CborEncoder array;
+		cbor_encoding_check(cbor_encoder_create_array(&map, &array, 2));
+		cbor_encoding_check(cbor_encode_text_string(&array, "credProtect", 11));
+		cbor_encoding_check(cbor_encode_text_string(&array, "hmac-secret", 11));
+		cbor_encoding_check(cbor_encoder_close_container(&map, &array));
+	}
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_aaguid));
 	cbor_encoding_check(cbor_encode_byte_string(&map, ctap_aaguid, sizeof(ctap_aaguid)));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_options));
-	cbor_encoding_check(cbor_encoder_create_map(&map, &options, 7));
 	{
+		CborEncoder options;
+		cbor_encoding_check(cbor_encoder_create_map(&map, &options, 7));
+
 		// this authenticator can create discoverable credentials (not default, must be specified)
 		cbor_encoding_check(cbor_encode_text_string(&options, "rk", 2));
 		cbor_encoding_check(cbor_encode_boolean(&options, true));
@@ -101,22 +105,41 @@ uint8_t ctap_get_info(ctap_state_t *state) {
 
 		cbor_encoding_check(cbor_encode_text_string(&options, "makeCredUvNotRqd", 16));
 		cbor_encoding_check(cbor_encode_boolean(&options, true));
+
+		cbor_encoding_check(cbor_encoder_close_container(&map, &options));
 	}
-	cbor_encoding_check(cbor_encoder_close_container(&map, &options));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_maxMsgSize));
-	cbor_encoding_check(cbor_encode_int(&map, 1200)); // TODO
+	cbor_encoding_check(cbor_encode_uint(&map, 1200)); // TODO
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_pinUvAuthProtocols));
-	cbor_encoding_check(cbor_encoder_create_array(&map, &pins, 1));
-	cbor_encoding_check(cbor_encode_int(&pins, 1));
-	// TODO: add v2 once supported
-	cbor_encoding_check(cbor_encoder_close_container(&map, &pins));
+	{
+		CborEncoder array;
+		cbor_encoding_check(cbor_encoder_create_array(&map, &array, 1));
+		cbor_encoding_check(cbor_encode_uint(&array, 1));
+		// cbor_encoding_check(cbor_encode_uint(&array, 2)); // TODO: add v2 once supported
+		cbor_encoding_check(cbor_encoder_close_container(&map, &array));
+	}
 
+	// maxCredentialCountInList (0x07) specifies the maximum number of credentials supported
+	// in a PublicKeyCredentialDescriptor list (authenticatorMakeCredential's excludeList
+	// and authenticatorGetAssertion's allowList) at a time by the authenticator.
+	// MUST be greater than zero if present.
+	// Observed behavior:
+	//   When maxCredentialCountInList is not present, Google Chrome defaults to 1.
+	//   Our implementation supports an unlimited (*) number of credentials in excludeList and allowList.
+	//   (*) = the number is limited by the maximum CTAP CBOR size. In case of the CTAPHID transport
+	//   (when CTAPHID_PACKET_SIZE == 64), the maximum CTAP CBOR size is 7608 (= CTAPHID_MAX_PAYLOAD_LENGTH - 1)
+	//   (the -1 for the one byte for the CTAP command code).
+	//   Therefore, we set a sufficiently high number (which will effectively work as "unlimited")
+	//   as the maxCredentialCountInList value.
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_maxCredentialCountInList));
-	cbor_encoding_check(cbor_encode_uint(&map, 20)); // TODO
+	cbor_encoding_check(cbor_encode_uint(&map, 128));
 
-	// see Credential ID definition in WebAuthn spec at https://w3c.github.io/webauthn/#credential-id
+	// Maximum Credential ID Length supported by the authenticator. MUST be greater than zero if present.
+	// See Credential ID definition in WebAuthn spec at https://w3c.github.io/webauthn/#credential-id
+	//   Note that the WebAuthn spec implies that every Credential ID
+	//   is at least 16 bytes long and at most 1023 bytes long.
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_maxCredentialIdLength));
 	cbor_encoding_check(cbor_encode_uint(&map, 128)); // TODO: update once we design our Credential ID format
 
