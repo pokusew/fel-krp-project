@@ -107,7 +107,6 @@ target_link_libraries(core PUBLIC
 		tinycbor sha256 tinyaes micro_ecc
 )
 target_compile_definitions(core PUBLIC
-		LIONKEY_LOG=1
 		LIONKEY_DEBUG_LEVEL=3
 )
 

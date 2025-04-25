@@ -10,6 +10,7 @@
 #include "ctap_errors.h"
 #include "cose.h"
 #include "compiler.h"
+#include "utils.h"
 
 #define ctap_check(expr)                                                   \
 	if ((ret = (expr)) != CTAP2_OK) {                                      \
@@ -19,6 +20,19 @@
 		);                                                                 \
 		return ret;                                                        \
 	}                                                                      \
+	((void) 0)
+
+#define lionkey_cbor_error_log(err, line, filename) \
+	debug_log(red("CborError: 0x%x (%d) (%s) at %s:%d") nl, err, err, cbor_error_string(err), filename, line)
+
+#define ctap_cbor_ensure_type(result)                          \
+	if (!(result)) {                                           \
+		debug_log(                                             \
+			red("CTAP2_ERR_CBOR_UNEXPECTED_TYPE at %s:%d") nl, \
+			__FILE__, __LINE__                                 \
+		);                                                     \
+		return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;                 \
+	}                                                          \
 	((void) 0)
 
 #define cbor_decoding_check(r)                           \
@@ -34,17 +48,6 @@
         return CTAP1_ERR_OTHER;                          \
     }                                                    \
     ((void) 0)
-
-#if LIONKEY_LOG & 0x1
-
-#include "utils.h"
-
-#define lionkey_cbor_error_log(err, line, filename) \
-	debug_log(red("CborError: 0x%x (%d) (%s) at %s:%d") nl, err, err, cbor_error_string(err), filename, line)
-
-#else
-#define lionkey_cbor_error_log(err, line, filename) ((void) 0)
-#endif
 
 #define lion_array(name, max_size) \
 	size_t name##_size; \
