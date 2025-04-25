@@ -309,24 +309,32 @@ typedef struct CTAP_getAssertion_hmac_secret {
 #define CTAP_makeCredential_pinUvAuthParam         0x08
 #define CTAP_makeCredential_pinUvAuthProtocol      0x09
 #define CTAP_makeCredential_enterpriseAttestation  0x0A
-// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#makecred-option-key
-#define CTAP_makeCredential_option_rk          (1u << 0)
-#define CTAP_makeCredential_option_up          (1u << 1)
-#define CTAP_makeCredential_option_uv          (1u << 2)
-typedef struct CTAP_makeCredential {
+// options for makeCredential: https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#makecred-option-key
+// options for getAssertion: https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#getassert-option-key
+#define CTAP_ma_ga_option_rk  (1u << 0)
+#define CTAP_ma_ga_option_up  (1u << 1)
+#define CTAP_ma_ga_option_uv  (1u << 2)
+typedef struct CTAP_mc_ga_options {
+	uint8_t present;
+	uint8_t values;
+} CTAP_mc_ga_options;
+typedef struct CTAP_mc_ga_common {
 	uint32_t present; // not a param, holds parsing info (if param was parsed, i.e., present)
 	uint8_t clientDataHash[32]; // SHA-256 digest (32 bytes)
 	CTAP_rpId rpId;
+	uint8_t extensions_present;
+	CTAP_mc_ga_options options;
+	lion_array(pinUvAuthParam, CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE);
+	uint8_t pinUvAuthProtocol;
+} CTAP_mc_ga_common;
+typedef struct CTAP_makeCredential {
+	CTAP_mc_ga_common common;
 	CTAP_userEntity user;
 	CborValue pubKeyCredParams;
 	CTAP_credParams pubKeyCredParams_chosen;
 	CborValue excludeList;
-	uint8_t extensions_present;
+	// extensions-specific:
 	uint8_t credProtect;
-	uint8_t options_present;
-	uint8_t options_values;
-	lion_array(pinUvAuthParam, CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE);
-	uint8_t pinUvAuthProtocol;
 } CTAP_makeCredential;
 // On success, the authenticator returns the following authenticatorMakeCredential response structure
 // which contains an attestation object plus additional information.
@@ -349,20 +357,11 @@ typedef struct CTAP_makeCredential {
 #define CTAP_getAssertion_options                0x05
 #define CTAP_getAssertion_pinUvAuthParam         0x06
 #define CTAP_getAssertion_pinUvAuthProtocol      0x07
-// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#getassert-option-key
-#define CTAP_getAssertion_option_up          (1u << 1)
-#define CTAP_getAssertion_option_uv          (1u << 2)
 typedef struct CTAP_getAssertion {
-	uint32_t present; // not a param, holds parsing info (if param was parsed, i.e., present)
-	CTAP_rpId rpId;
-	uint8_t clientDataHash[32]; // SHA-256 digest (32 bytes)
+	CTAP_mc_ga_common common;
 	CborValue allowList;
-	uint8_t extensions_present;
+	// extensions-specific:
 	CTAP_getAssertion_hmac_secret hmac_secret;
-	uint8_t options_present;
-	uint8_t options_values;
-	lion_array(pinUvAuthParam, CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE);
-	uint8_t pinUvAuthProtocol;
 } CTAP_getAssertion;
 // On success, the authenticator returns the following authenticatorGetAssertion response structure:
 #define CTAP_getAssertion_res_credential           0x01
