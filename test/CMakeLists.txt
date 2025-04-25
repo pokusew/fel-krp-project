@@ -101,6 +101,7 @@ target_sources(core PUBLIC
 		lionkey/consistent_prng.cpp
 		lionkey/wait_for_user_presence.c
 		lionkey/keepalive.c
+		lionkey/ctap_test.c
 )
 target_include_directories(core PUBLIC ../core lionkey)
 target_link_libraries(core PUBLIC
