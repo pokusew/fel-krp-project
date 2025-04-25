@@ -796,13 +796,6 @@ static uint8_t parse_cred_params(CborValue *it, CTAP_credParams *cred_params) {
 
 }
 
-static bool is_supported_pub_key_alg(const CTAP_credParams *cred_params) {
-	return cred_params->type == CTAP_pubKeyCredType_public_key && (
-		// add supported public-key algorithms here:
-		cred_params->alg == COSE_ALG_ES256
-	);
-}
-
 /**
  * NOTE! This function must always be preceded by an invocation of ctap_parse_make_credential()
  *       with the same params argument.
@@ -849,7 +842,7 @@ uint8_t ctap_parse_make_credential_pub_key_cred_params(CTAP_makeCredential *para
 	for (size_t i = 0; i < array_length; i++) {
 		CTAP_credParams cred_params;
 		ctap_check(parse_cred_params(&array, &cred_params));
-		if (!algorithm_chosen && is_supported_pub_key_alg(&cred_params)) {
+		if (!algorithm_chosen && ctap_is_supported_pub_key_cred_alg(&cred_params)) {
 			params->pubKeyCredParams_chosen = cred_params;
 			algorithm_chosen = true;
 		}
