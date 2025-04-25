@@ -51,7 +51,7 @@ uint8_t ctap_get_info(ctap_state_t *state) {
 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorGetInfo
 
 	// start response map
-	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 8));
+	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 9));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_versions));
 	{
@@ -142,6 +142,14 @@ uint8_t ctap_get_info(ctap_state_t *state) {
 	//   is at least 16 bytes long and at most 1023 bytes long.
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_maxCredentialIdLength));
 	cbor_encoding_check(cbor_encode_uint(&map, 128)); // TODO: update once we design our Credential ID format
+
+	// This specifies the current minimum PIN length, in Unicode code points,
+	// the authenticator enforces for ClientPIN.
+	// This is applicable for ClientPIN only:
+	//   the minPINLength member MUST be absent if the clientPin option ID is absent;
+	//   it MUST be present if the authenticator supports authenticatorClientPIN (LionKey's case).
+	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_minPINLength));
+	cbor_encoding_check(cbor_encode_uint(&map, state->persistent.pin_min_code_point_length));
 
 	// close response map
 	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
