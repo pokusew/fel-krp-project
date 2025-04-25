@@ -475,9 +475,12 @@ static uint8_t parse_user_entity(CborValue *it, CTAP_userEntity *user) {
 
 }
 
-static uint8_t parse_make_credential_options(CborValue *it, CTAP_makeCredential *params) {
+static uint8_t parse_mc_ga_options(
+	CborValue *it,
+	CTAP_mc_ga_options *options
+) {
 
-	ctap_parse_map_enter("make_credential_options");
+	ctap_parse_map_enter("parse_mc_ga_options");
 
 	for (size_t i = 0; i < map_length; ++i) {
 
@@ -486,12 +489,15 @@ static uint8_t parse_make_credential_options(CborValue *it, CTAP_makeCredential 
 		uint8_t option;
 		bool value;
 
+		// Note:
+		//   The rk option is only applicable for authenticatorMakeCredential.
+		//   The spec says: Platforms MUST NOT send the "rk" option key.
 		if (strncmp(key, "rk", key_length) == 0) {
-			option = CTAP_makeCredential_option_rk;
+			option = CTAP_ma_ga_option_rk;
 		} else if (strncmp(key, "up", key_length) == 0) {
-			option = CTAP_makeCredential_option_up;
+			option = CTAP_ma_ga_option_up;
 		} else if (strncmp(key, "uv", key_length) == 0) {
-			option = CTAP_makeCredential_option_uv;
+			option = CTAP_ma_ga_option_uv;
 		} else {
 			debug_log("warning: unrecognized option key %.*s" nl, (int) key_length, key);
 			cbor_decoding_check(cbor_value_advance(&map));
@@ -504,9 +510,9 @@ static uint8_t parse_make_credential_options(CborValue *it, CTAP_makeCredential 
 		}
 
 		cbor_decoding_check(cbor_value_get_boolean(&map, &value));
-		params->options_present |= option;
+		options->present |= option;
 		if (value) {
-			params->options_values |= option;
+			options->values |= option;
 		} // else not needed as we expect the options_values to be zeroed before invoking this function
 		cbor_decoding_check(cbor_value_advance_fixed(&map));
 
@@ -521,7 +527,9 @@ static uint8_t parse_make_credential_options(CborValue *it, CTAP_makeCredential 
 
 }
 
-static uint8_t parse_make_credential_extensions(CborValue *it, CTAP_makeCredential *params) {
+static uint8_t parse_make_credential_extensions(CborValue *it, CTAP_makeCredential *mc) {
+
+	CTAP_mc_ga_common *const params = &mc->common;
 
 	ctap_parse_map_enter("parse_make_credential_extensions");
 
@@ -538,7 +546,7 @@ static uint8_t parse_make_credential_extensions(CborValue *it, CTAP_makeCredenti
 			if (!cbor_value_is_unsigned_integer(&map)) {
 				return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
 			}
-			cbor_decoding_check(ctap_cbor_value_get_uint8(&map, &params->credProtect));
+			cbor_decoding_check(ctap_cbor_value_get_uint8(&map, &mc->credProtect));
 			params->extensions_present |= CTAP_extension_credProtect;
 			cbor_decoding_check(cbor_value_advance_fixed(&map));
 
@@ -581,11 +589,12 @@ static uint8_t parse_make_credential_extensions(CborValue *it, CTAP_makeCredenti
 
 }
 
-uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
+uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *mc) {
 
 	ctap_parse_map_enter("authenticatorMakeCredential parameters");
 
-	memset(params, 0, sizeof(CTAP_makeCredential));
+	memset(mc, 0, sizeof(CTAP_makeCredential));
+	CTAP_mc_ga_common *const params = &mc->common;
 
 	for (size_t i = 0; i < map_length; i++) {
 
@@ -622,7 +631,7 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 				debug_log("CTAP_makeCredential_user" nl);
 				ctap_check(parse_user_entity(
 					&map,
-					&params->user
+					&mc->user
 				));
 				ctap_set_present(params, CTAP_makeCredential_user);
 				break;
@@ -632,7 +641,7 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 				if (!cbor_value_is_array(&map)) {
 					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
 				}
-				params->pubKeyCredParams = map;
+				mc->pubKeyCredParams = map;
 				cbor_decoding_check(cbor_value_advance(&map));
 				ctap_set_present(params, CTAP_makeCredential_pubKeyCredParams);
 				break;
@@ -642,20 +651,20 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params) {
 				if (!cbor_value_is_array(&map)) {
 					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
 				}
-				params->excludeList = map;
+				mc->excludeList = map;
 				cbor_decoding_check(cbor_value_advance(&map));
 				ctap_set_present(params, CTAP_makeCredential_excludeList);
 				break;
 
 			case CTAP_makeCredential_extensions:
 				debug_log("CTAP_makeCredential_extensions" nl);
-				ctap_check(parse_make_credential_extensions(&map, params));
+				ctap_check(parse_make_credential_extensions(&map, mc));
 				ctap_set_present(params, CTAP_makeCredential_extensions);
 				break;
 
 			case CTAP_makeCredential_options:
 				debug_log("CTAP_makeCredential_options" nl);
-				ctap_check(parse_make_credential_options(&map, params));
+				ctap_check(parse_mc_ga_options(&map, &params->options));
 				ctap_set_present(params, CTAP_makeCredential_options);
 				break;
 

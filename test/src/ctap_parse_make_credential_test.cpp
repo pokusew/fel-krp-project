@@ -90,7 +90,7 @@ TEST_F(CtapParseMakeCredentialTest, Dummy) {
 		ctap_param_to_mask(CTAP_makeCredential_pubKeyCredParams) |
 		ctap_param_to_mask(CTAP_makeCredential_pinUvAuthParam) |
 		ctap_param_to_mask(CTAP_makeCredential_pinUvAuthProtocol);
-	EXPECT_EQ(mc.present, expected_present);
+	EXPECT_EQ(mc.common.present, expected_present);
 
 	auto expected_clientDataHash = hex::bytes<
 		"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -98,18 +98,18 @@ TEST_F(CtapParseMakeCredentialTest, Dummy) {
 	auto expected_userId = hex::bytes<"01">();
 	const uint8_t expected_rpId[] = ".dummy";
 
-	EXPECT_SAME_BYTES(mc.clientDataHash, expected_clientDataHash.data());
+	EXPECT_SAME_BYTES(mc.common.clientDataHash, expected_clientDataHash.data());
 
-	EXPECT_EQ(mc.rpId.id_size, sizeof(expected_rpId) - 1);
-	EXPECT_SAME_BYTES_S(mc.rpId.id_size, mc.rpId.id, expected_rpId);
+	EXPECT_EQ(mc.common.rpId.id_size, sizeof(expected_rpId) - 1);
+	EXPECT_SAME_BYTES_S(mc.common.rpId.id_size, mc.common.rpId.id, expected_rpId);
 
 	EXPECT_EQ(mc.user.id.id_size, expected_userId.size());
 	EXPECT_SAME_BYTES_S(mc.user.id.id_size, mc.user.id.id, expected_userId.data());
 	EXPECT_EQ(mc.user.displayName_present, false);
 
-	EXPECT_EQ(mc.pinUvAuthParam_size, 0);
+	EXPECT_EQ(mc.common.pinUvAuthParam_size, 0);
 
-	EXPECT_EQ(mc.pinUvAuthProtocol, 1);
+	EXPECT_EQ(mc.common.pinUvAuthProtocol, 1);
 }
 
 TEST_F(CtapParseMakeCredentialTest, WebauthnIoTest) {
@@ -161,7 +161,7 @@ TEST_F(CtapParseMakeCredentialTest, WebauthnIoTest) {
 		ctap_param_to_mask(CTAP_makeCredential_options) |
 		ctap_param_to_mask(CTAP_makeCredential_pinUvAuthParam) |
 		ctap_param_to_mask(CTAP_makeCredential_pinUvAuthProtocol);
-	EXPECT_EQ(mc.present, expected_present);
+	EXPECT_EQ(mc.common.present, expected_present);
 
 	auto expected_clientDataHash = hex::bytes<
 		"fad4059e31ddef7c75449ee9d8b523977b30d161d089f2a0a20c806875edb1aa"
@@ -173,10 +173,10 @@ TEST_F(CtapParseMakeCredentialTest, WebauthnIoTest) {
 		"91964252f79f51be8200364abc0e4d3e"
 	>();
 
-	EXPECT_SAME_BYTES(mc.clientDataHash, expected_clientDataHash.data());
+	EXPECT_SAME_BYTES(mc.common.clientDataHash, expected_clientDataHash.data());
 
-	EXPECT_EQ(mc.rpId.id_size, sizeof(expected_rpId) - 1);
-	EXPECT_SAME_BYTES_S(mc.rpId.id_size, mc.rpId.id, expected_rpId);
+	EXPECT_EQ(mc.common.rpId.id_size, sizeof(expected_rpId) - 1);
+	EXPECT_SAME_BYTES_S(mc.common.rpId.id_size, mc.common.rpId.id, expected_rpId);
 
 	EXPECT_EQ(mc.user.id.id_size, expected_userId.size());
 	EXPECT_SAME_BYTES_S(mc.user.id.id_size, mc.user.id.id, expected_userId.data());
@@ -184,16 +184,16 @@ TEST_F(CtapParseMakeCredentialTest, WebauthnIoTest) {
 	EXPECT_EQ(mc.user.displayName_size, sizeof(expected_userDisplayName) - 1);
 	EXPECT_SAME_BYTES_S(mc.user.displayName_size, mc.user.displayName, expected_userDisplayName);
 
-	EXPECT_EQ(mc.extensions_present, CTAP_extension_credProtect);
+	EXPECT_EQ(mc.common.extensions_present, CTAP_extension_credProtect);
 	EXPECT_EQ(mc.credProtect, 2);
 
-	EXPECT_EQ(mc.options_present, CTAP_makeCredential_option_rk);
-	EXPECT_EQ(mc.options_values, CTAP_makeCredential_option_rk);
+	EXPECT_EQ(mc.common.options.present, CTAP_ma_ga_option_rk);
+	EXPECT_EQ(mc.common.options.values, CTAP_ma_ga_option_rk);
 
-	EXPECT_EQ(mc.pinUvAuthParam_size, expected_pinUvAuthParam.size());
-	EXPECT_SAME_BYTES_S(mc.pinUvAuthParam_size, mc.pinUvAuthParam, expected_pinUvAuthParam.data());
+	EXPECT_EQ(mc.common.pinUvAuthParam_size, expected_pinUvAuthParam.size());
+	EXPECT_SAME_BYTES_S(mc.common.pinUvAuthParam_size, mc.common.pinUvAuthParam, expected_pinUvAuthParam.data());
 
-	EXPECT_EQ(mc.pinUvAuthProtocol, 1);
+	EXPECT_EQ(mc.common.pinUvAuthProtocol, 1);
 
 	test_ctap_parse_make_credential_pub_key_cred_params();
 	ASSERT_EQ(status, CTAP2_OK);
