@@ -133,9 +133,14 @@ uint8_t ctap_get_info(ctap_state_t *state) {
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_pinUvAuthProtocols));
 	{
 		CborEncoder array;
-		cbor_encoding_check(cbor_encoder_create_array(&map, &array, 1));
-		cbor_encoding_check(cbor_encode_uint(&array, 1));
-		// cbor_encoding_check(cbor_encode_uint(&array, 2)); // TODO: add v2 once supported
+		const size_t num_protocol_versions = sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t);
+		cbor_encoding_check(cbor_encoder_create_array(&map, &array, num_protocol_versions));
+		// List of supported PIN/UV auth protocols
+		// in order of decreasing authenticator preference.
+		// MUST NOT contain duplicate values nor be empty if present.
+		for (size_t protocol_version = num_protocol_versions; protocol_version >= 1; --protocol_version) {
+			cbor_encoding_check(cbor_encode_uint(&array, protocol_version));
+		}
 		cbor_encoding_check(cbor_encoder_close_container(&map, &array));
 	}
 
