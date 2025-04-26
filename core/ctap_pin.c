@@ -24,7 +24,7 @@ void ctap_pin_uv_auth_token_begin_using(ctap_pin_uv_auth_token_state *token_stat
 	token_state->initial_usage_time_limit = CTAP_PIN_UV_AUTH_TOKEN_STATE_INITIAL_USAGE_TIME_LIMIT_USB;
 	token_state->user_present_time_limit = CTAP_PIN_UV_AUTH_TOKEN_STATE_INITIAL_USAGE_TIME_LIMIT_USB;
 	token_state->max_usage_time_period = 10 * 60 * 1000; // 10 minutes
-	token_state->usage_timer.start = /* TODO: getCurrentTimestamp() */ 0;
+	token_state->usage_timer.start = ctap_get_current_time();
 	token_state->usage_timer.running = true;
 	token_state->in_use = true;
 }
