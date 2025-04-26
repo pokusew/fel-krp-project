@@ -965,18 +965,13 @@ uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
 }
 
 uint8_t ctap_get_pin_protocol(ctap_state_t *state, size_t protocol_version, ctap_pin_protocol_t **pin_protocol) {
-	if (protocol_version != 1 && protocol_version != 2) {
+	debug_log("ctap_get_pin_protocol: protocol_version=%" PRIsz nl, protocol_version);
+	const size_t max_protocol_version = sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t);
+	assert(max_protocol_version <= 2);
+	if (protocol_version < 1 || protocol_version > max_protocol_version) {
+		// protocol version not supported
 		return CTAP1_ERR_INVALID_PARAMETER;
 	}
-	static_assert(
-		(sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t)) == 2,
-		"unexpected state->pin_protocol array length"
-	);
-	assert(
-		1 <= protocol_version
-		&& (protocol_version - 1) < (sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t))
-	);
-	debug_log("pin_protocol version %" PRIsz nl, protocol_version);
 	*pin_protocol = &state->pin_protocol[protocol_version - 1];
 	return CTAP2_OK;
 }
