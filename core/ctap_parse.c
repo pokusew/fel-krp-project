@@ -799,6 +799,110 @@ uint8_t ctap_parse_make_credential_pub_key_cred_params(CTAP_makeCredential *para
 
 }
 
+static uint8_t parse_cred_desc(CborValue *it, CTAP_credDesc *cred_desc) {
+
+	ctap_parse_map_enter("PublicKeyCredentialDescriptor");
+
+	bool type_parsed = false;
+	bool id_parsed = false;
+
+	for (size_t i = 0; i < map_length; ++i) {
+
+		ctap_parse_map_get_string_key(4);
+
+		if (strncmp(key, "type", key_length) == 0) {
+
+			char type[10]; // not null terminated
+			size_t type_length = sizeof(type);
+			ctap_cbor_ensure_type(cbor_value_is_text_string(&map));
+			size_t actual_type_length;
+			cbor_decoding_check(cbor_value_get_string_length(&map, &actual_type_length));
+			if (actual_type_length > type_length) {
+				debug_log("parse_cred_params: skipping unknown too long type" nl);
+				cbor_decoding_check(cbor_value_advance(&map));
+				type_parsed = true;
+				continue;
+			}
+			cbor_decoding_check(cbor_value_copy_text_string(&map, type, &type_length, &map));
+
+			type_parsed = true;
+
+			if (strncmp(type, "public-key", type_length) == 0) {
+				cred_desc->type = CTAP_pubKeyCredType_public_key;
+			}
+
+		} else if (strncmp(key, "id", key_length) == 0) {
+
+			ctap_cbor_ensure_type(cbor_value_is_byte_string(&map));
+			cbor_decoding_check(cbor_value_get_string_length(&map, &cred_desc->id.size));
+			ctap_check(parse_byte_string(
+				&map,
+				cred_desc->id.data,
+				&cred_desc->id.size,
+				0, // theoretically, we could check that it is at least 16 bytes long
+				CTAP_CREDENTIAL_ID_MAX_SIZE,
+				&map
+			));
+			id_parsed = true;
+
+		} else {
+			debug_log("warning: unrecognized PublicKeyCredentialParameters key %.*s" nl, (int) key_length, key);
+			cbor_decoding_check(cbor_value_advance(&map));
+		}
+
+	}
+
+	ctap_parse_map_leave();
+
+	// validate: check that all required parameters are present
+	if (!type_parsed || !id_parsed) {
+		return CTAP2_ERR_INVALID_CBOR;
+	}
+
+	return CTAP2_OK;
+
+}
+
+uint8_t ctap_parse_pub_key_cred_desc_list_init(
+	ctap_parse_pub_key_cred_desc_list_ctx *ctx,
+	const CborValue *list
+) {
+
+	uint8_t ret;
+	CborError err;
+
+	// This should be guaranteed as this function (ctap_parse_pub_key_cred_desc_list_init)
+	// should always be called only after ctap_parse_make_credential / ctap_parse_get_assertion.
+	ctap_cbor_ensure_type(cbor_value_is_array(list));
+
+	cbor_decoding_check(cbor_value_enter_container(list, &ctx->it));
+	cbor_decoding_check(cbor_value_get_array_length(list, &ctx->length));
+	debug_log("pub_key_cred_desc_list length=%" PRIsz nl, ctx->length);
+	ctx->next_idx = 0;
+
+	return CTAP2_OK;
+
+}
+
+uint8_t ctap_parse_pub_key_cred_desc_list_next_cred(
+	ctap_parse_pub_key_cred_desc_list_ctx *ctx,
+	CTAP_credDesc **cred_desc
+) {
+
+	uint8_t ret;
+
+	if (ctx->next_idx == ctx->length) {
+		*cred_desc = NULL;
+		return CTAP2_OK;
+	}
+
+	ctap_check(parse_cred_desc(&ctx->it, &ctx->item));
+	ctx->next_idx++;
+	*cred_desc = &ctx->item;
+	return CTAP2_OK;
+
+}
+
 static uint8_t parse_get_assertion_extensions(CborValue *it, CTAP_getAssertion *ga) {
 
 	CTAP_mc_ga_common *const params = &ga->common;

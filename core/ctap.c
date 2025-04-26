@@ -29,6 +29,14 @@ bool ctap_user_handle_matches(const CTAP_userHandle *handle_a, const CTAP_userHa
 	return memcmp(handle_a->id, handle_b->id, size) == 0;
 }
 
+bool ctap_cred_id_matches(const CTAP_credId *cred_id_a, const CTAP_credId *cred_id_b) {
+	const size_t size = cred_id_a->size;
+	if (size != cred_id_b->size) {
+		return false;
+	}
+	return memcmp(cred_id_a->data, cred_id_b->data, size) == 0;
+}
+
 static void ctap_state_init(ctap_persistent_state_t *state) {
 
 	debug_log("ctap_state_init" nl);
