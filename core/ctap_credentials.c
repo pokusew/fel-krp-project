@@ -622,12 +622,20 @@ static uint8_t ensure_valid_pin_uv_auth_param(
 	//    1. If the verification returns error,
 	//       then end the operation by returning CTAP2_ERR_PIN_AUTH_INVALID error.
 	ctap_check(verify(state, params, pin_protocol));
-	// 2. Verify that the pinUvAuthToken has the mc permission,
+	// 2. Verify that the pinUvAuthToken has the required permissions,
 	//    if not, then end the operation by returning CTAP2_ERR_PIN_AUTH_INVALID.
 	if (!ctap_pin_uv_auth_token_has_permissions(
 		&state->pin_uv_auth_token_state,
 		permissions
 	)) {
+		debug_log(
+			red(
+				"pinUvAuthToken does not have the required permissions:"
+				" current=%" PRIu32 " required=%" PRIu32
+		) nl,
+			state->pin_uv_auth_token_state.permissions,
+			permissions
+		);
 		return CTAP2_ERR_PIN_AUTH_INVALID;
 	}
 	// 3. If the pinUvAuthToken has a permissions RP ID associated:
@@ -637,11 +645,20 @@ static uint8_t ensure_valid_pin_uv_auth_param(
 		state->pin_uv_auth_token_state.rpId_set
 		&& !ctap_rp_id_matches(&state->pin_uv_auth_token_state.rpId, &params->rpId)
 	)) {
+		debug_log(
+			red(
+				"pinUvAuthToken RP ID mismatch:"
+				" current='%.*s' required='%.*s'"
+			) nl,
+			(int) state->pin_uv_auth_token_state.rpId.id_size, state->pin_uv_auth_token_state.rpId.id,
+			(int) params->rpId.id_size, params->rpId.id
+		);
 		return CTAP2_ERR_PIN_AUTH_INVALID;
 	}
 	// Let userVerifiedFlagValue be the result of calling getUserVerifiedFlagValue().
 	// If userVerifiedFlagValue is false then end the operation by returning CTAP2_ERR_PIN_AUTH_INVALID.
 	if (!ctap_pin_uv_auth_token_get_user_verified_flag_value(&state->pin_uv_auth_token_state)) {
+		debug_log(red("pinUvAuthToken user_verified=false") nl);
 		return CTAP2_ERR_PIN_AUTH_INVALID;
 	}
 	// If the pinUvAuthToken does not have a permissions RP ID associated:
