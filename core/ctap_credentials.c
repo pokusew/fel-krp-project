@@ -437,6 +437,28 @@ static int find_credential_index(const CTAP_rpId *rp_id, const CTAP_userHandle *
 
 }
 
+static int lookup_credential_by_desc(const CTAP_credDesc *cred_desc) {
+
+	if (cred_desc->type != CTAP_pubKeyCredType_public_key || cred_desc->id.size != 128) {
+		return -1;
+	}
+
+	for (int i = 0; i < CTAP_MEMORY_MAX_NUM_CREDENTIALS; ++i) {
+		ctap_credentials_map_key *key = &credentials_map_keys[i];
+		if (!key->used) {
+			continue;
+		}
+		ctap_credentials_map_value *value = &credentials_map_values[i];
+		static_assert(sizeof(value->id) == 128, "sizeof(value->id) == 128");
+		if (memcmp(cred_desc->id.data, value->id, 128) == 0) {
+			return i;
+		}
+	}
+
+	return -1;
+
+}
+
 static uint8_t store_credential(
 	const CTAP_rpId *rp_id,
 	const CTAP_userEntity *user,
@@ -653,6 +675,63 @@ static uint8_t ensure_user_present(ctap_state_t *state, const bool pinUvAuthPara
 	return CTAP2_OK;
 }
 
+static uint8_t process_exclude_list(
+	ctap_state_t *state,
+	const CborValue *excludeList,
+	const CTAP_rpId *rpId,
+	const bool pinUvAuthParam_present,
+	const bool uv_collected
+) {
+	uint8_t ret;
+
+	ctap_parse_pub_key_cred_desc_list_ctx list_ctx;
+	ctap_check(ctap_parse_pub_key_cred_desc_list_init(&list_ctx, excludeList));
+
+	CTAP_credDesc *cred_desc;
+	while (true) {
+		ctap_check(ctap_parse_pub_key_cred_desc_list_next_cred(&list_ctx, &cred_desc));
+		// if the end of the list, stop iteration
+		if (cred_desc == NULL) {
+			break;
+		}
+		int idx = lookup_credential_by_desc(cred_desc);
+		if (idx == -1) {
+			debug_log("process_exclude_list: skipping unknown credential ID" nl);
+			continue;
+		}
+		if (!ctap_rp_id_matches(rpId, &credentials_map_keys[idx].rpId)) {
+			debug_log("process_exclude_list: skipping credential ID that is bound to a different RP" nl);
+			continue;
+		}
+		ctap_credentials_map_value *cred = &credentials_map_values[idx];
+		if (cred->credProtect == CTAP_extension_credProtect_3_userVerificationRequired && !uv_collected) {
+			debug_log(
+				"process_exclude_list:"
+				" skipping a credential with credProtect_3_userVerificationRequired"
+				" because uv not collected" nl
+			);
+			continue;
+		}
+		// TODO:
+		//   What is the pinUvAuthParam is invalid?
+		//   Note that it is validated only if !allow_no_verification && state->persistent.is_pin_set (see Step 11).
+		const bool user_present = pinUvAuthParam_present && ctap_pin_uv_auth_token_get_user_present_flag_value(
+			&state->pin_uv_auth_token_state
+		);
+		if (!user_present) {
+			debug_log("process_exclude_list: collecting user presence ..." nl);
+			ctap_user_presence_result_t up_result = ctap_wait_for_user_presence();
+			if (up_result == CTAP_UP_RESULT_CANCEL) {
+				// handling of 11.2.9.1.5. CTAPHID_CANCEL (0x11)
+				return CTAP2_ERR_KEEPALIVE_CANCEL;
+			}
+		}
+		return CTAP2_ERR_CREDENTIAL_EXCLUDED;
+	}
+
+	return CTAP2_OK;
+}
+
 uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t length) {
 
 	uint8_t ret;
@@ -756,8 +835,16 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 		//    (not applicable to LionKey)
 	}
 
-	// TODO: 12. If the excludeList parameter is present and contains a credential ID
-	//           created by this authenticator, that is bound to the specified rp.id: ...
+	// 12. If the excludeList parameter is present ...
+	if (ctap_param_is_present(params, CTAP_makeCredential_excludeList)) {
+		ctap_check(process_exclude_list(
+			state,
+			&mc.excludeList,
+			&params->rpId,
+			pinUvAuthParam_present,
+			(auth_data.fixed_header.flags & CTAP_authenticator_data_flags_uv) != 0u
+		));
+	}
 
 	// 13. (not applicable to LionKey) If evidence of user interaction was provided as part of Step 11
 	//     (i.e., by invoking performBuiltInUv()): ...
