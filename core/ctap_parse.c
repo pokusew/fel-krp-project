@@ -691,6 +691,7 @@ static uint8_t parse_cred_params(CborValue *it, CTAP_credParams *cred_params) {
 			if (actual_type_length > type_length) {
 				debug_log("parse_cred_params: skipping unknown too long type" nl);
 				cbor_decoding_check(cbor_value_advance(&map));
+				type_parsed = true;
 				continue;
 			}
 			cbor_decoding_check(cbor_value_copy_text_string(&map, type, &type_length, &map));
