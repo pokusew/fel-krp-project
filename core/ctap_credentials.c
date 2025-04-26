@@ -213,7 +213,7 @@ static uint8_t encode_pub_key_cred_user_entity(
 
 	if (user->displayName_present) {
 		cbor_encoding_check(cbor_encode_text_string(&map, "displayName", 11));
-		cbor_encoding_check(cbor_encode_byte_string(&map, user->displayName, user->displayName_size));
+		cbor_encoding_check(cbor_encode_text_string(&map, (const char *) user->displayName, user->displayName_size));
 	}
 
 	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
