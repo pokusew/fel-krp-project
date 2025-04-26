@@ -413,7 +413,7 @@ static uint8_t create_self_attestation_statement(
 
 }
 
-#define CTAP_MEMORY_MAX_NUM_CREDENTIALS 10
+#define CTAP_MEMORY_MAX_NUM_CREDENTIALS 50
 static ctap_credentials_map_key credentials_map_keys[CTAP_MEMORY_MAX_NUM_CREDENTIALS];
 static ctap_credentials_map_value credentials_map_values[CTAP_MEMORY_MAX_NUM_CREDENTIALS];
 
