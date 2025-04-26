@@ -147,6 +147,13 @@ uint8_t ctap_request(
 			info_log(magenta("CTAP_CMD_GET_ASSERTION") nl);
 			status = ctap_get_assertion(state, params, params_size);
 			break;
+		case CTAP_CMD_GET_NEXT_ASSERTION:
+			info_log(magenta("CTAP_CMD_GET_NEXT_ASSERTION") nl);
+			// Consider returning an error (e.g., CTAP1_ERR_INVALID_PARAMETER)
+			// if any input parameters are provided (because the authenticatorGetInfo command does not
+			// take any inputs parameters). Currently, we ignore any unexpected parameters.
+			status = ctap_get_next_assertion(state);
+			break;
 		case CTAP_CMD_GET_INFO:
 			info_log(magenta("CTAP_CMD_GET_INFO") nl);
 			// Consider returning an error (e.g., CTAP1_ERR_INVALID_PARAMETER)

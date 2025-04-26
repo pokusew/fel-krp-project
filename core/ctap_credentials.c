@@ -196,22 +196,33 @@ static uint8_t encode_pub_key_cred_desc(
 
 static uint8_t encode_pub_key_cred_user_entity(
 	CborEncoder *encoder,
-	const CTAP_userEntity *user
+	const CTAP_userEntity *user,
+	const bool include_user_identifiable_info
 ) {
 
 	CborError err;
 	CborEncoder map;
 
+	size_t num_items = 1; // user.id (also called userHandle) is always included
+
+	// only add user identifiable information (name, displayName, icon)
+	// if it is desired (include_user_identifiable_info)
+	if (include_user_identifiable_info) {
+		if (user->displayName_present) {
+			num_items++;
+		}
+	}
+
 	cbor_encoding_check(cbor_encoder_create_map(
 		encoder,
 		&map,
-		user->displayName_present ? 2 : 1)
+		num_items)
 	);
 
 	cbor_encoding_check(cbor_encode_text_string(&map, "id", 2));
 	cbor_encoding_check(cbor_encode_byte_string(&map, user->id.id, user->id.id_size));
 
-	if (user->displayName_present) {
+	if (include_user_identifiable_info && user->displayName_present) {
 		cbor_encoding_check(cbor_encode_text_string(&map, "displayName", 11));
 		cbor_encoding_check(cbor_encode_text_string(&map, (const char *) user->displayName, user->displayName_size));
 	}
@@ -222,31 +233,12 @@ static uint8_t encode_pub_key_cred_user_entity(
 
 }
 
-static void auth_data_compute_rp_id_hash(CTAP_authenticator_data *auth_data, const CTAP_rpId *rp_id) {
+static void auth_data_compute_rp_id_hash(uint8_t *rp_id_hash, const CTAP_rpId *rp_id) {
 	SHA256_CTX sha256_ctx;
 	sha256_init(&sha256_ctx);
 	sha256_update(&sha256_ctx, rp_id->id, rp_id->id_size);
-	sha256_final(&sha256_ctx, auth_data->fixed_header.rpIdHash);
+	sha256_final(&sha256_ctx, rp_id_hash);
 }
-
-typedef struct ctap_credentials_map_key {
-	bool used;
-	CTAP_rpId rpId;
-	CTAP_userEntity user;
-} ctap_credentials_map_key;
-
-typedef struct ctap_credentials_map_value {
-	bool discoverable;
-	uint32_t signCount;
-	uint8_t id[128];
-	// credProtect extension
-	uint8_t credProtect;
-	// the actual private key
-	uint8_t private_key[32];
-	// hmac-secret extension
-	uint8_t CredRandomWithUV[32];
-	uint8_t CredRandomWithoutUV[32];
-} ctap_credentials_map_value;
 
 static uint8_t create_attested_credential_data(
 	CTAP_authenticator_data_attestedCredentialData *attested_credential_data,
@@ -754,6 +746,162 @@ static uint8_t process_exclude_list(
 	return CTAP2_OK;
 }
 
+static bool should_add_credential_to_list(
+	const ctap_credentials_map_value *cred_value,
+	const bool is_from_allow_list,
+	const bool response_has_uv
+) {
+	// 6.2.2. authenticatorGetAssertion Algorithm, 7. Locate all credentials ...
+	//   https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#op-getassn-step-locate-credentials
+	// 7.4. ... if credential protection for a credential
+	//      is marked as userVerificationRequired, and the "uv" bit is false in the response,
+	//      remove that credential from the applicable credentials list.
+	if ((
+		cred_value->credProtect == CTAP_extension_credProtect_3_userVerificationRequired
+		&& !response_has_uv
+	)) {
+		// do not add this credential to the list
+		return false;
+	}
+	// 7.5. ... if credential protection for a credential
+	//      is marked as userVerificationOptionalWithCredentialIDList and there is no allowList passed by
+	//      the client and the "uv" bit is false in the response, remove that credential
+	//      from the applicable credentials list.
+	if ((
+		cred_value->credProtect == CTAP_extension_credProtect_2_userVerificationOptionalWithCredentialIDList
+		&& !is_from_allow_list
+		&& !response_has_uv
+	)) {
+		// do not add this credential to the list
+		return false;
+	}
+	return true;
+}
+
+static uint8_t process_allow_list(
+	const CborValue *allowList,
+	const CTAP_rpId *rpId,
+	const bool response_has_uv,
+	ctap_credential *credentials,
+	size_t *const num_credentials,
+	const size_t max_num_credentials
+) {
+
+	debug_log("process_allow_list" nl);
+
+	uint8_t ret;
+	size_t credentials_num = 0;
+
+	ctap_parse_pub_key_cred_desc_list_ctx list_ctx;
+	ctap_check(ctap_parse_pub_key_cred_desc_list_init(&list_ctx, allowList));
+
+	CTAP_credDesc *cred_desc;
+	// iterate over ALL credential descriptors to parse and validate them,
+	// find the first applicable credential
+	while (true) {
+
+		// parse and validate each credential descriptors
+		ctap_check(ctap_parse_pub_key_cred_desc_list_next_cred(&list_ctx, &cred_desc));
+
+		// if the end of the list, stop iteration
+		if (cred_desc == NULL) {
+			break;
+		}
+
+		int idx = lookup_credential_by_desc(cred_desc);
+
+		if (idx == -1) {
+			debug_log("process_allow_list: skipping unknown credential ID" nl);
+			continue;
+		}
+
+		ctap_credentials_map_key *key = &credentials_map_keys[idx];
+
+		if (!ctap_rp_id_matches(rpId, &key->rpId)) {
+			debug_log("process_allow_list: skipping credential ID that is bound to a different RP" nl);
+			continue;
+		}
+
+		ctap_credentials_map_value *value = &credentials_map_values[idx];
+
+		if (!should_add_credential_to_list(value, true, response_has_uv)) {
+			debug_log("process_allow_list: skipping credential due to its credProtect" nl);
+			continue;
+		}
+
+		if (credentials_num == max_num_credentials) {
+			error_log(
+				red("process_allow_list: credentials_max_size (%" PRIsz ") reached") nl,
+				max_num_credentials
+			);
+			return CTAP1_ERR_INVALID_LENGTH;
+		}
+		ctap_credential *credential = &credentials[credentials_num++];
+		credential->key = key;
+		credential->value = value;
+
+	}
+
+	*num_credentials = credentials_num;
+
+	return CTAP2_OK;
+
+}
+
+static uint8_t find_discoverable_credentials_by_rp_id(
+	const CTAP_rpId *rpId,
+	const bool response_has_uv,
+	ctap_credential *credentials,
+	size_t *const num_credentials,
+	const size_t max_num_credentials
+) {
+
+	debug_log("find_credentials_by_rp_id" nl);
+
+	size_t credentials_num = 0;
+
+	for (int i = 0; i < CTAP_MEMORY_MAX_NUM_CREDENTIALS; ++i) {
+
+		ctap_credentials_map_key *key = &credentials_map_keys[i];
+
+		if (!key->used) {
+			continue;
+		}
+		if (!ctap_rp_id_matches(&key->rpId, rpId)) {
+			continue;
+		}
+
+		ctap_credentials_map_value *value = &credentials_map_values[i];
+
+		if (!value->discoverable) {
+			debug_log("find_credentials_by_rp_id: skipping non-discoverable credential" nl);
+			continue;
+		}
+
+		if (!should_add_credential_to_list(value, false, response_has_uv)) {
+			debug_log("find_credentials_by_rp_id: skipping credential due to its credProtect" nl);
+			continue;
+		}
+
+		if (credentials_num == max_num_credentials) {
+			error_log(
+				red("find_credentials_by_rp_id: credentials_max_size (%" PRIsz ") reached") nl,
+				max_num_credentials
+			);
+			return CTAP1_ERR_INVALID_LENGTH;
+		}
+		ctap_credential *credential = &credentials[credentials_num++];
+		credential->key = key;
+		credential->value = value;
+
+	}
+
+	*num_credentials = credentials_num;
+
+	return CTAP2_OK;
+
+}
+
 uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t length) {
 
 	uint8_t ret;
@@ -969,7 +1117,7 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 	//     taking into account the value of the enterpriseAttestation parameter, if present,
 	//     as described above in Step 9.
 
-	auth_data_compute_rp_id_hash(&auth_data, &params->rpId);
+	auth_data_compute_rp_id_hash(auth_data.fixed_header.rpIdHash, &params->rpId);
 	auth_data.fixed_header.signCount = lion_htonl(credential.signCount);
 
 	size_t auth_data_variable_size = 0;
@@ -1035,10 +1183,115 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 
 }
 
+static uint8_t generate_get_assertion_response(
+	CborEncoder *encoder,
+	const ctap_credential *const credential,
+	const uint8_t *const auth_data_rp_id_hash,
+	const uint8_t *const client_data_hash_hash,
+	const uint8_t auth_data_flags,
+	const size_t num_credentials
+) {
+
+	uint8_t ret;
+
+	// 13. Sign the clientDataHash along with authData with the selected credential
+	//     using the structure specified in
+
+	uint8_t public_key[64];
+	if (uECC_compute_public_key(
+		credential->value->private_key,
+		public_key,
+		uECC_secp256r1()
+	) != 1) {
+		error_log("uECC_compute_public_key failed" nl);
+		return CTAP1_ERR_OTHER;
+	}
+
+	CTAP_authenticator_data auth_data;
+	memcpy(auth_data.fixed_header.rpIdHash, auth_data_rp_id_hash, sizeof(auth_data.fixed_header.rpIdHash));
+	auth_data.fixed_header.flags = auth_data_flags;
+	credential->value->signCount++;
+	auth_data.fixed_header.signCount = lion_htonl(credential->value->signCount);
+
+	size_t auth_data_variable_size = 0u;
+	const size_t auth_data_variable_max_size = sizeof(auth_data.variable_data);
+
+	// if (ctap_param_is_present(params, CTAP_getAssertion_extensions)) {
+	// 	size_t extensions_size;
+	// 	ctap_check(encode_authenticator_data_extensions(
+	// 		&auth_data.variable_data[auth_data_variable_size],
+	// 		auth_data_variable_max_size - auth_data_variable_size,
+	// 		&extensions_size,
+	// 		params->extensions_present,
+	// 		credential
+	// 	));
+	// 	auth_data_variable_size += extensions_size;
+	// 	auth_data.fixed_header.flags |= CTAP_authenticator_data_flags_ed;
+	// }
+
+	assert(auth_data_variable_size < auth_data_variable_max_size);
+
+	const size_t auth_data_total_size = sizeof(auth_data.fixed_header) + auth_data_variable_size;
+
+	uint8_t asn1_der_sig[72];
+	size_t asn1_der_sig_size;
+	ctap_check(compute_signature(
+		&auth_data,
+		auth_data_total_size,
+		client_data_hash_hash,
+		credential->value,
+		asn1_der_sig,
+		&asn1_der_sig_size
+	));
+
+	CborError err;
+	CborEncoder map;
+
+	// start response map
+	cbor_encoding_check(cbor_encoder_create_map(
+		encoder,
+		&map,
+		num_credentials ? 5 : 4
+	));
+	// credential (0x01)
+	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_credential));
+	ctap_check(encode_pub_key_cred_desc(&map, sizeof(credential->value->id), credential->value->id));
+	// authData (0x02)
+	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_authData));
+	cbor_encoding_check(cbor_encode_byte_string(
+		&map,
+		(const uint8_t *) &auth_data,
+		auth_data_total_size
+	));
+	// signature (0x03)
+	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_signature));
+	cbor_encoding_check(cbor_encode_byte_string(
+		&map,
+		asn1_der_sig,
+		asn1_der_sig_size
+	));
+	// user (0x04)
+	//   User identifiable information (name, DisplayName, icon) inside the publicKeyCredentialUserEntity
+	//   MUST NOT be returned if user verification was not done by the authenticator
+	//   in the original authenticatorGetAssertion call.
+	bool include_user_identifiable_info = (auth_data_flags & CTAP_authenticator_data_flags_uv) != 0u;
+	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_user));
+	ctap_check(encode_pub_key_cred_user_entity(&map, &credential->key->user, include_user_identifiable_info));
+	if (num_credentials > 0) {
+		// numberOfCredentials (0x05)
+		cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_numberOfCredentials));
+		cbor_encoding_check(cbor_encode_uint(&map, num_credentials));
+	}
+	// close response map
+	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
+
+	return CTAP2_OK;
+
+}
+
 uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t length) {
 
 	uint8_t ret;
-	CborError err;
 
 	CborParser parser;
 	CborValue it;
@@ -1068,9 +1321,7 @@ uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t l
 
 	// 3. Create a new authenticatorGetAssertion response structure
 	//    and initialize both its "uv" bit and "up" bit as false.
-	CTAP_authenticator_data auth_data;
-	memset(&auth_data, 0, sizeof(auth_data));
-	// thanks to the memset above, alls flags are initialized to 0 (false)
+	uint32_t auth_data_flags = 0u;
 
 	// 4. If the options parameter is present, process all option keys and values present in the parameter.
 	//    Treat any option keys that are not understood as absent.
@@ -1100,33 +1351,51 @@ uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t l
 				pin_protocol,
 				CTAP_clientPIN_pinUvAuthToken_permission_ga
 			));
-			auth_data.fixed_header.flags |= CTAP_authenticator_data_flags_uv;
+ 			auth_data_flags |= CTAP_authenticator_data_flags_uv;
 		}
 		// 2. If the "uv" option is present and set to true (implying the pinUvAuthParam parameter is not present,
 		//    and that the authenticator supports an enabled built-in user verification method, see Step 4):
 		//    (not applicable to LionKey)
 	}
 
-	// TODO: 7. Locate all credentials that are eligible for retrieval under the specified criteria:
-	//
-	//   1. If the allowList parameter is present and is non-empty,
-	//      locate all denoted credentials created by this authenticator and bound to the specified rpId.
-	//   2. If an allowList is not present, locate all discoverable credentials
-	//      that are created by this authenticator and bound to the specified rpId.
-	//   3. Create an applicable credentials list populated with the located credentials.
-	//   4. Iterate through the applicable credentials list, and if credential protection for a credential
-	//      is marked as userVerificationRequired, and the "uv" bit is false in the response,
-	//      remove that credential from the applicable credentials list.
-	//   5. Iterate through the applicable credentials list, and if credential protection for a credential
-	//      is marked as userVerificationOptionalWithCredentialIDList and there is no allowList passed by
-	//      the client and the "uv" bit is false in the response, remove that credential
-	//      from the applicable credentials list.
-	//   6. If the applicable credentials list is empty, return CTAP2_ERR_NO_CREDENTIALS.
-	//   7. Let numberOfCredentials be the number of applicable credentials found.
-	// TODO: This is just for a demo.
-	ctap_credentials_map_key *credential_key = &credentials_map_keys[0];
-	ctap_credentials_map_value *credential = &credentials_map_values[0];
-	if (!credential_key->used) {
+	ctap_get_assertion_state_t *ga_state = &state->get_assertion_state;
+	ga_state->valid = false;
+	ga_state->num_credentials = 0;
+	ga_state->next_credential_idx = 0;
+	const size_t max_num_credentials = sizeof(ga_state->credentials) / sizeof(ctap_credential);
+	const bool response_has_uv = (auth_data_flags & CTAP_authenticator_data_flags_uv) != 0u;
+	// 7. Locate all credentials that are eligible for retrieval under the specified criteria:
+	//    Note: Our implementation also performs steps 7.3., 7.4., and 7.5. at the same time.
+	if (ctap_param_is_present(params, CTAP_getAssertion_allowList)) {
+		// 7.1. If the allowList parameter is present and is non-empty,
+		//      locate all denoted credentials created by this authenticator and bound to the specified rpId.
+		ctap_check(process_allow_list(
+			&ga.allowList,
+			&params->rpId,
+			response_has_uv,
+			ga_state->credentials,
+			&ga_state->num_credentials,
+			max_num_credentials
+		));
+	} else {
+		// 7.2. If an allowList is not present, locate all discoverable credentials
+		//      that are created by this authenticator and bound to the specified rpId.
+		// TODO: (stems from Step 12.1.2.)
+		//   Order the credentials in the applicable credentials list
+		//   by the time when they were created in reverse order.
+		//   (I.e. the first credential is the most recently created.)
+		ctap_check(find_discoverable_credentials_by_rp_id(
+			&params->rpId,
+			response_has_uv,
+			ga_state->credentials,
+			&ga_state->num_credentials,
+			max_num_credentials
+		));
+
+	}
+	// 7.6. If the applicable credentials list is empty, return CTAP2_ERR_NO_CREDENTIALS.
+	if (ga_state->num_credentials == 0) {
+		info_log("no credentials found" nl);
 		return CTAP2_ERR_NO_CREDENTIALS;
 	}
 
@@ -1140,7 +1409,7 @@ uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t l
 		// can never be true at this point and thus the 9.2.1. check is unnecessary).
 		ctap_check(ensure_user_present(state, pinUvAuthParam_present));
 		// 9.3. Set the "up" bit to true in the response.
-		auth_data.fixed_header.flags |= CTAP_authenticator_data_flags_up;
+		auth_data_flags |= CTAP_authenticator_data_flags_up;
 		// 9.4. Call clearUserPresentFlag(), clearUserVerifiedFlag(), and clearPinUvAuthTokenPermissionsExceptLbw().
 		//      Note: This consumes both the "user present state", sometimes referred to as the "cached UP",
 		//      and the "user verified state", sometimes referred to as "cached UV".
@@ -1167,84 +1436,100 @@ uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t l
 		}
 	}
 
-	// TODO: 11. If the allowList parameter is present: ...
-	// TODO: 12. If allowList is not present: ...
+	// 11. If the allowList parameter is present: ...
+	//     (nothing to do here, already handled by our other logic)
 
-	// 13. Sign the clientDataHash along with authData with the selected credential
-	//     using the structure specified in
-
-	uint8_t public_key[64];
-	if (uECC_compute_public_key(
-		credential->private_key,
-		public_key,
-		uECC_secp256r1()
-	) != 1) {
-		error_log("uECC_compute_public_key failed" nl);
-		return CTAP1_ERR_OTHER;
+	// 12. If allowList is not present:
+	// 12.1. If numberOfCredentials is one, select that credential.
+	//       (nothing to do here, already handled by our other logic).
+	// 12.2. If numberOfCredentials is more than one:
+	// 12.2.1. Order the credentials ... (already handled by our modified 7.2.)
+	// (not applicable) 12.2.3. If authenticator has a display ...
+	// 12.2.2. If the authenticator does not have a display,
+	//         or the authenticator does have a display and the "uv" and "up" options are false:
+	if (!ctap_param_is_present(params, CTAP_getAssertion_allowList) && ga_state->num_credentials > 1) {
+		static_assert(
+			sizeof(ga_state->client_data_hash_hash) == sizeof(params->clientDataHash),
+			"sizeof(ga_state->client_data_hash_hash) == sizeof(params->clientDataHash)"
+		);
+		memcpy(ga_state->client_data_hash_hash, params->clientDataHash, sizeof(params->clientDataHash));
+		ga_state->auth_data_flags = auth_data_flags;
+		ga_state->valid = true;
 	}
 
-	auth_data_compute_rp_id_hash(&auth_data, &params->rpId);
-	credential->signCount++;
-	auth_data.fixed_header.signCount = lion_htonl(credential->signCount);
+	auth_data_compute_rp_id_hash(ga_state->auth_data_rp_id_hash, &params->rpId);
 
-	size_t auth_data_variable_size = 0;
-	const size_t auth_data_variable_max_size = sizeof(auth_data.variable_data);
-
-	// if (ctap_param_is_present(params, CTAP_makeCredential_extensions)) {
-	// 	size_t extensions_size;
-	// 	ctap_check(encode_authenticator_data_extensions(
-	// 		&auth_data.variable_data[auth_data_variable_size],
-	// 		auth_data_variable_max_size - auth_data_variable_size,
-	// 		&extensions_size,
-	// 		params->extensions_present,
-	// 		credential
-	// 	));
-	// 	auth_data_variable_size += extensions_size;
-	// 	auth_data.fixed_header.flags |= CTAP_authenticator_data_flags_ed;
-	// }
-
-	assert(auth_data_variable_size < auth_data_variable_max_size);
-
-	const size_t auth_data_total_size = sizeof(auth_data.fixed_header) + auth_data_variable_size;
-
-	uint8_t asn1_der_sig[72];
-	size_t asn1_der_sig_size;
-	ctap_check(compute_signature(
-		&auth_data,
-		auth_data_total_size,
+	// 13. Sign the clientDataHash along with authData.
+	ctap_check(generate_get_assertion_response(
+		&state->response.encoder,
+		&ga_state->credentials[ga_state->next_credential_idx],
+		ga_state->auth_data_rp_id_hash,
 		params->clientDataHash,
-		credential,
-		asn1_der_sig,
-		&asn1_der_sig_size
+		auth_data_flags,
+		ga_state->num_credentials
 	));
 
-	CborEncoder *encoder = &state->response.encoder;
-	CborEncoder map;
+	if (ga_state->valid) {
+		// 12.2.2.3. Start a timer. This is used during authenticatorGetNextAssertion command.
+		//           This step is OPTIONAL if transport is done over NFC.
+		ga_state->last_cmd_timestamp = ctap_get_current_time();
+		// 12.2.2.2. Create a credential counter (credentialCounter) and set it to 1.
+		//    This counter signifies the next credential to be returned by the authenticator,
+		//    assuming zero-based indexing.
+		ga_state->next_credential_idx++;
+	}
 
-	// start response map
-	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 4));
-	// credential (0x01)
-	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_credential));
-	ctap_check(encode_pub_key_cred_desc(&map, sizeof(credential->id), credential->id));
-	// authData (0x02)
-	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_authData));
-	cbor_encoding_check(cbor_encode_byte_string(
-		&map,
-		(const uint8_t *) &auth_data,
-		auth_data_total_size
+	return CTAP2_OK;
+
+}
+
+uint8_t ctap_get_next_assertion(ctap_state_t *state) {
+
+	// 6.3. authenticatorGetNextAssertion (0x08)
+	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorGetNextAssertion
+
+	uint8_t ret;
+
+	ctap_get_assertion_state_t *ga_state = &state->get_assertion_state;
+
+	// When this command is received, the authenticator performs the following procedure:
+
+	// 1. If authenticator does not remember any authenticatorGetAssertion parameters,
+	//    return CTAP2_ERR_NOT_ALLOWED.
+	if (!ga_state->valid) {
+		return CTAP2_ERR_NOT_ALLOWED;
+	}
+
+	// 2. If the credentialCounter is equal to or greater (cannot happen in our implementation)
+	//    than numberOfCredentials, return CTAP2_ERR_NOT_ALLOWED.
+	if (ga_state->next_credential_idx == ga_state->num_credentials) {
+		return CTAP2_ERR_NOT_ALLOWED;
+	}
+
+	// 3. If timer since the last call to authenticatorGetAssertion/authenticatorGetNextAssertion
+	//    is greater than 30 seconds, discard the current authenticatorGetAssertion state
+	//    and return CTAP2_ERR_NOT_ALLOWED. This step is OPTIONAL if transport is done over NFC.
+	const uint32_t elapsed_ms_since_last_ga_cmd = ctap_get_current_time() - ga_state->last_cmd_timestamp;
+	if (elapsed_ms_since_last_ga_cmd > (30 * 1000)) {
+		ga_state->valid = false;
+		return CTAP2_ERR_NOT_ALLOWED;
+	}
+
+	// 6. Sign the clientDataHash along with authData. (also handles Step 5)
+	ctap_check(generate_get_assertion_response(
+		&state->response.encoder,
+		// 4. Select the credential indexed by credentialCounter.
+		&ga_state->credentials[ga_state->next_credential_idx],
+		ga_state->auth_data_rp_id_hash,
+		ga_state->client_data_hash_hash,
+		ga_state->auth_data_flags,
+		0 // numberOfCredentials (0x05) is omitted for the authenticatorGetNextAssertion
 	));
-	// signature (0x03)
-	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_signature));
-	cbor_encoding_check(cbor_encode_byte_string(
-		&map,
-		asn1_der_sig,
-		asn1_der_sig_size
-	));
-	// user (0x04)
-	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_user));
-	ctap_check(encode_pub_key_cred_user_entity(&map, &credential_key->user));
-	// close response map
-	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
+
+	// 7. Reset the timer. This step is OPTIONAL if transport is done over NFC.
+	ga_state->last_cmd_timestamp = ctap_get_current_time();
+	// 8. Increment credentialCounter.
+	ga_state->next_credential_idx++;
 
 	return CTAP2_OK;
 

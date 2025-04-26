@@ -336,6 +336,41 @@ typedef struct ctap_pin_protocol {
 
 } ctap_pin_protocol_t;
 
+typedef struct ctap_credentials_map_key {
+	bool used;
+	CTAP_rpId rpId;
+	CTAP_userEntity user;
+} ctap_credentials_map_key;
+
+typedef struct ctap_credentials_map_value {
+	bool discoverable;
+	uint32_t signCount;
+	uint8_t id[128];
+	// credProtect extension
+	uint8_t credProtect;
+	// the actual private key
+	uint8_t private_key[32];
+	// hmac-secret extension
+	uint8_t CredRandomWithUV[32];
+	uint8_t CredRandomWithoutUV[32];
+} ctap_credentials_map_value;
+
+typedef struct ctap_credential {
+	ctap_credentials_map_key *key;
+	ctap_credentials_map_value *value;
+} ctap_credential;
+
+typedef struct ctap_get_assertion_state {
+	bool valid;
+	uint8_t client_data_hash_hash[32];
+	uint8_t auth_data_rp_id_hash[32];
+	uint8_t auth_data_flags;
+	size_t num_credentials;
+	size_t next_credential_idx;
+	uint32_t last_cmd_timestamp;
+	ctap_credential credentials[128];
+} ctap_get_assertion_state_t;
+
 typedef struct ctap_state {
 
 	ctap_persistent_state_t persistent;
@@ -345,6 +380,8 @@ typedef struct ctap_state {
 	ctap_pin_protocol_t pin_protocol[2];
 	uint8_t pin_boot_remaining_attempts;
 	ctap_pin_uv_auth_token_state pin_uv_auth_token_state;
+
+	ctap_get_assertion_state_t get_assertion_state;
 
 } ctap_state_t;
 
@@ -444,6 +481,8 @@ void ctap_reset_credentials_store(void);
 uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t length);
 
 uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t length);
+
+uint8_t ctap_get_next_assertion(ctap_state_t *state);
 
 uint8_t ctap_reset(ctap_state_t *state);
 
