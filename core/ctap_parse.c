@@ -20,9 +20,7 @@ static inline CborError ctap_cbor_value_get_uint8(const CborValue *value, uint8_
     CborError err; \
     CborValue map; \
     size_t map_length; \
-    if (!cbor_value_is_map(it)) { \
-        return CTAP2_ERR_CBOR_UNEXPECTED_TYPE; \
-    } \
+    ctap_cbor_ensure_type(cbor_value_is_map(it)); \
     cbor_decoding_check(cbor_value_enter_container(it, &map)); \
     cbor_decoding_check(cbor_value_get_map_length(it, &map_length)); \
     debug_log(name " map_length=%" PRIsz nl, map_length)
@@ -33,9 +31,7 @@ static inline CborError ctap_cbor_value_get_uint8(const CborValue *value, uint8_
 #define ctap_parse_map_get_string_key(max_length) \
     char key[max_length]; /* not null terminated */ \
     size_t key_length = sizeof(key); \
-    if (!cbor_value_is_text_string(&map)) { \
-        return CTAP2_ERR_CBOR_UNEXPECTED_TYPE; \
-    } \
+    ctap_cbor_ensure_type(cbor_value_is_text_string(&map)); \
     size_t actual_key_length; \
     cbor_decoding_check(cbor_value_get_string_length(&map, &actual_key_length)); \
     if (actual_key_length > key_length) { \
@@ -56,10 +52,7 @@ static uint8_t parse_fixed_byte_string(
 
 	CborError err;
 
-	if (!cbor_value_is_byte_string(value)) {
-		error_log("parse_fixed_byte_string: not a byte string" nl);
-		return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-	}
+	ctap_cbor_ensure_type(cbor_value_is_byte_string(value));
 
 	size_t length = expected_length;
 	// If the byte string does not fit into the buffer of the given length
@@ -94,10 +87,7 @@ static uint8_t parse_byte_string(
 
 	CborError err;
 
-	if (!cbor_value_is_byte_string(value)) {
-		error_log("parse_byte_string: not a byte string" nl);
-		return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-	}
+	ctap_cbor_ensure_type(cbor_value_is_byte_string(value));
 
 	size_t actual_length;
 	cbor_decoding_check(cbor_value_get_string_length(value, &actual_length));
@@ -126,10 +116,7 @@ static uint8_t parse_text_string(
 
 	CborError err;
 
-	if (!cbor_value_is_text_string(value)) {
-		error_log("parse_text_string: not a text string" nl);
-		return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-	}
+	ctap_cbor_ensure_type(cbor_value_is_text_string(value));
 
 	size_t actual_length;
 	cbor_decoding_check(cbor_value_get_string_length(value, &actual_length));
@@ -157,9 +144,7 @@ static uint8_t parse_cose_key(CborValue *it, COSE_Key *cose) {
 	for (size_t i = 0; i < map_length; i++) {
 
 		int key;
-		if (!cbor_value_is_integer(&map)) {
-			return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-		}
+		ctap_cbor_ensure_type(cbor_value_is_integer(&map));
 		cbor_decoding_check(cbor_value_get_int_checked(&map, &key));
 		cbor_decoding_check(cbor_value_advance_fixed(&map));
 
@@ -167,34 +152,26 @@ static uint8_t parse_cose_key(CborValue *it, COSE_Key *cose) {
 
 			case COSE_KEY_LABEL_KTY:
 				debug_log("COSE_KEY_LABEL_KTY" nl);
-				if (!cbor_value_is_integer(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_integer(&map));
 				cbor_decoding_check(cbor_value_get_int_checked(&map, &cose->kty));
 				cbor_decoding_check(cbor_value_advance_fixed(&map));
 				break;
 
 			case COSE_KEY_LABEL_ALG:
 				debug_log("COSE_KEY_LABEL_ALG" nl);
-				if (!cbor_value_is_integer(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_integer(&map));
 				int alg;
 				cbor_decoding_check(cbor_value_get_int_checked(&map, &alg));
 				// 6.5.6.
 				// getPublicKey()
 				// 3 (alg) = -25 (although this is not the algorithm actually used)
-				if (alg != COSE_ALG_ECDH_ES_HKDF_256) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(alg == COSE_ALG_ECDH_ES_HKDF_256);
 				cbor_decoding_check(cbor_value_advance_fixed(&map));
 				break;
 
 			case COSE_KEY_LABEL_CRV:
 				debug_log("COSE_KEY_LABEL_CRV" nl);
-				if (!cbor_value_is_integer(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_integer(&map));
 				cbor_decoding_check(cbor_value_get_int_checked(&map, &cose->crv));
 				cbor_decoding_check(cbor_value_advance_fixed(&map));
 				break;
@@ -239,9 +216,7 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 	for (size_t i = 0; i < map_length; i++) {
 
 		int key;
-		if (!cbor_value_is_integer(&map)) {
-			return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-		}
+		ctap_cbor_ensure_type(cbor_value_is_integer(&map));
 		cbor_decoding_check(cbor_value_get_int_checked(&map, &key));
 		cbor_decoding_check(cbor_value_advance_fixed(&map));
 
@@ -249,9 +224,7 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 
 			case CTAP_clientPIN_pinUvAuthProtocol:
 				debug_log("CTAP_clientPIN_pinUvAuthProtocol" nl);
-				if (!cbor_value_is_unsigned_integer(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_unsigned_integer(&map));
 				cbor_decoding_check(ctap_cbor_value_get_uint8(&map, &params->pinUvAuthProtocol));
 				cbor_decoding_check(cbor_value_advance_fixed(&map));
 				ctap_set_present(params, CTAP_clientPIN_pinUvAuthProtocol);
@@ -259,9 +232,7 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 
 			case CTAP_clientPIN_subCommand:
 				debug_log("CTAP_clientPIN_subCommand" nl);
-				if (!cbor_value_is_unsigned_integer(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_unsigned_integer(&map));
 				cbor_decoding_check(ctap_cbor_value_get_uint8(&map, &params->subCommand));
 				cbor_decoding_check(cbor_value_advance_fixed(&map));
 				ctap_set_present(params, CTAP_clientPIN_subCommand);
@@ -314,14 +285,10 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 
 			case CTAP_clientPIN_permissions:
 				debug_log("CTAP_clientPIN_permissions" nl);
-				if (!cbor_value_is_unsigned_integer(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_unsigned_integer(&map));
 				uint64_t permissions;
 				cbor_decoding_check(cbor_value_get_uint64(&map, &permissions));
-				if (permissions > UINT32_MAX) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(permissions <= UINT32_MAX);
 				params->permissions = (uint32_t) permissions;
 				cbor_decoding_check(cbor_value_advance_fixed(&map));
 				ctap_set_present(params, CTAP_clientPIN_permissions);
@@ -387,13 +354,9 @@ static uint8_t parse_rp_entity(CborValue *it, CTAP_rpId *rpId) {
 			// Currently, we do not use name and icon in any way, but we at least validate their types
 			// for compliance reasons (FIDO Conformance Tools checks this).
 			if (strncmp(key, "name", key_length) == 0) {
-				if (!cbor_value_is_text_string(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_text_string(&map));
 			} else if (strncmp(key, "icon", key_length) == 0) {
-				if (!cbor_value_is_byte_string(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_byte_string(&map));
 			} else {
 				debug_log("warning: unrecognized PublicKeyCredentialRpEntity key %.*s" nl, (int) key_length, key);
 			}
@@ -448,13 +411,9 @@ static uint8_t parse_user_entity(CborValue *it, CTAP_userEntity *user) {
 			// Currently, we do not use name and icon in any way, but we at least validate their types
 			// for compliance reasons (FIDO Conformance Tools checks this).
 			if (strncmp(key, "name", key_length) == 0) {
-				if (!cbor_value_is_text_string(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_text_string(&map));
 			} else if (strncmp(key, "icon", key_length) == 0) {
-				if (!cbor_value_is_byte_string(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_byte_string(&map));
 			} else {
 				debug_log("warning: unrecognized PublicKeyCredentialUserEntity key %.*s" nl, (int) key_length, key);
 			}
@@ -504,11 +463,7 @@ static uint8_t parse_mc_ga_options(
 			continue;
 		}
 
-		if (!cbor_value_is_boolean(&map)) {
-			debug_log("error: option %.*s does not have a boolean value" nl, (int) key_length, key);
-			return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-		}
-
+		ctap_cbor_ensure_type(cbor_value_is_boolean(&map));
 		cbor_decoding_check(cbor_value_get_boolean(&map, &value));
 		options->present |= option;
 		if (value) {
@@ -543,9 +498,7 @@ static uint8_t parse_make_credential_extensions(CborValue *it, CTAP_makeCredenti
 			// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-credProtect-extension
 
 			debug_log("credProtect" nl);
-			if (!cbor_value_is_unsigned_integer(&map)) {
-				return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-			}
+			ctap_cbor_ensure_type(cbor_value_is_unsigned_integer(&map));
 			cbor_decoding_check(ctap_cbor_value_get_uint8(&map, &mc->credProtect));
 			params->extensions_present |= CTAP_extension_credProtect;
 			cbor_decoding_check(cbor_value_advance_fixed(&map));
@@ -556,9 +509,7 @@ static uint8_t parse_make_credential_extensions(CborValue *it, CTAP_makeCredenti
 			// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-hmac-secret-extension
 
 			debug_log("hmac-secret" nl);
-			if (!cbor_value_is_boolean(&map)) {
-				return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-			}
+			ctap_cbor_ensure_type(cbor_value_is_boolean(&map));
 			bool value;
 			cbor_decoding_check(cbor_value_get_boolean(&map, &value));
 			if (value) {
@@ -599,9 +550,7 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *mc) {
 	for (size_t i = 0; i < map_length; i++) {
 
 		int key;
-		if (!cbor_value_is_integer(&map)) {
-			return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-		}
+		ctap_cbor_ensure_type(cbor_value_is_integer(&map));
 		cbor_decoding_check(cbor_value_get_int_checked(&map, &key));
 		cbor_decoding_check(cbor_value_advance_fixed(&map));
 
@@ -638,9 +587,7 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *mc) {
 
 			case CTAP_makeCredential_pubKeyCredParams:
 				debug_log("CTAP_makeCredential_pubKeyCredParams" nl);
-				if (!cbor_value_is_array(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_array(&map));
 				mc->pubKeyCredParams = map;
 				cbor_decoding_check(cbor_value_advance(&map));
 				ctap_set_present(params, CTAP_makeCredential_pubKeyCredParams);
@@ -648,9 +595,7 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *mc) {
 
 			case CTAP_makeCredential_excludeList:
 				debug_log("CTAP_makeCredential_excludeList" nl);
-				if (!cbor_value_is_array(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_array(&map));
 				mc->excludeList = map;
 				cbor_decoding_check(cbor_value_advance(&map));
 				ctap_set_present(params, CTAP_makeCredential_excludeList);
@@ -684,9 +629,7 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *mc) {
 
 			case CTAP_makeCredential_pinUvAuthProtocol:
 				debug_log("CTAP_makeCredential_pinUvAuthProtocol" nl);
-				if (!cbor_value_is_unsigned_integer(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_unsigned_integer(&map));
 				cbor_decoding_check(ctap_cbor_value_get_uint8(&map, &params->pinUvAuthProtocol));
 				cbor_decoding_check(cbor_value_advance_fixed(&map));
 				ctap_set_present(params, CTAP_makeCredential_pinUvAuthProtocol);
@@ -694,9 +637,7 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *mc) {
 
 			case CTAP_makeCredential_enterpriseAttestation:
 				debug_log("CTAP_makeCredential_enterpriseAttestation" nl);
-				if (!cbor_value_is_unsigned_integer(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_unsigned_integer(&map));
 				// We don't support the enterprise attestation feature, so we don't need to store the value.
 				cbor_decoding_check(cbor_value_advance_fixed(&map));
 				// However, we have to store the information that the enterpriseAttestation param is present,
@@ -744,9 +685,7 @@ static uint8_t parse_cred_params(CborValue *it, CTAP_credParams *cred_params) {
 
 			char type[10]; // not null terminated
 			size_t type_length = sizeof(type);
-			if (!cbor_value_is_text_string(&map)) {
-				return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-			}
+			ctap_cbor_ensure_type(cbor_value_is_text_string(&map));
 			size_t actual_type_length;
 			cbor_decoding_check(cbor_value_get_string_length(&map, &actual_type_length));
 			if (actual_type_length > type_length) {
@@ -764,9 +703,7 @@ static uint8_t parse_cred_params(CborValue *it, CTAP_credParams *cred_params) {
 
 		} else if (strncmp(key, "alg", key_length) == 0) {
 
-			if (!cbor_value_is_integer(&map)) {
-				return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-			}
+			ctap_cbor_ensure_type(cbor_value_is_integer(&map));
 
 			static_assert(
 				sizeof(cred_params->alg) >= sizeof(int),
@@ -973,9 +910,7 @@ uint8_t ctap_parse_get_assertion(CborValue *it, CTAP_getAssertion *ga) {
 
 			case CTAP_getAssertion_pinUvAuthProtocol:
 				debug_log("CTAP_getAssertion_pinUvAuthProtocol" nl);
-				if (!cbor_value_is_unsigned_integer(&map)) {
-					return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
-				}
+				ctap_cbor_ensure_type(cbor_value_is_unsigned_integer(&map));
 				cbor_decoding_check(ctap_cbor_value_get_uint8(&map, &params->pinUvAuthProtocol));
 				cbor_decoding_check(cbor_value_advance_fixed(&map));
 				ctap_set_present(params, CTAP_getAssertion_pinUvAuthProtocol);
