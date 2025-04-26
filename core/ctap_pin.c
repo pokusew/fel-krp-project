@@ -16,6 +16,9 @@ static_assert(TINYAES_AES_KEYLEN == 32, "unexpected TINYAES_AES_KEYLEN value for
  * See also 6.5.5.7 Operations to Obtain a pinUvAuthToken.
  */
 void ctap_pin_uv_auth_token_begin_using(ctap_pin_uv_auth_token_state *token_state, bool user_is_present) {
+	memset(&token_state->rpId, 0, sizeof(token_state->rpId));
+	token_state->rpId_set = false;
+	token_state->permissions = 0;
 	token_state->user_present = user_is_present;
 	token_state->user_verified = true;
 	token_state->initial_usage_time_limit = CTAP_PIN_UV_AUTH_TOKEN_STATE_INITIAL_USAGE_TIME_LIMIT_USB;
