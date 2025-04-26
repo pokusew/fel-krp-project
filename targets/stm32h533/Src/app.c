@@ -106,6 +106,10 @@ ctap_user_presence_result_t ctap_wait_for_user_presence(void) {
 
 }
 
+uint32_t ctap_get_current_time(void) {
+	return HAL_GetTick();
+}
+
 static void handle_packet_using_send_or_queue_ctaphid_packet(const ctaphid_packet_t *packet, void *ctx) {
 	UNUSED(ctx);
 	app_hid_report_send_queue_add(packet);

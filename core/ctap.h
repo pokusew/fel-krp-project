@@ -384,6 +384,8 @@ void ctap_send_keepalive_if_needed(ctap_keepalive_status_t current_status);
 
 ctap_user_presence_result_t ctap_wait_for_user_presence(void);
 
+uint32_t ctap_get_current_time(void);
+
 uint8_t ctap_request(
 	ctap_state_t *state,
 	uint8_t cmd,

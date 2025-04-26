@@ -99,6 +99,7 @@ target_sources(core PUBLIC
 		../core/ctaphid.c
 		../core/utils.c
 		lionkey/consistent_prng.cpp
+		lionkey/time.c
 		lionkey/wait_for_user_presence.c
 		lionkey/keepalive.c
 		lionkey/ctap_test.c
