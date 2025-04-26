@@ -61,7 +61,7 @@ static void ctap_state_init(ctap_persistent_state_t *state) {
 	state->is_pin_set = 0;
 	state->num_rk_stored = 0;
 
-	// ctap_reset_rk();
+	ctap_reset_credentials_store();
 
 }
 

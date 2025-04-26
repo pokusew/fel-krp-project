@@ -437,6 +437,8 @@ void ctap_convert_to_asn1_der_ecdsa_sig_value(
 	size_t *asn1_der_signature_size
 );
 
+void ctap_reset_credentials_store(void);
+
 uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t length);
 
 uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t length);

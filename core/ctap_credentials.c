@@ -506,6 +506,11 @@ static uint8_t store_credential(
 
 }
 
+void ctap_reset_credentials_store(void) {
+	memset(credentials_map_keys, 0, sizeof(credentials_map_keys));
+	memset(credentials_map_values, 0, sizeof(credentials_map_values));
+}
+
 /**
  * This functions implements Step 1 (handling of the legacy CTAP2.0 selection behavior)
  * and Step 2 (validating pinUvAuthProtocol and getting the pointer to the corresponding ctap_pin_protocol_t).
