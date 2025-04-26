@@ -377,7 +377,7 @@ typedef struct ctap_state {
 
 	ctap_response_t response;
 
-	ctap_pin_protocol_t pin_protocol[2];
+	ctap_pin_protocol_t pin_protocol[1];
 	uint8_t pin_boot_remaining_attempts;
 	ctap_pin_uv_auth_token_state pin_uv_auth_token_state;
 

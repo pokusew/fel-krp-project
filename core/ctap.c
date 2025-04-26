@@ -107,7 +107,12 @@ void ctap_init(ctap_state_t *state) {
 
 	// 6.5.5.1. Authenticator Configuration Operations Upon Power Up
 	// At power-up, the authenticator calls initialize for each pinUvAuthProtocol that it supports.
+	static_assert(
+		sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t) == 1,
+		"unexpected length of the state->pin_protocol array"
+	);
 	ctap_pin_protocol_v1_init(&state->pin_protocol[0]);
+	// TODO: Add support for PIN/UV Auth Protocol v2.
 
 	// do_migration_if_required(&state);
 
