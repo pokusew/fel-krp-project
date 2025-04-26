@@ -79,17 +79,9 @@ bool ctap_pin_uv_auth_token_has_permissions(ctap_pin_uv_auth_token_state *token_
 }
 
 void ctap_pin_uv_auth_token_stop_using(ctap_pin_uv_auth_token_state *token_state) {
-	token_state->in_use = false;
-	memset(&token_state->rpId, 0, sizeof(token_state->rpId));
-	token_state->rpId_set = false;
-	token_state->permissions = 0;
-	token_state->usage_timer.running = false;
-	token_state->usage_timer.start = 0;
-	token_state->initial_usage_time_limit = 0;
-	token_state->user_present_time_limit = 0;
-	token_state->max_usage_time_period = 0;
-	token_state->user_verified = false;
-	token_state->user_present = false;
+	// This sets all of the pinUvAuthToken's state variables
+	// to 0 and false (which are their initial values).
+	memset(token_state, 0, sizeof(ctap_pin_uv_auth_token_state));
 }
 
 static int ctap_pin_protocol_v1_initialize(
