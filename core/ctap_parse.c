@@ -515,7 +515,7 @@ static uint8_t parse_make_credential_extensions(CborValue *it, CTAP_makeCredenti
 			if (value) {
 				// The client should always either send hmac-secret: true or nothing at all
 				// ((hmac-secret: false) should never be sent).
-				params->extensions_present |= CTAP_extension_credProtect;
+				params->extensions_present |= CTAP_extension_hmac_secret;
 			} else {
 				debug_log(
 					"parse_make_credential_extensions: invalid hmac-secret: false, only true allowed, ignoring" nl
