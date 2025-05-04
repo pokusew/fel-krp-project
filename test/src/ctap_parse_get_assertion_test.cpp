@@ -58,13 +58,14 @@ TEST_F(CtapParseGetAssertionTest, MinimalWithPinUvAuthParam) {
 		"28f908390b81c3081dd57883c6072382"
 	>();
 
-	EXPECT_SAME_BYTES(mc.common.clientDataHash, expected_clientDataHash.data());
+	EXPECT_EQ(mc.common.clientDataHash.size, expected_clientDataHash.size());
+	EXPECT_SAME_BYTES_S(mc.common.clientDataHash.size, mc.common.clientDataHash.data, expected_clientDataHash.data());
 
-	EXPECT_EQ(mc.common.rpId.id_size, sizeof(expected_rpId) - 1);
-	EXPECT_SAME_BYTES_S(mc.common.rpId.id_size, mc.common.rpId.id, expected_rpId);
+	EXPECT_EQ(mc.common.rpId.size, sizeof(expected_rpId) - 1);
+	EXPECT_SAME_BYTES_S(mc.common.rpId.size, mc.common.rpId.data, expected_rpId);
 
-	EXPECT_EQ(mc.common.pinUvAuthParam_size, expected_pinUvAuthParam.size());
-	EXPECT_SAME_BYTES_S(mc.common.pinUvAuthParam_size, mc.common.pinUvAuthParam, expected_pinUvAuthParam.data());
+	EXPECT_EQ(mc.common.pinUvAuthParam.size, expected_pinUvAuthParam.size());
+	EXPECT_SAME_BYTES_S(mc.common.pinUvAuthParam.size, mc.common.pinUvAuthParam.data, expected_pinUvAuthParam.data());
 
 	EXPECT_EQ(mc.common.pinUvAuthProtocol, 1);
 }
@@ -103,10 +104,11 @@ TEST_F(CtapParseGetAssertionTest, SilentAuthnetication) {
 	>();
 	const uint8_t expected_rpId[] = "webauthn.io";
 
-	EXPECT_SAME_BYTES(mc.common.clientDataHash, expected_clientDataHash.data());
+	EXPECT_EQ(mc.common.clientDataHash.size, expected_clientDataHash.size());
+	EXPECT_SAME_BYTES_S(mc.common.clientDataHash.size, mc.common.clientDataHash.data, expected_clientDataHash.data());
 
-	EXPECT_EQ(mc.common.rpId.id_size, sizeof(expected_rpId) - 1);
-	EXPECT_SAME_BYTES_S(mc.common.rpId.id_size, mc.common.rpId.id, expected_rpId);
+	EXPECT_EQ(mc.common.rpId.size, sizeof(expected_rpId) - 1);
+	EXPECT_SAME_BYTES_S(mc.common.rpId.size, mc.common.rpId.data, expected_rpId);
 
 	EXPECT_EQ(mc.common.options.present, CTAP_ma_ga_option_up);
 	EXPECT_EQ(mc.common.options.values, 0u);

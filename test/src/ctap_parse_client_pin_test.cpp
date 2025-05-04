@@ -84,8 +84,8 @@ TEST(CtapParseClientPinTest, GetPinToken) {
 	EXPECT_EQ(cp.keyAgreement.crv, 1);
 	EXPECT_SAME_BYTES(cp.keyAgreement.pubkey.x, &request[17]);
 	EXPECT_SAME_BYTES(cp.keyAgreement.pubkey.y, &request[52]);
-	EXPECT_EQ(cp.pinHashEnc_size, 16);
-	EXPECT_SAME_BYTES_S(16, cp.pinHashEnc, &request[86]);
+	EXPECT_EQ(cp.pinHashEnc.size, 16);
+	EXPECT_SAME_BYTES_S(cp.pinHashEnc.size, cp.pinHashEnc.data, &request[86]);
 }
 
 } // namespace

@@ -28,20 +28,15 @@ static inline CborError ctap_cbor_value_get_uint8(const CborValue *value, uint8_
 #define ctap_parse_map_leave() \
     cbor_decoding_check(cbor_value_leave_container(it, &map))
 
-#define ctap_parse_map_get_string_key(max_length) \
-    char key[max_length]; /* not null terminated */ \
-    size_t key_length = sizeof(key); \
-    ctap_cbor_ensure_type(cbor_value_is_text_string(&map)); \
-    size_t actual_key_length; \
-    cbor_decoding_check(cbor_value_get_string_length(&map, &actual_key_length)); \
-    if (actual_key_length > key_length) { \
-        debug_log("ctap_parse_map_get_string_key: skipping unknown too long key" nl); \
-        cbor_decoding_check(cbor_value_advance(&map)); \
-        debug_log("ctap_parse_map_get_string_key: skipping the value for the unknown key" nl); \
-        cbor_decoding_check(cbor_value_advance(&map)); \
-        continue; \
-    } \
-    cbor_decoding_check(cbor_value_copy_text_string(&map, key, &key_length, &map))
+#define ctap_parse_map_get_string_key() \
+    ctap_string_t key; \
+    ctap_check(parse_text_string_to_ctap_string(&map, &key))
+
+#define ctap_parse_map_get_int_key() \
+    int key; \
+    ctap_cbor_ensure_type(cbor_value_is_integer(&map)); \
+    cbor_decoding_check(cbor_value_get_int_checked(&map, &key)); \
+    cbor_decoding_check(cbor_value_advance_fixed(&map))
 
 static uint8_t parse_fixed_byte_string(
 	const CborValue *value,
@@ -74,59 +69,63 @@ static uint8_t parse_fixed_byte_string(
 
 }
 
-static uint8_t parse_byte_string(
-	const CborValue *value,
-	uint8_t *buffer,
-	size_t *length,
-	size_t min_length,
-	size_t max_length,
-	CborValue *next
+static uint8_t parse_byte_string_to_ctap_string(
+	CborValue *it,
+	ctap_string_t *string
 ) {
-
-	assert(min_length <= max_length);
 
 	CborError err;
 
-	ctap_cbor_ensure_type(cbor_value_is_byte_string(value));
+	ctap_cbor_ensure_type(cbor_value_is_byte_string(it));
 
-	size_t actual_length;
-	cbor_decoding_check(cbor_value_get_string_length(value, &actual_length));
-	if (actual_length > max_length || actual_length < min_length) {
-		return CTAP1_ERR_INVALID_LENGTH; // TODO: Use CTAP2_ERR_CBOR_UNEXPECTED_TYPE?
+	// CTAP2 canonical CBOR encoding form requires all strings to be definite-length strings.
+	if (!cbor_value_is_length_known(it)) {
+		debug_log(red("CTAP2_ERR_INVALID_CBOR: an indefinite-length byte string") nl);
+		return CTAP2_ERR_INVALID_CBOR;
 	}
 
-	*length = actual_length;
-	cbor_decoding_check(cbor_value_copy_byte_string(value, buffer, length, next));
-	assert(*length == actual_length);
+	// We use the cbor_value_get_text_string_chunk() API to avoid unnecessary copying
+	// (i.e., just get the pointer to the string within the CBOR data).
+	// Note:
+	//   TinyCBOR offers the same consistent API for both indefinite-length strings (i.e., chunked strings)
+	//   and definite-length strings (which are not chunked, but TinyCBOR API treats them as single-chunk strings).
+
+	// TinyCBOR API treats definite-length strings as single-chunk strings.
+	cbor_decoding_check(cbor_value_begin_string_iteration(it));
+	cbor_decoding_check(cbor_value_get_byte_string_chunk(it, &string->data, &string->size, it));
+	assert(string->data != NULL);
+	cbor_decoding_check(cbor_value_finish_string_iteration(it));
 
 	return CTAP2_OK;
 
 }
 
-static uint8_t parse_text_string(
-	const CborValue *value,
-	uint8_t *buffer,
-	size_t *length,
-	size_t min_length,
-	size_t max_length,
-	CborValue *next
+static uint8_t parse_text_string_to_ctap_string(
+	CborValue *it,
+	ctap_string_t *string
 ) {
-
-	assert(min_length <= max_length);
 
 	CborError err;
 
-	ctap_cbor_ensure_type(cbor_value_is_text_string(value));
+	ctap_cbor_ensure_type(cbor_value_is_text_string(it));
 
-	size_t actual_length;
-	cbor_decoding_check(cbor_value_get_string_length(value, &actual_length));
-	if (actual_length > max_length || actual_length < min_length) {
-		return CTAP1_ERR_INVALID_LENGTH; // TODO: Use CTAP2_ERR_CBOR_UNEXPECTED_TYPE?
+	// CTAP2 canonical CBOR encoding form requires all strings to be definite-length strings.
+	if (!cbor_value_is_length_known(it)) {
+		debug_log(red("CTAP2_ERR_INVALID_CBOR: an indefinite-length text string") nl);
+		return CTAP2_ERR_INVALID_CBOR;
 	}
 
-	*length = actual_length;
-	cbor_decoding_check(cbor_value_copy_text_string(value, (char *) buffer, length, next));
-	assert(*length == actual_length);
+	// We use the cbor_value_get_text_string_chunk() API to avoid unnecessary copying
+	// (i.e., just get the pointer to the string within the CBOR data).
+	// Note:
+	//   TinyCBOR offers the same consistent API for both indefinite-length strings (i.e., chunked strings)
+	//   and definite-length strings (which are not chunked, but TinyCBOR API treats them as single-chunk strings).
+
+	// TinyCBOR API treats definite-length strings as single-chunk strings.
+	cbor_decoding_check(cbor_value_begin_string_iteration(it));
+	cbor_decoding_check(cbor_value_get_text_string_chunk(it, (const char **) &string->data, &string->size, it));
+	assert(string->data != NULL);
+	cbor_decoding_check(cbor_value_finish_string_iteration(it));
 
 	return CTAP2_OK;
 
@@ -143,10 +142,7 @@ static uint8_t parse_cose_key(CborValue *it, COSE_Key *cose) {
 
 	for (size_t i = 0; i < map_length; i++) {
 
-		int key;
-		ctap_cbor_ensure_type(cbor_value_is_integer(&map));
-		cbor_decoding_check(cbor_value_get_int_checked(&map, &key));
-		cbor_decoding_check(cbor_value_advance_fixed(&map));
+		ctap_parse_map_get_int_key();
 
 		switch (key) {
 
@@ -215,10 +211,7 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 
 	for (size_t i = 0; i < map_length; i++) {
 
-		int key;
-		ctap_cbor_ensure_type(cbor_value_is_integer(&map));
-		cbor_decoding_check(cbor_value_get_int_checked(&map, &key));
-		cbor_decoding_check(cbor_value_advance_fixed(&map));
+		ctap_parse_map_get_int_key();
 
 		switch (key) {
 
@@ -246,40 +239,19 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 
 			case CTAP_clientPIN_pinUvAuthParam:
 				debug_log("CTAP_clientPIN_pinUvAuthParam" nl);
-				ctap_check(parse_byte_string(
-					&map,
-					params->pinUvAuthParam,
-					&params->pinUvAuthParam_size,
-					CTAP_PIN_UV_AUTH_PARAM_MIN_SIZE,
-					CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE,
-					&map
-				));
+				ctap_check(parse_byte_string_to_ctap_string(&map, &params->pinUvAuthParam));
 				ctap_set_present(params, CTAP_clientPIN_pinUvAuthParam);
 				break;
 
 			case CTAP_clientPIN_newPinEnc:
 				debug_log("CTAP_clientPIN_newPinEnc" nl);
-				ctap_check(parse_byte_string(
-					&map,
-					params->newPinEnc,
-					&params->newPinEnc_size,
-					CTAP_NEW_PIN_ENC_MIN_SIZE,
-					CTAP_NEW_PIN_ENC_MAX_SIZE,
-					&map
-				));
+				ctap_check(parse_byte_string_to_ctap_string(&map, &params->newPinEnc));
 				ctap_set_present(params, CTAP_clientPIN_newPinEnc);
 				break;
 
 			case CTAP_clientPIN_pinHashEnc:
 				debug_log("CTAP_clientPIN_pinHashEnc" nl);
-				ctap_check(parse_byte_string(
-					&map,
-					params->pinHashEnc,
-					&params->pinHashEnc_size,
-					CTAP_PIN_HASH_ENC_MIN_SIZE,
-					CTAP_PIN_HASH_ENC_MAX_SIZE,
-					&map
-				));
+				ctap_check(parse_byte_string_to_ctap_string(&map, &params->pinHashEnc));
 				ctap_set_present(params, CTAP_clientPIN_pinHashEnc);
 				break;
 
@@ -296,17 +268,10 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 
 			case CTAP_clientPIN_rpId:
 				debug_log("CTAP_clientPIN_rpId" nl);
-				ctap_check(parse_text_string(
-					&map,
-					params->rpId.id,
-					&params->rpId.id_size,
-					0,
-					CTAP_RP_ID_MAX_SIZE,
-					&map
-				));
+				ctap_check(parse_text_string_to_ctap_string(&map, &params->rpId));
 				debug_log(
 					"CTAP_clientPIN_rpId rpId (%" PRIsz ") = '%.*s'" nl,
-					params->rpId.id_size, (int) params->rpId.id_size, params->rpId.id
+					params->rpId.size, (int) params->rpId.size, params->rpId.data
 				);
 				ctap_set_present(params, CTAP_clientPIN_rpId);
 				break;
@@ -338,27 +303,20 @@ static uint8_t parse_rp_entity(CborValue *it, CTAP_rpId *rpId) {
 
 	for (size_t i = 0; i < map_length; ++i) {
 
-		ctap_parse_map_get_string_key(4);
+		ctap_parse_map_get_string_key();
 
-		if (strncmp(key, "id", key_length) == 0) {
-			ctap_check(parse_text_string(
-				&map,
-				rpId->id,
-				&rpId->id_size,
-				0,
-				CTAP_RP_ID_MAX_SIZE,
-				&map
-			));
+		if (ctap_string_matches(&key, &ctap_str("id"))) {
+			ctap_check(parse_text_string_to_ctap_string(&map, rpId));
 			id_parsed = true;
 		} else {
 			// Currently, we do not use name and icon in any way, but we at least validate their types
 			// for compliance reasons (FIDO Conformance Tools checks this).
-			if (strncmp(key, "name", key_length) == 0) {
+			if (ctap_string_matches(&key, &ctap_str("name"))) {
 				ctap_cbor_ensure_type(cbor_value_is_text_string(&map));
-			} else if (strncmp(key, "icon", key_length) == 0) {
+			} else if (ctap_string_matches(&key, &ctap_str("icon"))) {
 				ctap_cbor_ensure_type(cbor_value_is_byte_string(&map));
 			} else {
-				debug_log("warning: unrecognized PublicKeyCredentialRpEntity key %.*s" nl, (int) key_length, key);
+				debug_log("warning: unrecognized PublicKeyCredentialRpEntity key %.*s" nl, (int) key.size, key.data);
 			}
 			// important: skip over the unused value
 			cbor_decoding_check(cbor_value_advance(&map));
@@ -381,41 +339,34 @@ static uint8_t parse_user_entity(CborValue *it, CTAP_userEntity *user) {
 
 	ctap_parse_map_enter("PublicKeyCredentialUserEntity");
 
-	bool id_parsed = false;
-
 	for (size_t i = 0; i < map_length; ++i) {
 
-		ctap_parse_map_get_string_key(11);
+		ctap_parse_map_get_string_key();
 
-		if (strncmp(key, "id", key_length) == 0) {
-			ctap_check(parse_byte_string(
-				&map,
-				user->id.id,
-				&user->id.id_size,
-				0,
-				CTAP_USER_ENTITY_ID_MAX_SIZE,
-				&map
-			));
-			id_parsed = true;
-		} else if (strncmp(key, "displayName", key_length) == 0) {
-			ctap_check(parse_text_string(
-				&map,
-				user->displayName,
-				&user->displayName_size,
-				0,
-				CTAP_USER_ENTITY_DISPLAY_NAME_MAX_SIZE,
-				&map
-			));
-			user->displayName_present = true;
+		if (ctap_string_matches(&key, &ctap_str("id"))) {
+			ctap_check(parse_byte_string_to_ctap_string(&map, &user->id));
+			// The WebAuthn spec defines a maximum size of 64 bytes for the userHandle (user.id).
+			if (user->id.size > CTAP_USER_ENTITY_ID_MAX_SIZE) {
+				debug_log(
+					red("exceeded user handle (user.id) max size (%" PRIsz " > %" PRIsz ")") nl,
+					user->id.size, (size_t) CTAP_USER_ENTITY_ID_MAX_SIZE
+				);
+				return CTAP1_ERR_INVALID_LENGTH; // TODO: Use CTAP2_ERR_CBOR_UNEXPECTED_TYPE?
+			}
+			ctap_set_present(user, CTAP_userEntity_id);
+		} else if (ctap_string_matches(&key, &ctap_str("name"))) {
+			ctap_check(parse_text_string_to_ctap_string(&map, &user->name));
+			ctap_set_present(user, CTAP_userEntity_name);
+		} else if (ctap_string_matches(&key, &ctap_str("displayName"))) {
+			ctap_check(parse_text_string_to_ctap_string(&map, &user->displayName));
+			ctap_set_present(user, CTAP_userEntity_displayName);
 		} else {
-			// Currently, we do not use name and icon in any way, but we at least validate their types
+			// Currently, we do not use icon in any way, but we at least validate its type
 			// for compliance reasons (FIDO Conformance Tools checks this).
-			if (strncmp(key, "name", key_length) == 0) {
-				ctap_cbor_ensure_type(cbor_value_is_text_string(&map));
-			} else if (strncmp(key, "icon", key_length) == 0) {
+			if (ctap_string_matches(&key, &ctap_str("icon"))) {
 				ctap_cbor_ensure_type(cbor_value_is_byte_string(&map));
 			} else {
-				debug_log("warning: unrecognized PublicKeyCredentialUserEntity key %.*s" nl, (int) key_length, key);
+				debug_log("warning: unrecognized PublicKeyCredentialUserEntity key %.*s" nl, (int) key.size, key.data);
 			}
 			// important: skip over the unused value
 			cbor_decoding_check(cbor_value_advance(&map));
@@ -426,7 +377,8 @@ static uint8_t parse_user_entity(CborValue *it, CTAP_userEntity *user) {
 	ctap_parse_map_leave();
 
 	// validate: check that all required parameters are present
-	if (!id_parsed) {
+	const uint32_t required_params = ctap_param_to_mask(CTAP_userEntity_id);
+	if (!ctap_is_present(user->present, required_params)) {
 		return CTAP2_ERR_MISSING_PARAMETER;
 	}
 
@@ -443,7 +395,7 @@ static uint8_t parse_mc_ga_options(
 
 	for (size_t i = 0; i < map_length; ++i) {
 
-		ctap_parse_map_get_string_key(2);
+		ctap_parse_map_get_string_key();
 
 		uint8_t option;
 		bool value;
@@ -451,14 +403,14 @@ static uint8_t parse_mc_ga_options(
 		// Note:
 		//   The rk option is only applicable for authenticatorMakeCredential.
 		//   The spec says: Platforms MUST NOT send the "rk" option key.
-		if (strncmp(key, "rk", key_length) == 0) {
+		if (ctap_string_matches(&key, &ctap_str("rk"))) {
 			option = CTAP_ma_ga_option_rk;
-		} else if (strncmp(key, "up", key_length) == 0) {
+		} else if (ctap_string_matches(&key, &ctap_str("up"))) {
 			option = CTAP_ma_ga_option_up;
-		} else if (strncmp(key, "uv", key_length) == 0) {
+		} else if (ctap_string_matches(&key, &ctap_str("uv"))) {
 			option = CTAP_ma_ga_option_uv;
 		} else {
-			debug_log("warning: unrecognized option key %.*s" nl, (int) key_length, key);
+			debug_log("warning: unrecognized option key %.*s" nl, (int) key.size, key.data);
 			cbor_decoding_check(cbor_value_advance(&map));
 			continue;
 		}
@@ -490,9 +442,9 @@ static uint8_t parse_make_credential_extensions(CborValue *it, CTAP_makeCredenti
 
 	for (size_t i = 0; i < map_length; ++i) {
 
-		ctap_parse_map_get_string_key(11);
+		ctap_parse_map_get_string_key();
 
-		if (strncmp(key, "credProtect", key_length) == 0) {
+		if (ctap_string_matches(&key, &ctap_str("credProtect"))) {
 
 			// 12.1. Credential Protection (credProtect)
 			// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-credProtect-extension
@@ -503,7 +455,7 @@ static uint8_t parse_make_credential_extensions(CborValue *it, CTAP_makeCredenti
 			params->extensions_present |= CTAP_extension_credProtect;
 			cbor_decoding_check(cbor_value_advance_fixed(&map));
 
-		} else if (strncmp(key, "hmac-secret", key_length) == 0) {
+		} else if (ctap_string_matches(&key, &ctap_str("hmac-secret"))) {
 
 			// 12.5. HMAC Secret Extension (hmac-secret)
 			// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-hmac-secret-extension
@@ -524,7 +476,7 @@ static uint8_t parse_make_credential_extensions(CborValue *it, CTAP_makeCredenti
 			cbor_decoding_check(cbor_value_advance_fixed(&map));
 
 		} else {
-			debug_log("warning: unsupported extension %.*s" nl, (int) key_length, key);
+			debug_log("warning: unsupported extension %.*s" nl, (int) key.size, key.data);
 			cbor_decoding_check(cbor_value_advance(&map));
 			continue;
 		}
@@ -549,21 +501,17 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *mc) {
 
 	for (size_t i = 0; i < map_length; i++) {
 
-		int key;
-		ctap_cbor_ensure_type(cbor_value_is_integer(&map));
-		cbor_decoding_check(cbor_value_get_int_checked(&map, &key));
-		cbor_decoding_check(cbor_value_advance_fixed(&map));
+		ctap_parse_map_get_int_key();
 
 		switch (key) {
 
 			case CTAP_makeCredential_clientDataHash:
 				debug_log("CTAP_makeCredential_clientDataHash" nl);
-				ctap_check(parse_fixed_byte_string(
-					&map,
-					params->clientDataHash,
-					sizeof(params->clientDataHash),
-					&map
-				));
+				ctap_check(parse_byte_string_to_ctap_string(&map, &params->clientDataHash));
+				if (params->clientDataHash.size != CTAP_SHA256_HASH_SIZE) {
+					debug_log(red("invalid clientDataHash.size %" PRIsz) nl, params->clientDataHash.size);
+					return CTAP1_ERR_INVALID_PARAMETER;
+				}
 				ctap_set_present(params, CTAP_makeCredential_clientDataHash);
 				break;
 
@@ -615,15 +563,7 @@ uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *mc) {
 
 			case CTAP_makeCredential_pinUvAuthParam:
 				debug_log("CTAP_makeCredential_pinUvAuthParam" nl);
-				ctap_check(parse_byte_string(
-					&map,
-					params->pinUvAuthParam,
-					&params->pinUvAuthParam_size,
-					// The 0 is intentional: The zero-length pinUvAuthParam is allowed for makeCredential.
-					0,
-					CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE,
-					&map
-				));
+				ctap_check(parse_byte_string_to_ctap_string(&map, &params->pinUvAuthParam));
 				ctap_set_present(params, CTAP_makeCredential_pinUvAuthParam);
 				break;
 
@@ -679,9 +619,9 @@ static uint8_t parse_cred_params(CborValue *it, CTAP_credParams *cred_params) {
 
 	for (size_t i = 0; i < map_length; ++i) {
 
-		ctap_parse_map_get_string_key(4);
+		ctap_parse_map_get_string_key();
 
-		if (strncmp(key, "type", key_length) == 0) {
+		if (ctap_string_matches(&key, &ctap_str("type"))) {
 
 			char type[10]; // not null terminated
 			size_t type_length = sizeof(type);
@@ -702,7 +642,7 @@ static uint8_t parse_cred_params(CborValue *it, CTAP_credParams *cred_params) {
 				cred_params->type = CTAP_pubKeyCredType_public_key;
 			}
 
-		} else if (strncmp(key, "alg", key_length) == 0) {
+		} else if (ctap_string_matches(&key, &ctap_str("alg"))) {
 
 			ctap_cbor_ensure_type(cbor_value_is_integer(&map));
 
@@ -715,7 +655,7 @@ static uint8_t parse_cred_params(CborValue *it, CTAP_credParams *cred_params) {
 			cbor_decoding_check(cbor_value_advance_fixed(&map));
 
 		} else {
-			debug_log("warning: unrecognized PublicKeyCredentialParameters key %.*s" nl, (int) key_length, key);
+			debug_log("warning: unrecognized PublicKeyCredentialParameters key %.*s" nl, (int) key.size, key.data);
 			cbor_decoding_check(cbor_value_advance(&map));
 		}
 
@@ -809,45 +749,28 @@ static uint8_t parse_cred_desc(CborValue *it, CTAP_credDesc *cred_desc) {
 
 	for (size_t i = 0; i < map_length; ++i) {
 
-		ctap_parse_map_get_string_key(4);
+		ctap_parse_map_get_string_key();
 
-		if (strncmp(key, "type", key_length) == 0) {
+		if (ctap_string_matches(&key, &ctap_str("type"))) {
 
-			char type[10]; // not null terminated
-			size_t type_length = sizeof(type);
-			ctap_cbor_ensure_type(cbor_value_is_text_string(&map));
-			size_t actual_type_length;
-			cbor_decoding_check(cbor_value_get_string_length(&map, &actual_type_length));
-			if (actual_type_length > type_length) {
-				debug_log("parse_cred_params: skipping unknown too long type" nl);
-				cbor_decoding_check(cbor_value_advance(&map));
-				type_parsed = true;
-				continue;
-			}
-			cbor_decoding_check(cbor_value_copy_text_string(&map, type, &type_length, &map));
+			ctap_string_t type;
+			ctap_check(parse_text_string_to_ctap_string(&map, &type));
 
 			type_parsed = true;
 
-			if (strncmp(type, "public-key", type_length) == 0) {
+			if (ctap_string_matches(&type, &ctap_str("public-key"))) {
 				cred_desc->type = CTAP_pubKeyCredType_public_key;
+			} else {
+				cred_desc->type = 0;
 			}
 
-		} else if (strncmp(key, "id", key_length) == 0) {
+		} else if (ctap_string_matches(&key, &ctap_str("id"))) {
 
-			ctap_cbor_ensure_type(cbor_value_is_byte_string(&map));
-			cbor_decoding_check(cbor_value_get_string_length(&map, &cred_desc->id.size));
-			ctap_check(parse_byte_string(
-				&map,
-				cred_desc->id.data,
-				&cred_desc->id.size,
-				0, // theoretically, we could check that it is at least 16 bytes long
-				CTAP_CREDENTIAL_ID_MAX_SIZE,
-				&map
-			));
+			ctap_check(parse_byte_string_to_ctap_string(&map, &cred_desc->id));
 			id_parsed = true;
 
 		} else {
-			debug_log("warning: unrecognized PublicKeyCredentialParameters key %.*s" nl, (int) key_length, key);
+			debug_log("warning: unrecognized PublicKeyCredentialParameters key %.*s" nl, (int) key.size, key.data);
 			cbor_decoding_check(cbor_value_advance(&map));
 		}
 
@@ -869,7 +792,6 @@ uint8_t ctap_parse_pub_key_cred_desc_list_init(
 	const CborValue *list
 ) {
 
-	uint8_t ret;
 	CborError err;
 
 	// This should be guaranteed as this function (ctap_parse_pub_key_cred_desc_list_init)
@@ -904,6 +826,62 @@ uint8_t ctap_parse_pub_key_cred_desc_list_next_cred(
 
 }
 
+static uint8_t parse_get_assertion_hmac_secret_extension(CborValue *it, CTAP_getAssertion_hmac_secret *params) {
+
+	ctap_parse_map_enter("authenticatorGetAssertion hmac-secret extension");
+
+	// 12.5. HMAC Secret Extension (hmac-secret), authenticatorGetAssertion additional behaviors
+	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-hmac-secret-extension
+
+	for (size_t i = 0; i < map_length; i++) {
+
+		ctap_parse_map_get_int_key();
+
+		switch (key) {
+
+			case CTAP_getAssertion_hmac_secret_keyAgreement:
+				debug_log("CTAP_getAssertion_hmac_secret_keyAgreement" nl);
+				ctap_check(parse_cose_key(&map, &params->keyAgreement));
+				ctap_set_present(params, CTAP_getAssertion_hmac_secret_keyAgreement);
+				break;
+
+			case CTAP_getAssertion_hmac_secret_saltEnc:
+				debug_log("CTAP_getAssertion_hmac_secret_saltEnc" nl);
+				ctap_check(parse_byte_string_to_ctap_string(&map, &params->saltEnc));
+				ctap_set_present(params, CTAP_getAssertion_hmac_secret_saltEnc);
+				break;
+
+			case CTAP_getAssertion_hmac_secret_saltAuth:
+				debug_log("CTAP_getAssertion_hmac_secret_saltAuth" nl);
+				ctap_check(parse_byte_string_to_ctap_string(&map, &params->saltAuth));
+				ctap_set_present(params, CTAP_getAssertion_hmac_secret_saltAuth);
+				break;
+
+			case CTAP_getAssertion_hmac_secret_pinUvAuthProtocol:
+				debug_log("CTAP_getAssertion_hmac_secret_pinUvAuthProtocol" nl);
+				ctap_cbor_ensure_type(cbor_value_is_unsigned_integer(&map));
+				cbor_decoding_check(ctap_cbor_value_get_uint8(&map, &params->pinUvAuthProtocol));
+				cbor_decoding_check(cbor_value_advance_fixed(&map));
+				ctap_set_present(params, CTAP_getAssertion_hmac_secret_pinUvAuthProtocol);
+				break;
+
+			default:
+				debug_log("parse_get_assertion_hmac_secret_extension: unknown key %d" nl, key);
+				cbor_decoding_check(cbor_value_advance(&map));
+
+		}
+
+	}
+
+	ctap_parse_map_leave();
+
+	// validate: check that all required parameters are present
+	// (everything is optional)
+
+	return CTAP2_OK;
+
+}
+
 static uint8_t parse_get_assertion_extensions(CborValue *it, CTAP_getAssertion *ga) {
 
 	CTAP_mc_ga_common *const params = &ga->common;
@@ -912,17 +890,19 @@ static uint8_t parse_get_assertion_extensions(CborValue *it, CTAP_getAssertion *
 
 	for (size_t i = 0; i < map_length; ++i) {
 
-		ctap_parse_map_get_string_key(11);
+		ctap_parse_map_get_string_key();
 
-		// TODO
-		// if (strncmp(key, "hmac-secret", key_length) == 0) {
-		//
-		// 	// 12.5. HMAC Secret Extension (hmac-secret)
-		// 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-hmac-secret-extension
-		// } else {
+		if (ctap_string_matches(&key, &ctap_str("hmac-secret"))) {
 
-		debug_log("warning: unsupported extension %.*s" nl, (int) key_length, key);
-		cbor_decoding_check(cbor_value_advance(&map));
+			ctap_check(parse_get_assertion_hmac_secret_extension(it, &ga->hmac_secret));
+			params->extensions_present |= CTAP_extension_hmac_secret;
+
+		} else {
+
+			debug_log("warning: unsupported extension %.*s" nl, (int) key.size, key.data);
+			cbor_decoding_check(cbor_value_advance(&map));
+
+		}
 
 	}
 
@@ -944,38 +924,23 @@ uint8_t ctap_parse_get_assertion(CborValue *it, CTAP_getAssertion *ga) {
 
 	for (size_t i = 0; i < map_length; i++) {
 
-		int key;
-		ctap_cbor_ensure_type(cbor_value_is_integer(&map));
-		cbor_decoding_check(cbor_value_get_int_checked(&map, &key));
-		cbor_decoding_check(cbor_value_advance_fixed(&map));
+		ctap_parse_map_get_int_key();
 
 		switch (key) {
 
 			case CTAP_getAssertion_rpId:
 				debug_log("CTAP_getAssertion_rpId" nl);
-				ctap_check(parse_text_string(
-					&map,
-					params->rpId.id,
-					&params->rpId.id_size,
-					0,
-					CTAP_RP_ID_MAX_SIZE,
-					&map
-				));
+				ctap_check(parse_text_string_to_ctap_string(&map, &params->rpId));
 				debug_log(
 					"CTAP_getAssertion_rpId rpId (%" PRIsz ") = '%.*s'" nl,
-					params->rpId.id_size, (int) params->rpId.id_size, params->rpId.id
+					params->rpId.size, (int) params->rpId.size, params->rpId.data
 				);
 				ctap_set_present(params, CTAP_getAssertion_rpId);
 				break;
 
 			case CTAP_getAssertion_clientDataHash:
 				debug_log("CTAP_getAssertion_clientDataHash" nl);
-				ctap_check(parse_fixed_byte_string(
-					&map,
-					params->clientDataHash,
-					sizeof(params->clientDataHash),
-					&map
-				));
+				ctap_check(parse_byte_string_to_ctap_string(&map, &params->clientDataHash));
 				ctap_set_present(params, CTAP_getAssertion_clientDataHash);
 				break;
 
@@ -1001,15 +966,7 @@ uint8_t ctap_parse_get_assertion(CborValue *it, CTAP_getAssertion *ga) {
 
 			case CTAP_getAssertion_pinUvAuthParam:
 				debug_log("CTAP_getAssertion_pinUvAuthParam" nl);
-				ctap_check(parse_byte_string(
-					&map,
-					params->pinUvAuthParam,
-					&params->pinUvAuthParam_size,
-					// The 0 is intentional: The zero-length pinUvAuthParam is allowed for getAssertion.
-					0,
-					CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE,
-					&map
-				));
+				ctap_check(parse_byte_string_to_ctap_string(&map, &params->pinUvAuthParam));
 				ctap_set_present(params, CTAP_getAssertion_pinUvAuthParam);
 				break;
 

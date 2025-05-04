@@ -13,28 +13,12 @@
 // 	return 1;
 // }
 
-bool ctap_rp_id_matches(const CTAP_rpId *rp_id_a, const CTAP_rpId *rp_id_b) {
-	const size_t size = rp_id_a->id_size;
-	if (size != rp_id_b->id_size) {
+bool ctap_string_matches(const ctap_string_t *a, const ctap_string_t *b) {
+	const size_t size = a->size;
+	if (size != b->size) {
 		return false;
 	}
-	return memcmp(rp_id_a->id, rp_id_b->id, size) == 0;
-}
-
-bool ctap_user_handle_matches(const CTAP_userHandle *handle_a, const CTAP_userHandle *handle_b) {
-	const size_t size = handle_a->id_size;
-	if (size != handle_b->id_size) {
-		return false;
-	}
-	return memcmp(handle_a->id, handle_b->id, size) == 0;
-}
-
-bool ctap_cred_id_matches(const CTAP_credId *cred_id_a, const CTAP_credId *cred_id_b) {
-	const size_t size = cred_id_a->size;
-	if (size != cred_id_b->size) {
-		return false;
-	}
-	return memcmp(cred_id_a->data, cred_id_b->data, size) == 0;
+	return memcmp(a->data, b->data, size) == 0;
 }
 
 static void ctap_state_init(ctap_persistent_state_t *state) {

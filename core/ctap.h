@@ -25,7 +25,7 @@ typedef enum LION_ATTR_PACKED ctap_command {
 static_assert(sizeof(ctap_command_t) == sizeof(uint8_t), "invalid sizeof(ctaphid_command_t)");
 
 #define KEY_SPACE_BYTES     128
-#define PIN_HASH_SIZE       16
+#define CTAP_PIN_HASH_SIZE  16
 
 #define EMPTY_MARKER        0xFFFFFFFF
 #define INITIALIZED_MARKER  0xA5A5A5A5
@@ -45,7 +45,7 @@ typedef struct ctap_persistent_state {
 	bool is_pin_set;
 	// from the spec we can derive that 4 <= pin_code_point_length <= 63
 	uint8_t pin_code_point_length;
-	uint8_t pin_hash[PIN_HASH_SIZE];
+	uint8_t pin_hash[CTAP_PIN_HASH_SIZE];
 	uint8_t pin_total_remaining_attempts;
 
 	// number of stored client-side discoverable credentials
@@ -92,8 +92,8 @@ typedef struct ctap_pin_uv_auth_token_state {
 	/**
 	 * A permissions RP ID, initially null.
 	 */
-	CTAP_rpId rpId;
 	bool rpId_set;
+	uint8_t rpId_hash[CTAP_SHA256_HASH_SIZE];
 
 	/**
 	 * A permissions set whose possible values are those of pinUvAuthToken permissions.
@@ -338,9 +338,18 @@ typedef struct ctap_pin_protocol {
 
 typedef struct ctap_credentials_map_key {
 	bool used;
+	uint8_t rpId_hash[CTAP_SHA256_HASH_SIZE];
+	uint8_t truncated;
 	CTAP_rpId rpId;
 	CTAP_userEntity user;
+	uint8_t rpId_buffer[CTAP_RP_ID_MAX_SIZE];
+	uint8_t userId_buffer[CTAP_USER_ENTITY_ID_MAX_SIZE];
+	uint8_t userName_buffer[CTAP_USER_ENTITY_NAME_MAX_SIZE];
+	uint8_t userDisplayName_buffer[CTAP_USER_ENTITY_DISPLAY_NAME_MAX_SIZE];
 } ctap_credentials_map_key;
+#define CTAP_truncated_rpId             (1u << 0)
+#define CTAP_truncated_userName         (1u << 1)
+#define CTAP_truncated_userDisplayName  (1u << 2)
 
 typedef struct ctap_credentials_map_value {
 	bool discoverable;
@@ -362,8 +371,8 @@ typedef struct ctap_credential {
 
 typedef struct ctap_get_assertion_state {
 	bool valid;
-	uint8_t client_data_hash_hash[32];
-	uint8_t auth_data_rp_id_hash[32];
+	uint8_t client_data_hash[CTAP_SHA256_HASH_SIZE];
+	uint8_t auth_data_rp_id_hash[CTAP_SHA256_HASH_SIZE];
 	uint8_t auth_data_flags;
 	size_t num_credentials;
 	size_t next_credential_idx;
@@ -475,6 +484,8 @@ void ctap_convert_to_asn1_der_ecdsa_sig_value(
 	uint8_t *asn1_der_signature,
 	size_t *asn1_der_signature_size
 );
+
+void ctap_compute_rp_id_hash(uint8_t *rp_id_hash, const CTAP_rpId *rp_id);
 
 void ctap_reset_credentials_store(void);
 

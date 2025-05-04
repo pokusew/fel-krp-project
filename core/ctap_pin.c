@@ -16,7 +16,7 @@ static_assert(TINYAES_AES_KEYLEN == 32, "unexpected TINYAES_AES_KEYLEN value for
  * See also 6.5.5.7 Operations to Obtain a pinUvAuthToken.
  */
 void ctap_pin_uv_auth_token_begin_using(ctap_pin_uv_auth_token_state *token_state, bool user_is_present) {
-	memset(&token_state->rpId, 0, sizeof(token_state->rpId));
+	memset(&token_state->rpId_hash, 0, sizeof(token_state->rpId_hash));
 	token_state->rpId_set = false;
 	token_state->permissions = 0;
 	token_state->user_present = user_is_present;
@@ -437,12 +437,15 @@ static uint8_t check_pin_hash(
 
 	// Authenticator decrypts pinHashEnc using decrypt(shared secret, pinHashEnc)
 	// and verifies against its internal stored LEFT(SHA-256(curPin), 16).
-	size_t pin_hash_length = cp->pinHashEnc_size - pin_protocol->encryption_extra_length;
-	assert(sizeof(state->persistent.pin_hash) <= pin_hash_length);
+	const size_t expected_pin_hash_length = sizeof(state->persistent.pin_hash);
+	size_t pin_hash_length = cp->pinHashEnc.size - pin_protocol->encryption_extra_length;
+	if (pin_hash_length != expected_pin_hash_length) {
+		return handle_invalid_pin(state, pin_protocol);
+	}
 	uint8_t pin_hash[pin_hash_length];
 	if (pin_protocol->decrypt(
 		/* key */ shared_secret,
-		/* ciphertext */ cp->pinHashEnc, cp->pinHashEnc_size,
+		/* ciphertext */ cp->pinHashEnc.data, cp->pinHashEnc.size,
 		/* output: plaintext */ pin_hash
 	) != 0) {
 		return handle_invalid_pin(state, pin_protocol);
@@ -482,7 +485,7 @@ static uint8_t set_pin(
 	// 6.5.5.5. Setting a New PIN:     5.7
 	// 6.5.5.6. Changing existing PIN: 5.10
 	//   If paddedNewPin is NOT 64 bytes long, it returns CTAP1_ERR_INVALID_PARAMETER
-	size_t padded_new_pin_length = cp->newPinEnc_size - pin_protocol->encryption_extra_length;
+	size_t padded_new_pin_length = cp->newPinEnc.size - pin_protocol->encryption_extra_length;
 	if (padded_new_pin_length != 64) {
 		return CTAP1_ERR_INVALID_PARAMETER;
 	}
@@ -494,7 +497,7 @@ static uint8_t set_pin(
 	uint8_t padded_new_pin[64];
 	if (pin_protocol->decrypt(
 		/* key */ shared_secret,
-		/* ciphertext */ cp->newPinEnc, cp->newPinEnc_size,
+		/* ciphertext */ cp->newPinEnc.data, cp->newPinEnc.size,
 		/* output: plaintext */ padded_new_pin
 	) != 0) {
 		return CTAP2_ERR_PIN_AUTH_INVALID;
@@ -584,7 +587,7 @@ static uint8_t set_pin(
 
 	debug_log(green("new_pin = %s") nl, new_pin);
 
-	uint8_t new_pin_hash[32];
+	uint8_t new_pin_hash[CTAP_SHA256_HASH_SIZE];
 	SHA256_CTX sha256_ctx;
 	sha256_init(&sha256_ctx);
 	sha256_update(&sha256_ctx, new_pin, new_pin_length);
@@ -592,10 +595,10 @@ static uint8_t set_pin(
 
 	// CurrentStoredPIN = LEFT(SHA-256(newPin), 16)
 	static_assert(
-		PIN_HASH_SIZE <= sizeof(new_pin_hash),
-		"PIN_HASH_SIZE must be greater than 32 bytes (the size of the SHA-256 output)"
+		CTAP_PIN_HASH_SIZE <= sizeof(new_pin_hash),
+		"CTAP_PIN_HASH_SIZE must be less than or equal to 32 bytes (the size of the SHA-256 output)"
 	);
-	memcpy(state->persistent.pin_hash, new_pin_hash, PIN_HASH_SIZE);
+	memcpy(state->persistent.pin_hash, new_pin_hash, CTAP_PIN_HASH_SIZE);
 	state->persistent.pin_code_point_length = new_pin_code_point_length;
 	state->persistent.is_pin_set = true;
 
@@ -639,11 +642,11 @@ uint8_t ctap_client_pin_set_pin(
 	//     If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
 	hmac_sha256_ctx_t verify_ctx;
 	pin_protocol->verify_init_with_shared_secret(pin_protocol, &verify_ctx, /* key */ shared_secret);
-	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message */ cp->newPinEnc, cp->newPinEnc_size);
+	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message */ cp->newPinEnc.data, cp->newPinEnc.size);
 	if (pin_protocol->verify_final(
 		pin_protocol,
 		&verify_ctx,
-		/* signature */ cp->pinUvAuthParam, cp->pinUvAuthParam_size
+		/* signature */ cp->pinUvAuthParam.data, cp->pinUvAuthParam.size
 	) != 0) {
 		return CTAP2_ERR_PIN_AUTH_INVALID;
 	}
@@ -688,12 +691,12 @@ uint8_t ctap_client_pin_change_pin(
 	//     If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
 	hmac_sha256_ctx_t verify_ctx;
 	pin_protocol->verify_init_with_shared_secret(pin_protocol, &verify_ctx, /* key */ shared_secret);
-	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message part 1 */ cp->newPinEnc, cp->newPinEnc_size);
-	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message part 2 */ cp->pinHashEnc, cp->pinHashEnc_size);
+	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message part 1 */ cp->newPinEnc.data, cp->newPinEnc.size);
+	pin_protocol->verify_update(pin_protocol, &verify_ctx, /* message part 2 */ cp->pinHashEnc.data, cp->pinHashEnc.size);
 	if (pin_protocol->verify_final(
 		pin_protocol,
 		&verify_ctx,
-		/* signature */ cp->pinUvAuthParam, cp->pinUvAuthParam_size
+		/* signature */ cp->pinUvAuthParam.data, cp->pinUvAuthParam.size
 	) != 0) {
 		return CTAP2_ERR_PIN_AUTH_INVALID;
 	}
@@ -929,8 +932,13 @@ uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
 	state->pin_uv_auth_token_state.permissions = cp->permissions;
 	// If the rpId parameter is present, associate the permissions RP ID with the pinUvAuthToken.
 	if (rpId_present) {
-		state->pin_uv_auth_token_state.rpId = cp->rpId;
+		ctap_compute_rp_id_hash(state->pin_uv_auth_token_state.rpId_hash, &cp->rpId);
 		state->pin_uv_auth_token_state.rpId_set = true;
+		debug_log(
+			"pinUvAuthToken RP ID set to '%.*s' hash = ",
+			(int) cp->rpId.size, cp->rpId.data
+		);
+		dump_hex(state->pin_uv_auth_token_state.rpId_hash, sizeof(state->pin_uv_auth_token_state.rpId_hash));
 	}
 
 	// The authenticator returns the encrypted pinUvAuthToken for the specified pinUvAuthProtocol,
