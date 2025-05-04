@@ -237,7 +237,7 @@ target_link_libraries(
 gtest_discover_tests(test_ubsan PROPERTIES WILL_FAIL true)
 
 std_test(cbor src/cbor_test.cpp)
-target_link_libraries(test_cbor tinycbor hex_utils)
+target_link_libraries(test_cbor tinycbor hex_utils gtest_custom_assertions)
 
 std_test(tiny_aes src/tiny_aes_test.cpp)
 target_link_libraries(test_tiny_aes tinyaes hex_utils gtest_custom_assertions)
