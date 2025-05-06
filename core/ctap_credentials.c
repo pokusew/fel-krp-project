@@ -435,6 +435,8 @@ static uint8_t create_self_attestation_statement(
 }
 
 #define CTAP_MEMORY_MAX_NUM_CREDENTIALS 50
+static size_t num_stored_credentials = 0;
+static size_t num_stored_discoverable_credentials = 0;
 static ctap_credentials_map_key credentials_map_keys[CTAP_MEMORY_MAX_NUM_CREDENTIALS];
 static ctap_credentials_map_value credentials_map_values[CTAP_MEMORY_MAX_NUM_CREDENTIALS];
 
@@ -632,6 +634,11 @@ static uint8_t store_credential(
 	memcpy(value->private_key, credential->private_key, sizeof(value->private_key));
 	memcpy(value->CredRandomWithUV, credential->CredRandomWithUV, sizeof(value->CredRandomWithUV));
 	memcpy(value->CredRandomWithoutUV, credential->CredRandomWithoutUV, sizeof(value->CredRandomWithoutUV));
+
+	num_stored_credentials++;
+	if (credential->discoverable) {
+		num_stored_discoverable_credentials++;
+	}
 
 	return CTAP2_OK;
 
