@@ -435,6 +435,8 @@ typedef struct ctap_state {
 
 	ctap_persistent_state_t persistent;
 
+	uint32_t last_cmd_time;
+
 	ctap_response_t response;
 
 	ctap_pin_protocol_t pin_protocol[1];

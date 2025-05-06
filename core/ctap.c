@@ -117,6 +117,10 @@ uint8_t ctap_request(
 	const uint8_t *params
 ) {
 
+	// get the current time once at the beginning of the command processing
+	// to have one constant value throughout the whole command processing
+	state->last_cmd_time = ctap_get_current_time();
+
 	CborEncoder *encoder = &state->response.encoder;
 
 	uint8_t status;

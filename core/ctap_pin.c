@@ -62,7 +62,7 @@ bool ctap_pin_uv_auth_token_check_usage_timer(ctap_state_t *state) {
 	if (!token_state->in_use) {
 		return false;
 	}
-	const uint32_t current_time = ctap_get_current_time();
+	const uint32_t current_time = state->last_cmd_time;
 	// max usage time limit
 	const uint32_t elapsed_since_start = current_time - token_state->usage_timer.start;
 	if (elapsed_since_start > token_state->max_usage_time_period) {
