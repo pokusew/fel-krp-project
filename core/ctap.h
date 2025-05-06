@@ -467,7 +467,7 @@ uint8_t ctap_get_pin_protocol(ctap_state_t *state, size_t protocol_version, ctap
 
 void ctap_pin_protocol_v1_init(ctap_pin_protocol_t *protocol);
 
-void ctap_pin_uv_auth_token_begin_using(ctap_pin_uv_auth_token_state *token_state, bool user_is_present);
+void ctap_pin_uv_auth_token_begin_using(ctap_state_t *state, bool user_is_present, uint32_t permissions);
 
 bool ctap_pin_uv_auth_token_check_usage_timer(ctap_state_t *state);
 
