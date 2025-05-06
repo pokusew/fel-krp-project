@@ -127,6 +127,21 @@ uint8_t ctap_request(
 	error_log("ctap_request cmd=0x%02" wPRIx8 " params_size=%" PRIsz nl, cmd, params_size);
 	dump_hex(params, params_size);
 
+	if (ctap_pin_uv_auth_token_check_usage_timer(state)) {
+		// the pinUvAuthToken has just expired
+		// 6. Authenticator API, stateful commands
+		//   https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#stateful-commands
+		//   An authenticator MUST discard the state for a stateful command
+		//   if the pinUvAuthToken that authenticated the state initializing command
+		//   expires since the stateful commands do not themselves always verify a pinUvAuthToken.
+		// TODO: Discard state also when the pinUvAuthToken is regenerated.
+		debug_log(yellow("the pinUvAuthToken has just expired") nl);
+		if (state->get_assertion_state.valid) {
+			debug_log(red("discarding the authenticatorGetAssertion state because of the pinUvAuthToken expiration") nl);
+			ctap_discard_get_assertion_state(state);
+		}
+	}
+
 	switch (cmd) {
 		case CTAP_CMD_MAKE_CREDENTIAL:
 			info_log(magenta("CTAP_CMD_MAKE_CREDENTIAL") nl);
