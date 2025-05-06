@@ -74,7 +74,7 @@ typedef struct ctap_response {
 	uint8_t *const data;
 } ctap_response_t;
 
-#define PIN_TOKEN_SIZE 32
+#define CTAP_PIN_UV_AUTH_TOKEN_SIZE 32
 
 #define CTAP_PIN_UV_AUTH_TOKEN_STATE_INITIAL_USAGE_TIME_LIMIT_USB (30 * 1000)
 
@@ -187,7 +187,7 @@ typedef struct ctap_pin_uv_auth_token_state {
 ///   in both PIN/UV Auth Protocol 1 and in PIN/UV Auth Protocol 2.
 typedef struct ctap_pin_protocol {
 
-	uint8_t pin_uv_auth_token[PIN_TOKEN_SIZE];
+	uint8_t pin_uv_auth_token[CTAP_PIN_UV_AUTH_TOKEN_SIZE];
 	uint8_t key_agreement_public_key[64];
 	uint8_t key_agreement_private_key[32];
 	size_t shared_secret_length;
