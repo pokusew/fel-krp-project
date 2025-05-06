@@ -979,7 +979,7 @@ uint8_t ctap_parse_get_assertion(CborValue *it, CTAP_getAssertion *ga) {
 				break;
 
 			default:
-				debug_log("ctap_parse_make_credential: unknown key %d" nl, key);
+				debug_log("ctap_parse_get_assertion: unknown key %d" nl, key);
 				cbor_decoding_check(cbor_value_advance(&map));
 
 		}
