@@ -760,7 +760,7 @@ static uint8_t get_pin_token_using_pin_with_permissions(
 	const COSE_Key *key_agreement,
 	const ctap_string_t *pin_hash_enc,
 	const uint32_t permissions,
-	const ctap_string_t *rp_id
+	const CTAP_rpId *rp_id
 ) {
 
 	uint8_t ret;
@@ -794,7 +794,7 @@ static uint8_t get_pin_token_using_pin_with_permissions(
 		state->pin_uv_auth_token_state.rpId_set = true;
 		debug_log(
 			"pinUvAuthToken RP ID set to '%.*s' hash = ",
-			(int) rp_id->size, rp_id->data
+			(int) rp_id->id.size, rp_id->id.data
 		);
 		dump_hex(state->pin_uv_auth_token_state.rpId_hash, sizeof(state->pin_uv_auth_token_state.rpId_hash));
 	}

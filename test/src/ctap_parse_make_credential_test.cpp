@@ -102,8 +102,8 @@ TEST_F(CtapParseMakeCredentialTest, Dummy) {
 	EXPECT_EQ(mc.common.clientDataHash.size, expected_clientDataHash.size());
 	EXPECT_SAME_BYTES_S(mc.common.clientDataHash.size, mc.common.clientDataHash.data, expected_clientDataHash.data());
 
-	EXPECT_EQ(mc.common.rpId.size, sizeof(expected_rpId) - 1);
-	EXPECT_SAME_BYTES_S(mc.common.rpId.size, mc.common.rpId.data, expected_rpId);
+	EXPECT_EQ(mc.common.rpId.id.size, sizeof(expected_rpId) - 1);
+	EXPECT_SAME_BYTES_S(mc.common.rpId.id.size, mc.common.rpId.id.data, expected_rpId);
 
 	const uint32_t expected_user_present_fields =
 		ctap_param_to_mask(CTAP_userEntity_id)
@@ -184,8 +184,8 @@ TEST_F(CtapParseMakeCredentialTest, WebauthnIoTest) {
 	EXPECT_EQ(mc.common.clientDataHash.size, expected_clientDataHash.size());
 	EXPECT_SAME_BYTES_S(mc.common.clientDataHash.size, mc.common.clientDataHash.data, expected_clientDataHash.data());
 
-	EXPECT_EQ(mc.common.rpId.size, sizeof(expected_rpId) - 1);
-	EXPECT_SAME_BYTES_S(mc.common.rpId.size, mc.common.rpId.data, expected_rpId);
+	EXPECT_EQ(mc.common.rpId.id.size, sizeof(expected_rpId) - 1);
+	EXPECT_SAME_BYTES_S(mc.common.rpId.id.size, mc.common.rpId.id.data, expected_rpId);
 
 	const uint32_t expected_user_present_fields =
 		ctap_param_to_mask(CTAP_userEntity_id)

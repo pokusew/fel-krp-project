@@ -261,7 +261,7 @@ static uint8_t encode_pub_key_cred_user_entity(
 void ctap_compute_rp_id_hash(uint8_t *rp_id_hash, const CTAP_rpId *rp_id) {
 	SHA256_CTX sha256_ctx;
 	sha256_init(&sha256_ctx);
-	sha256_update(&sha256_ctx, rp_id->data, rp_id->size);
+	sha256_update(&sha256_ctx, rp_id->id.data, rp_id->id.size);
 	sha256_final(&sha256_ctx, rp_id_hash);
 }
 
@@ -436,26 +436,31 @@ static size_t num_stored_discoverable_credentials = 0;
 static ctap_credentials_map_key credentials_map_keys[CTAP_MEMORY_MAX_NUM_CREDENTIALS];
 static ctap_credentials_map_value credentials_map_values[CTAP_MEMORY_MAX_NUM_CREDENTIALS];
 
+bool ctap_credential_matches_rp_id_hash(
+	const ctap_credentials_map_key *key,
+	const uint8_t *rp_id_hash
+) {
+	return memcmp(key->rpId.hash, rp_id_hash, CTAP_SHA256_HASH_SIZE) == 0;
+}
+
 bool ctap_credential_matches_rp(
 	const ctap_credentials_map_key *key,
-	const uint8_t *rp_id_hash,
 	const CTAP_rpId *rp_id
 ) {
 	const bool rp_id_matches = (key->truncated & CTAP_truncated_rpId) == 0u
 		// if the rpId was NOT truncated, then we can compare the exact rpId values
-		? ctap_string_matches(&key->rpId, rp_id)
+		? ctap_string_matches(&key->rpId.id, &rp_id->id)
 		// otherwise, our only option is to compare the hashes
-		: memcmp(key->rpId_hash, rp_id_hash, CTAP_SHA256_HASH_SIZE) == 0;
+		: ctap_credential_matches_rp_id_hash(key, rp_id->hash);
 	if (!rp_id_matches) {
 		return false;
 	}
 	// debugging assert: rp_id_matches => the hashes are equal
-	assert(memcmp(key->rpId_hash, rp_id_hash, CTAP_SHA256_HASH_SIZE) == 0);
+	assert(ctap_credential_matches_rp_id_hash(key, rp_id->hash));
 	return true;
 }
 
 static int find_credential_index(
-	const uint8_t *rp_id_hash,
 	const CTAP_rpId *rp_id,
 	const CTAP_userHandle *user_handle
 ) {
@@ -467,7 +472,7 @@ static int find_credential_index(
 		if (!key->used) {
 			continue;
 		}
-		if (!ctap_credential_matches_rp(key, rp_id_hash, rp_id)) {
+		if (!ctap_credential_matches_rp(key, rp_id)) {
 			continue;
 		}
 		if (!ctap_string_matches(&key->user.id, user_handle)) {
@@ -623,7 +628,6 @@ bool ctap_store_arbitrary_length_string(
 }
 
 static uint8_t store_credential(
-	const uint8_t *rp_id_hash,
 	const CTAP_rpId *rp_id,
 	const CTAP_userEntity *user,
 	const ctap_credentials_map_value *credential
@@ -634,7 +638,6 @@ static uint8_t store_credential(
 	// If a credential for the same rpId and userHandle already exists on the authenticator,
 	// then overwrite that credential.
 	slot = find_credential_index(
-		rp_id_hash,
 		rp_id,
 		&user->id
 	);
@@ -647,10 +650,14 @@ static uint8_t store_credential(
 				slot = i;
 				key->used = true;
 
-				memcpy(key->rpId_hash, rp_id_hash, sizeof(key->rpId_hash));
+				static_assert(
+					sizeof(key->rpId.hash) == sizeof(rp_id->hash),
+					"sizeof(key->rpId.hash) == sizeof(rp_id->hash)"
+				);
+				memcpy(key->rpId.hash, rp_id->hash, sizeof(key->rpId_hash));
 				if (ctap_store_arbitrary_length_string(
-					rp_id,
-					&key->rpId,
+					&rp_id->id,
+					&key->rpId.id,
 					key->rpId_buffer,
 					sizeof(key->rpId_buffer),
 					ctap_maybe_truncate_rp_id
@@ -872,16 +879,16 @@ static uint8_t ensure_valid_pin_uv_auth_param(
 	//       then end the operation by returning CTAP2_ERR_PIN_AUTH_INVALID.
 	if ((
 		state->pin_uv_auth_token_state.rpId_set
-		&& memcmp(state->pin_uv_auth_token_state.rpId_hash, params->rpId_hash, CTAP_SHA256_HASH_SIZE) != 0
+		&& memcmp(state->pin_uv_auth_token_state.rpId_hash, params->rpId.hash, CTAP_SHA256_HASH_SIZE) != 0
 	)) {
 		debug_log(
 			red(
 				"pinUvAuthToken RP ID mismatch:"
 				" required='%.*s' hash = "
 			),
-			(int) params->rpId.size, params->rpId.data
+			(int) params->rpId.id.size, params->rpId.id.data
 		);
-		dump_hex(params->rpId_hash, sizeof(params->rpId_hash));
+		dump_hex(params->rpId.hash, sizeof(params->rpId.hash));
 		debug_log("pinUvAuthToken associated RP ID hash = ");
 		dump_hex(state->pin_uv_auth_token_state.rpId_hash, sizeof(state->pin_uv_auth_token_state.rpId_hash));
 		return CTAP2_ERR_PIN_AUTH_INVALID;
@@ -899,7 +906,7 @@ static uint8_t ensure_valid_pin_uv_auth_param(
 		state->pin_uv_auth_token_state.rpId_set = true;
 		debug_log(
 			"pinUvAuthToken did not have RP ID associated, setting to '%.*s' hash = ",
-			(int) params->rpId.size, params->rpId.data
+			(int) params->rpId.id.size, params->rpId.id.data
 		);
 		dump_hex(state->pin_uv_auth_token_state.rpId_hash, sizeof(state->pin_uv_auth_token_state.rpId_hash));
 	}
@@ -936,7 +943,6 @@ static uint8_t ensure_user_present(ctap_state_t *state, const bool pinUvAuthPara
 static uint8_t process_exclude_list(
 	ctap_state_t *state,
 	const CborValue *excludeList,
-	const uint8_t *rpId_hash,
 	const CTAP_rpId *rpId,
 	const bool pinUvAuthParam_present,
 	const bool uv_collected
@@ -958,7 +964,7 @@ static uint8_t process_exclude_list(
 			debug_log("process_exclude_list: skipping unknown credential ID" nl);
 			continue;
 		}
-		if (!ctap_credential_matches_rp(&credentials_map_keys[idx], rpId_hash, rpId)) {
+		if (!ctap_credential_matches_rp(&credentials_map_keys[idx], rpId)) {
 			debug_log("process_exclude_list: skipping credential ID that is bound to a different RP" nl);
 			continue;
 		}
@@ -1025,7 +1031,6 @@ static bool should_add_credential_to_list(
 
 static uint8_t process_allow_list(
 	const CborValue *allowList,
-	const uint8_t *rpId_hash,
 	const CTAP_rpId *rpId,
 	const bool response_has_uv,
 	ctap_credential *credentials,
@@ -1063,7 +1068,7 @@ static uint8_t process_allow_list(
 
 		ctap_credentials_map_key *key = &credentials_map_keys[idx];
 
-		if (!ctap_credential_matches_rp(key, rpId_hash, rpId)) {
+		if (!ctap_credential_matches_rp(key, rpId)) {
 			debug_log("process_allow_list: skipping credential ID that is bound to a different RP" nl);
 			continue;
 		}
@@ -1095,8 +1100,8 @@ static uint8_t process_allow_list(
 }
 
 static uint8_t find_discoverable_credentials_by_rp_id(
-	const uint8_t *rpId_hash,
-	const CTAP_rpId *rpId,
+	const CTAP_rpId *rp_id,
+	const uint8_t *rp_id_hash,
 	const bool response_has_uv,
 	ctap_credential *credentials,
 	size_t *const num_credentials,
@@ -1104,6 +1109,8 @@ static uint8_t find_discoverable_credentials_by_rp_id(
 ) {
 
 	debug_log("find_credentials_by_rp_id" nl);
+
+	assert(rp_id != NULL || rp_id_hash != NULL);
 
 	size_t credentials_num = 0;
 
@@ -1114,7 +1121,17 @@ static uint8_t find_discoverable_credentials_by_rp_id(
 		if (!key->used) {
 			continue;
 		}
-		if (!ctap_credential_matches_rp(key, rpId_hash, rpId)) {
+
+		if (rp_id != NULL) {
+			if (!ctap_credential_matches_rp(key, rp_id)) {
+				continue;
+			}
+		} else if (rp_id_hash != NULL) {
+			if (!ctap_credential_matches_rp_id_hash(key, rp_id_hash)) {
+				continue;
+			}
+		} else {
+			assert(false);
 			continue;
 		}
 
@@ -1171,7 +1188,7 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 	// https://w3c.github.io/webauthn/#sctn-op-make-cred
 
 	// rpId_hash is needed throughout the whole algorithm, so we compute it right away.
-	ctap_compute_rp_id_hash(params->rpId_hash, &params->rpId);
+	ctap_compute_rp_id_hash(params->rpId.hash, &params->rpId);
 
 	// 1. + 2.
 	ctap_check(handle_pin_uv_auth_param_and_protocol(
@@ -1260,7 +1277,6 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 		ctap_check(process_exclude_list(
 			state,
 			&mc.excludeList,
-			params->rpId_hash,
 			&params->rpId,
 			pinUvAuthParam_present,
 			(auth_data.fixed_header.flags & CTAP_authenticator_data_flags_uv) != 0u
@@ -1363,7 +1379,6 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 		return CTAP1_ERR_OTHER;
 	}
 	ctap_check(store_credential(
-		params->rpId_hash,
 		&params->rpId,
 		&mc.user,
 		&credential
@@ -1372,7 +1387,7 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 	// 19. Generate an attestation statement for the newly-created credential using clientDataHash,
 	//     taking into account the value of the enterpriseAttestation parameter, if present,
 	//     as described above in Step 9.
-	memcpy(auth_data.fixed_header.rpIdHash, params->rpId_hash, CTAP_SHA256_HASH_SIZE);
+	memcpy(auth_data.fixed_header.rpIdHash, params->rpId.hash, CTAP_SHA256_HASH_SIZE);
 	auth_data.fixed_header.signCount = lion_htonl(credential.signCount);
 
 	size_t auth_data_variable_size = 0;
@@ -1565,7 +1580,7 @@ uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t l
 	// https://w3c.github.io/webauthn/#sctn-op-get-assertion
 
 	// rpId_hash is needed throughout the whole algorithm, so we compute it right away.
-	ctap_compute_rp_id_hash(params->rpId_hash, &params->rpId);
+	ctap_compute_rp_id_hash(params->rpId.hash, &params->rpId);
 
 	// 1. + 2.
 	ctap_check(handle_pin_uv_auth_param_and_protocol(
@@ -1629,7 +1644,6 @@ uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t l
 		//      locate all denoted credentials created by this authenticator and bound to the specified rpId.
 		ctap_check(process_allow_list(
 			&ga.allowList,
-			params->rpId_hash,
 			&params->rpId,
 			response_has_uv,
 			ga_state->credentials,
@@ -1644,8 +1658,8 @@ uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t l
 		//   by the time when they were created in reverse order.
 		//   (I.e. the first credential is the most recently created.)
 		ctap_check(find_discoverable_credentials_by_rp_id(
-			params->rpId_hash,
 			&params->rpId,
+			NULL,
 			response_has_uv,
 			ga_state->credentials,
 			&ga_state->num_credentials,
@@ -1713,7 +1727,7 @@ uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t l
 		ga_state->valid = true;
 	}
 
-	memcpy(ga_state->auth_data_rp_id_hash, params->rpId_hash, CTAP_SHA256_HASH_SIZE);
+	memcpy(ga_state->auth_data_rp_id_hash, params->rpId.hash, CTAP_SHA256_HASH_SIZE);
 
 	// 13. Sign the clientDataHash along with authData.
 	ctap_check(generate_get_assertion_response(

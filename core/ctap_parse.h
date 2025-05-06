@@ -166,7 +166,10 @@ typedef struct CTAP_userEntity {
 #define CTAP_userEntity_displayName  0x03
 
 // https://w3c.github.io/webauthn/#dictdef-publickeycredentialrpentity
-typedef ctap_string_t CTAP_rpId;
+typedef struct CTAP_rpId {
+	uint8_t hash[CTAP_SHA256_HASH_SIZE];
+	ctap_string_t id;
+} CTAP_rpId;
 
 // https://w3c.github.io/webauthn/#credential-id
 //   Note that the WebAuthn spec implies that every Credential ID
@@ -356,7 +359,6 @@ typedef struct CTAP_mc_ga_common {
 	CTAP_mc_ga_options options;
 	ctap_string_t pinUvAuthParam;
 	uint8_t pinUvAuthProtocol;
-	uint8_t rpId_hash[CTAP_SHA256_HASH_SIZE]; // (not a param, computed in ctap_make_credential()/ctap_get_assertion())
 } CTAP_mc_ga_common;
 typedef struct CTAP_makeCredential {
 	CTAP_mc_ga_common common;

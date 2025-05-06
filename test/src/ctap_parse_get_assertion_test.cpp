@@ -61,8 +61,8 @@ TEST_F(CtapParseGetAssertionTest, MinimalWithPinUvAuthParam) {
 	EXPECT_EQ(mc.common.clientDataHash.size, expected_clientDataHash.size());
 	EXPECT_SAME_BYTES_S(mc.common.clientDataHash.size, mc.common.clientDataHash.data, expected_clientDataHash.data());
 
-	EXPECT_EQ(mc.common.rpId.size, sizeof(expected_rpId) - 1);
-	EXPECT_SAME_BYTES_S(mc.common.rpId.size, mc.common.rpId.data, expected_rpId);
+	EXPECT_EQ(mc.common.rpId.id.size, sizeof(expected_rpId) - 1);
+	EXPECT_SAME_BYTES_S(mc.common.rpId.id.size, mc.common.rpId.id.data, expected_rpId);
 
 	EXPECT_EQ(mc.common.pinUvAuthParam.size, expected_pinUvAuthParam.size());
 	EXPECT_SAME_BYTES_S(mc.common.pinUvAuthParam.size, mc.common.pinUvAuthParam.data, expected_pinUvAuthParam.data());
@@ -107,8 +107,8 @@ TEST_F(CtapParseGetAssertionTest, SilentAuthnetication) {
 	EXPECT_EQ(mc.common.clientDataHash.size, expected_clientDataHash.size());
 	EXPECT_SAME_BYTES_S(mc.common.clientDataHash.size, mc.common.clientDataHash.data, expected_clientDataHash.data());
 
-	EXPECT_EQ(mc.common.rpId.size, sizeof(expected_rpId) - 1);
-	EXPECT_SAME_BYTES_S(mc.common.rpId.size, mc.common.rpId.data, expected_rpId);
+	EXPECT_EQ(mc.common.rpId.id.size, sizeof(expected_rpId) - 1);
+	EXPECT_SAME_BYTES_S(mc.common.rpId.id.size, mc.common.rpId.id.data, expected_rpId);
 
 	EXPECT_EQ(mc.common.options.present, CTAP_ma_ga_option_up);
 	EXPECT_EQ(mc.common.options.values, 0u);

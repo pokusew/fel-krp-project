@@ -344,10 +344,10 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 
 			case CTAP_clientPIN_rpId:
 				debug_log("CTAP_clientPIN_rpId" nl);
-				ctap_check(parse_text_string_to_ctap_string(&map, &params->rpId));
+				ctap_check(parse_text_string_to_ctap_string(&map, &params->rpId.id));
 				debug_log(
 					"CTAP_clientPIN_rpId rpId (%" PRIsz ") = '%.*s'" nl,
-					params->rpId.size, (int) params->rpId.size, params->rpId.data
+					params->rpId.id.size, (int) params->rpId.id.size, params->rpId.id.data
 				);
 				ctap_set_present(params, CTAP_clientPIN_rpId);
 				break;
@@ -382,7 +382,7 @@ static uint8_t parse_rp_entity(CborValue *it, CTAP_rpId *rpId) {
 		ctap_parse_map_get_string_key();
 
 		if (ctap_string_matches(&key, &ctap_str("id"))) {
-			ctap_check(parse_text_string_to_ctap_string(&map, rpId));
+			ctap_check(parse_text_string_to_ctap_string(&map, &rpId->id));
 			id_parsed = true;
 		} else {
 			// Currently, we do not use name and icon in any way, but we at least validate their types
@@ -1006,10 +1006,10 @@ uint8_t ctap_parse_get_assertion(CborValue *it, CTAP_getAssertion *ga) {
 
 			case CTAP_getAssertion_rpId:
 				debug_log("CTAP_getAssertion_rpId" nl);
-				ctap_check(parse_text_string_to_ctap_string(&map, &params->rpId));
+				ctap_check(parse_text_string_to_ctap_string(&map, &params->rpId.id));
 				debug_log(
 					"CTAP_getAssertion_rpId rpId (%" PRIsz ") = '%.*s'" nl,
-					params->rpId.size, (int) params->rpId.size, params->rpId.data
+					params->rpId.id.size, (int) params->rpId.id.size, params->rpId.id.data
 				);
 				ctap_set_present(params, CTAP_getAssertion_rpId);
 				break;
