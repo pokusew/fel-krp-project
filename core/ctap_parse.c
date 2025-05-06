@@ -427,7 +427,7 @@ static uint8_t parse_user_entity(CborValue *it, CTAP_userEntity *user) {
 					red("exceeded user handle (user.id) max size (%" PRIsz " > %" PRIsz ")") nl,
 					user->id.size, (size_t) CTAP_USER_ENTITY_ID_MAX_SIZE
 				);
-				return CTAP1_ERR_INVALID_LENGTH; // TODO: Use CTAP2_ERR_CBOR_UNEXPECTED_TYPE?
+				return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
 			}
 			ctap_set_present(user, CTAP_userEntity_id);
 		} else if (ctap_string_matches(&key, &ctap_str("name"))) {
@@ -455,7 +455,7 @@ static uint8_t parse_user_entity(CborValue *it, CTAP_userEntity *user) {
 	// validate: check that all required parameters are present
 	const uint32_t required_params = ctap_param_to_mask(CTAP_userEntity_id);
 	if (!ctap_is_present(user->present, required_params)) {
-		return CTAP2_ERR_MISSING_PARAMETER;
+		return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
 	}
 
 	return CTAP2_OK;
