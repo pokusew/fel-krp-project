@@ -174,7 +174,7 @@ static int ctap_pin_protocol_v1_reset_pin_uv_auth_token(
 	return 0;
 }
 
-static int ctap_pin_protocol_v1_get_public_key(
+static uint8_t ctap_pin_protocol_v1_get_public_key(
 	ctap_pin_protocol_t *protocol,
 	CborEncoder *encoder
 ) {
@@ -211,7 +211,7 @@ static int ctap_pin_protocol_v1_get_public_key(
 
 static int ctap_pin_protocol_v1_decapsulate(
 	const ctap_pin_protocol_t *protocol,
-	const COSE_Key *peer_cose_key,
+	const COSE_Key *peer_public_key,
 	uint8_t shared_secret[32]
 ) {
 	// 6.5.6. PIN/UV Auth Protocol One
@@ -231,7 +231,7 @@ static int ctap_pin_protocol_v1_decapsulate(
 	//   Return SHA-256(Z).
 
 	if (uECC_shared_secret(
-		(uint8_t *) &peer_cose_key->pubkey,
+		(uint8_t *) &peer_public_key->pubkey,
 		protocol->key_agreement_private_key,
 		shared_secret,
 		uECC_secp256r1()
@@ -240,7 +240,7 @@ static int ctap_pin_protocol_v1_decapsulate(
 		return 1;
 	}
 	debug_log(yellow("peer_cose_key->pubkey") nl "  ");
-	dump_hex((uint8_t *) &peer_cose_key->pubkey, 64);
+	dump_hex((uint8_t *) &peer_public_key->pubkey, 64);
 	debug_log(yellow("key_agreement_private_key") nl "  ");
 	dump_hex(protocol->key_agreement_private_key, 32);
 	debug_log(yellow("shared secret before hash ") nl "  ");

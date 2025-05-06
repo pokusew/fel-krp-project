@@ -198,46 +198,89 @@ typedef struct ctap_pin_protocol {
 	size_t shared_secret_length;
 	size_t encryption_extra_length;
 
-	/// This process is run by the authenticator at power-on.
+	/**
+	 * Initializes the protocol for use.
+	 *
+	 * This process is run by the authenticator at power-on.
+	 *
+	 * @param protocol the protocol
+	 * @retval 0 on success
+	 * @retval 1 on error
+	 */
 	int (*initialize)(
 		struct ctap_pin_protocol *protocol
 	);
 
-	/// Generates a fresh public key.
+	/**
+	 * Generates a fresh ECDH key agreement key pair (key_agreement_public_key, key_agreement_private_key).
+	 *
+	 * @param protocol the protocol
+	 * @retval 0 on success
+	 * @retval 1 on error
+	 */
 	int (*regenerate)(
 		struct ctap_pin_protocol *protocol
 	);
 
-	/// Generates a fresh pinUvAuthToken.
+	/**
+	 * Generates a fresh pinUvAuthToken.
+	 * @param protocol the protocol
+	 * @retval 0 on success
+	 * @retval 1 on error
+	 */
 	int (*reset_pin_uv_auth_token)(
 		struct ctap_pin_protocol *protocol
 	);
 
-	int (*get_public_key)(
+	/**
+	 * Encodes the current key_agreement_public_key as a COSE_Key object into the given CBOR stream.
+	 *
+	 * @param protocol the protocol
+	 * @param encoder CBOR encoder
+	 * @return a CTAP status code
+	 * @retval CTAP1_ERR_OTHER when a CBOR encoding error occurs
+	 * @retval CTAP2_OK when the COSE_Key was successfully encoded using the given CBOR encoder
+	 */
+	uint8_t (*get_public_key)(
 		struct ctap_pin_protocol *protocol,
 		CborEncoder *encoder
 	);
 
-	/// Processes the output of encapsulate from the peer and produces a shared secret,
-	/// known to both platform and authenticator.
+	/**
+	 * Processes the output of encapsulate from the peer and produces a shared secret,
+	 * known to both platform and authenticator.
+	 *
+	 * In other words, it computes a shared key using the peer's public key (`peer_public_key`)
+	 * and the authenticator's private key (`protocol.key_agreement_private_key`)
+	 * using ECDH (Elliptic-curve Diffie-Hellman). It then derives the shared secret
+	 * from the computed shared key (the exact algorithm varies between protocol versions).
+	 *
+	 * @param protocol this
+	 * @param peer_public_key the public key of the peer (the platform, resp. the client),
+	 * @param [out] shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
+	 *                            (32 bytes for v1, 64 bytes for v2)
+	 * @retval 0 on success
+	 * @retval 1 on error
+	 */
 	int (*decapsulate)(
 		const struct ctap_pin_protocol *protocol,
-		const COSE_Key *peer_cose_key,
+		const COSE_Key *peer_public_key,
 		uint8_t *shared_secret
 	);
 
 	/**
-	 * Encrypt a plaintext using a shared secret as a key and outputs a ciphertext to the given ciphertext buffer.
+	 * Encrypts a plaintext using a shared secret as a key and outputs a ciphertext to the given ciphertext buffer.
 	 *
 	 * The plaintext remains unchanged.
 	 *
-	 * @param shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
-	 *                      (32 bytes for v1, 64 bytes for v2)
-	 * @param plaintext the plaintext
-	 * @param plaintext_length the plaintext length in bytes
-	 * @param ciphertext the pointer to an array of size at least (plaintext_length + encryption_extra_length) bytes
-	 *                   where the ciphertext will be written
-	 * @return 0 on success, 1 on error
+	 * @param [in] shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
+	 *                           (32 bytes for v1, 64 bytes for v2)
+	 * @param [in] plaintext the plaintext
+	 * @param [in] plaintext_length the plaintext length in bytes
+	 * @param [out] ciphertext the pointer to an array of size at least (plaintext_length + encryption_extra_length)
+	 *                         bytes where the ciphertext will be written
+	 * @retval 0 on success
+	 * @retval 1 on error
 	 */
 	int (*encrypt)(
 		const uint8_t *shared_secret,
@@ -250,13 +293,14 @@ typedef struct ctap_pin_protocol {
 	 *
 	 * The ciphertext remains unchanged.
 	 *
-	 * @param shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
-	 *                      (32 bytes for v1, 64 bytes for v2)
-	 * @param ciphertext the ciphertext
-	 * @param ciphertext_length the ciphertext length in bytes
-	 * @param plaintext the pointer to an array of size at least (ciphertext_length - encryption_extra_length) bytes
-	 *                  where
-	 * @return 0 on success, 1 on error
+	 * @param [in] shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
+	 *                           (32 bytes for v1, 64 bytes for v2)
+	 * @param [in] ciphertext the ciphertext
+	 * @param [in] ciphertext_length the ciphertext length in bytes
+	 * @param [out] plaintext the pointer to an array of size at least (ciphertext_length - encryption_extra_length)
+	 *                        bytes the plaintext will be written
+	 * @retval 0 on success
+	 * @retval 1 on error
 	 */
 	int (*decrypt)(
 		const uint8_t *shared_secret,
@@ -291,7 +335,8 @@ typedef struct ctap_pin_protocol {
 	 * @param ctx the pointer to the HMAC-256 context that will be initialized by this call
 	 * @param pin_uv_auth_token_state the pinUvAuthToken state (if valid, i.e., in_use == true,
 	 *        its usage_timer.last_use will be updated to the current time by this function)
-	 * @return 0 on success, 1 on error (the pinUvAuthToken is NOT in use)
+	 * @retval 0 on success
+	 * @retval 1 on error (the pinUvAuthToken is NOT in use)
 	 */
 	int (*verify_init_with_pin_uv_auth_token)(
 		const struct ctap_pin_protocol *protocol,
@@ -331,8 +376,8 @@ typedef struct ctap_pin_protocol {
 	 *            or `verify_init_with_pin_uv_auth_token()`
 	 * @param signature the signature
 	 * @param signature_length the signature length in bytes
-	 * @return 0 on success (the signature matches the computed HMAC-256 digest),
-	 *         1 on error (invalid signature length or the signature does NOT match the computed HMAC-256 digest)
+	 * @retval 0 on success (the signature matches the computed HMAC-256 digest),
+	 * @retval 1 on error (invalid signature length or the signature does NOT match the computed HMAC-256 digest)
 	 */
 	int (*verify_final)(
 		const struct ctap_pin_protocol *protocol,
