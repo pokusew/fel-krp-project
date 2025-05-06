@@ -49,10 +49,6 @@
     }                                                    \
     ((void) 0)
 
-#define lion_array(name, max_size) \
-	size_t name##_size; \
-	uint8_t name[max_size]
-
 typedef struct ctap_string {
 	size_t size;
 	const uint8_t *data;
