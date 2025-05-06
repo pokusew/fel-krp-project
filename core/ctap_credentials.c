@@ -237,11 +237,7 @@ static uint8_t encode_pub_key_cred_user_entity(
 		}
 	}
 
-	cbor_encoding_check(cbor_encoder_create_map(
-		encoder,
-		&map,
-		num_items)
-	);
+	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, num_items));
 
 	cbor_encoding_check(cbor_encode_text_string(&map, "id", 2));
 	ctap_check(encode_ctap_string_as_byte_string(&map, &user->id));
