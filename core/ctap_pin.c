@@ -447,12 +447,10 @@ static uint8_t check_pin_remaining_attempts(ctap_state_t *state) {
 }
 
 static uint8_t handle_invalid_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_protocol) {
+	uint8_t ret;
 	decrement_pin_remaining_attempts(state);
 	pin_protocol->regenerate(pin_protocol);
-	uint8_t status = check_pin_remaining_attempts(state);
-	if (status != CTAP2_OK) {
-		return status;
-	}
+	ctap_check(check_pin_remaining_attempts(state));
 	return CTAP2_ERR_PIN_INVALID;
 }
 
@@ -703,7 +701,7 @@ uint8_t ctap_client_pin_change_pin(
 	const CTAP_clientPIN *cp
 ) {
 
-	uint8_t status;
+	uint8_t ret;
 
 	// 6.5.5.6. Changing existing PIN
 
@@ -718,9 +716,7 @@ uint8_t ctap_client_pin_change_pin(
 	}
 
 	// 5.3 (5.7) Check the remaining pin attempts (total and boot).
-	if ((status = check_pin_remaining_attempts(state)) != CTAP2_OK) {
-		return status;
-	}
+	ctap_check(check_pin_remaining_attempts(state));
 
 	// 5.4 The authenticator calls decapsulate on the provided platform key-agreement key
 	//     to obtain the shared secret. If an error results, it returns CTAP1_ERR_INVALID_PARAMETER.
@@ -744,14 +740,10 @@ uint8_t ctap_client_pin_change_pin(
 	}
 
 	// 5.6 - 5.8 Check the provided pin.
-	if ((status = check_pin_hash(state, pin_protocol, &cp->pinHashEnc, shared_secret)) != CTAP2_OK) {
-		return status;
-	}
+	ctap_check(check_pin_hash(state, pin_protocol, &cp->pinHashEnc, shared_secret));
 
 	// 5.9 - 5.18 Set new pin.
-	if ((status = set_pin(state, pin_protocol, &cp->newPinEnc, shared_secret)) != CTAP2_OK) {
-		return status;
-	}
+	ctap_check(set_pin(state, pin_protocol, &cp->newPinEnc, shared_secret));
 
 	// 5.19 Authenticator calls resetPinUvAuthToken() for all pinUvAuthProtocols supported
 	//      by this authenticator. (I.e. all existing pinUvAuthTokens are invalidated.)
@@ -771,12 +763,10 @@ static uint8_t get_pin_token_using_pin_with_permissions(
 	const ctap_string_t *rp_id
 ) {
 
-	uint8_t status;
+	uint8_t ret;
 
 	// Check remaining pin attempts.
-	if ((status = check_pin_remaining_attempts(state)) != CTAP2_OK) {
-		return status;
-	}
+	ctap_check(check_pin_remaining_attempts(state));
 
 	// The authenticator calls decapsulate on the provided platform key-agreement key
 	// to obtain the shared secret. If an error results, it returns CTAP1_ERR_INVALID_PARAMETER.
@@ -786,9 +776,7 @@ static uint8_t get_pin_token_using_pin_with_permissions(
 	}
 
 	// Check the provided pin.
-	if ((status = check_pin_hash(state, pin_protocol, pin_hash_enc, shared_secret)) != CTAP2_OK) {
-		return status;
-	}
+	ctap_check(check_pin_hash(state, pin_protocol, pin_hash_enc, shared_secret));
 
 	// TODO: Handle forcePINChange.
 
@@ -1042,9 +1030,7 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 			cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 1));
 			// 1. keyAgreement
 			cbor_encoding_check(cbor_encode_int(&map, CTAP_clientPIN_res_keyAgreement));
-			if ((ret = pin_protocol->get_public_key(pin_protocol, &map)) != CTAP2_OK) {
-				return ret;
-			}
+			ctap_check(pin_protocol->get_public_key(pin_protocol, &map));
 			// close response map
 			cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
 			return CTAP2_OK;
