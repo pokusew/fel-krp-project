@@ -19,33 +19,72 @@ void ctap_pin_uv_auth_token_begin_using(ctap_pin_uv_auth_token_state *token_stat
 	memset(&token_state->rpId_hash, 0, sizeof(token_state->rpId_hash));
 	token_state->rpId_set = false;
 	token_state->permissions = 0;
+	// user flags
 	token_state->user_present = user_is_present;
 	token_state->user_verified = true;
-	token_state->initial_usage_time_limit = CTAP_PIN_UV_AUTH_TOKEN_STATE_INITIAL_USAGE_TIME_LIMIT_USB;
-	token_state->user_present_time_limit = CTAP_PIN_UV_AUTH_TOKEN_STATE_INITIAL_USAGE_TIME_LIMIT_USB;
-	token_state->max_usage_time_period = 10 * 60 * 1000; // 10 minutes
+	// timer
+	token_state->initial_usage_time_limit = CTAP_PIN_UV_AUTH_TOKEN_INITIAL_USAGE_TIME_LIMIT_USB;
+	token_state->user_present_time_limit = CTAP_PIN_UV_AUTH_TOKEN_INITIAL_USAGE_TIME_LIMIT_USB;
+	token_state->max_usage_time_period = CTAP_PIN_UV_AUTH_TOKEN_MAX_USAGE_TIME_PERIOD;
 	token_state->usage_timer.start = ctap_get_current_time();
-	token_state->usage_timer.running = true;
+	// the in_use flag
 	token_state->in_use = true;
 }
 
-void ctap_pin_uv_auth_token_usage_timer_observer(ctap_pin_uv_auth_token_state *token_state) {
-	ctap_timer *usage_timer = &token_state->usage_timer;
-	if (!usage_timer->running) {
-		return;
+/**
+ * This function implements the pinUvAuthTokenUsageTimerObserver()
+ * (see https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#pinuvauthprotocol-pinuvauthtokenusagetimerobserver)
+ *
+ * * If the pinUvAuthToken is NOT in use, this function does nothing and returns false.
+ *
+ * * If the pinUvAuthToken is in use, this function checks the usage_timer values
+ *   (the elapsed time since the creation of the pinUvAuthToken and the elapsed time since the last use)
+ *   against the various time limits (max_usage_time_period, initial_usage_time_limit, user_present_time_limit).
+ *
+ * * If a limit is reached that causes the pinUvAuthToken to expire, this function invokes
+ *   ctap_pin_uv_auth_token_stop_using(), which invalidates the pinUvAuthToken (set the in_use flag to false),
+ *   and this function returns true. The caller can perform any additional cleanup steps on the pinUvAuthToken
+ *   expiration (which is signalized by the true return value).
+ *
+ *  * If only a user_present_time_limit is reached, this function invokes
+ *    ctap_pin_uv_auth_token_clear_user_present_flag(), which clears the user_present flag,
+ *    but the pinUvAuthToken remains valid (this function returns false).
+ *
+ * @param token_state
+ * @return true if the pinUvAuthToken has just expired,
+ *         false, otherwise  (i.e., the pinUvAuthToken was not in use,
+ *         or it is still valid, resp. it have not expired yet)
+ */
+bool ctap_pin_uv_auth_token_check_usage_timer(ctap_state_t *state) {
+	ctap_pin_uv_auth_token_state *const token_state = &state->pin_uv_auth_token_state;
+	if (!token_state->in_use) {
+		return false;
 	}
-	uint32_t elapsed = /* TODO: getCurrentTimestamp() */ 1 - usage_timer->start;
-	if (elapsed > token_state->max_usage_time_period) {
+	const uint32_t current_time = ctap_get_current_time();
+	// max usage time limit
+	const uint32_t elapsed_since_start = current_time - token_state->usage_timer.start;
+	if (elapsed_since_start > token_state->max_usage_time_period) {
 		ctap_pin_uv_auth_token_stop_using(token_state);
-		return;
+		return true;
 	}
-	if (elapsed > token_state->initial_usage_time_limit) {
+	// initial usage time limit (the pinUvAuthToken MUST be used at least once
+	// within this time limit in order for it to remain valid for the full max usage time limit)
+	const bool used_at_least_once = token_state->usage_timer.last_use > token_state->usage_timer.start;
+	if (!used_at_least_once && elapsed_since_start > token_state->initial_usage_time_limit) {
 		ctap_pin_uv_auth_token_stop_using(token_state);
-		return;
+		return true;
 	}
-	if (elapsed > token_state->user_present_time_limit) {
+	// rolling timer
+	const uint32_t elapsed_since_last_use = current_time - token_state->usage_timer.start;
+	if (elapsed_since_last_use > token_state->initial_usage_time_limit) {
+		ctap_pin_uv_auth_token_stop_using(token_state);
+		return true;
+	}
+	// remove cached user presence if the
+	if (elapsed_since_start > token_state->user_present_time_limit) {
 		ctap_pin_uv_auth_token_clear_user_present_flag(token_state);
 	}
+	return false;
 }
 
 bool ctap_pin_uv_auth_token_get_user_present_flag_value(ctap_pin_uv_auth_token_state *token_state) {
@@ -75,7 +114,7 @@ void ctap_pin_uv_auth_token_clear_permissions_except_lbw(ctap_pin_uv_auth_token_
 }
 
 bool ctap_pin_uv_auth_token_has_permissions(ctap_pin_uv_auth_token_state *token_state, uint32_t permissions) {
-	return (token_state->permissions & permissions) == permissions;
+	return token_state->in_use ? (token_state->permissions & permissions) == permissions : false;
 }
 
 void ctap_pin_uv_auth_token_stop_using(ctap_pin_uv_auth_token_state *token_state) {
@@ -272,7 +311,7 @@ static void ctap_pin_protocol_v1_verify_init_with_shared_secret(
 static int ctap_pin_protocol_v1_verify_init_with_pin_uv_auth_token(
 	const ctap_pin_protocol_t *protocol,
 	hmac_sha256_ctx_t *hmac_sha256_ctx,
-	const ctap_pin_uv_auth_token_state *pin_uv_auth_token_state
+	ctap_pin_uv_auth_token_state *pin_uv_auth_token_state
 ) {
 	// 6.5.6. PIN/UV Auth Protocol One
 	// verify(key, message, signature) → success | error
@@ -280,6 +319,7 @@ static int ctap_pin_protocol_v1_verify_init_with_pin_uv_auth_token(
 	if (!pin_uv_auth_token_state->in_use) {
 		return 1;
 	}
+	pin_uv_auth_token_state->usage_timer.last_use = ctap_get_current_time();
 	//   2. Compute HMAC-SHA-256 with the given key and message.
 	//      Return success if signature is 16 bytes and is equal to the first 16 bytes of the result,
 	//      otherwise return error.

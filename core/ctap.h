@@ -76,12 +76,8 @@ typedef struct ctap_response {
 
 #define CTAP_PIN_UV_AUTH_TOKEN_SIZE 32
 
-#define CTAP_PIN_UV_AUTH_TOKEN_STATE_INITIAL_USAGE_TIME_LIMIT_USB (30 * 1000)
-
-typedef struct ctap_timer {
-	bool running;
-	uint32_t start;
-} ctap_timer;
+#define CTAP_PIN_UV_AUTH_TOKEN_INITIAL_USAGE_TIME_LIMIT_USB (30 * 1000) // 30 seconds (in ms)
+#define CTAP_PIN_UV_AUTH_TOKEN_MAX_USAGE_TIME_PERIOD (10 * 60 * 1000) // 10 minutes (in ms)
 
 /**
  * 6.5.2.1. pinUvAuthToken State
@@ -96,16 +92,22 @@ typedef struct ctap_pin_uv_auth_token_state {
 	uint8_t rpId_hash[CTAP_SHA256_HASH_SIZE];
 
 	/**
-	 * A permissions set whose possible values are those of pinUvAuthToken permissions.
-	 * It is initially empty.
+	 * A permissions set (bit flags) whose possible values are those of pinUvAuthToken permissions.
+	 * It is initially empty (0).
+	 * See the CTAP_clientPIN_pinUvAuthToken_permission_* definitions.
 	 */
 	uint32_t permissions;
 
 	/**
-	 * A usage timer, initially not running.
-	 * Note: Once running, the timer is observed by pin_uv_auth_token_usage_timer_observer().
+	 * The "usage timer" is running iff in_use == true (the pinUvAuthToken is in use).
+	 * Therefore, there is no need to explicitly store the timer's state (running vs. not running).
+	 * We implement a rolling timer as described in the spec
+	 * (see the excerpt in the comment at initial_usage_time_limit below).
 	 */
-	ctap_timer usage_timer;
+	struct {
+		uint32_t start;
+		uint32_t last_use;
+	} usage_timer;
 
 	/**
 	 * An in use flag, initially set to false, meaning that the pinUvAuthToken is not in use
@@ -146,6 +148,9 @@ typedef struct ctap_pin_uv_auth_token_state {
 	 * The user present time limit defaults to the same default maximum per-transport values
 	 * as the initial usage time limit, although authenticators MAY use other values
 	 * that are less than the default maximum values, including zero.
+	 * Note: The user present time limit value of zero accommodates the case
+	 * where an authenticator does not wish to support maintaining "user present" state
+	 * (i.e., "cached user presence").
 	 */
 	uint32_t user_present_time_limit;
 
@@ -284,13 +289,14 @@ typedef struct ctap_pin_protocol {
 	 *
 	 * @param protocol the protocol
 	 * @param ctx the pointer to the HMAC-256 context that will be initialized by this call
-	 * @param pin_uv_auth_token_state the pinUvAuthToken state
+	 * @param pin_uv_auth_token_state the pinUvAuthToken state (if valid, i.e., in_use == true,
+	 *        its usage_timer.last_use will be updated to the current time by this function)
 	 * @return 0 on success, 1 on error (the pinUvAuthToken is NOT in use)
 	 */
 	int (*verify_init_with_pin_uv_auth_token)(
 		const struct ctap_pin_protocol *protocol,
 		hmac_sha256_ctx_t *ctx,
-		const ctap_pin_uv_auth_token_state *pin_uv_auth_token_state
+		ctap_pin_uv_auth_token_state *pin_uv_auth_token_state
 	);
 
 	/**
@@ -463,7 +469,7 @@ void ctap_pin_protocol_v1_init(ctap_pin_protocol_t *protocol);
 
 void ctap_pin_uv_auth_token_begin_using(ctap_pin_uv_auth_token_state *token_state, bool user_is_present);
 
-void ctap_pin_uv_auth_token_usage_timer_observer(ctap_pin_uv_auth_token_state *token_state);
+bool ctap_pin_uv_auth_token_check_usage_timer(ctap_state_t *state);
 
 bool ctap_pin_uv_auth_token_get_user_present_flag_value(ctap_pin_uv_auth_token_state *token_state);
 
