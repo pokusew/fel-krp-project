@@ -187,19 +187,19 @@ static int ctap_pin_protocol_v1_get_public_key(
 
 	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 5));
 
-	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_KTY));
-	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_KTY_EC2));
+	cbor_encoding_check(cbor_encode_int(&map, COSE_Key_label_kty));
+	cbor_encoding_check(cbor_encode_int(&map, COSE_Key_kty_EC2));
 
-	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_ALG));
+	cbor_encoding_check(cbor_encode_int(&map, COSE_Key_label_alg));
 	cbor_encoding_check(cbor_encode_int(&map, COSE_ALG_ECDH_ES_HKDF_256));
 
-	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_CRV));
-	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_CRV_P256));
+	cbor_encoding_check(cbor_encode_int(&map, COSE_Key_kty_OKP_EC2_label_crv));
+	cbor_encoding_check(cbor_encode_int(&map, COSE_Key_kty_EC2_crv_P256));
 
-	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_X));
+	cbor_encoding_check(cbor_encode_int(&map, COSE_Key_kty_OKP_EC2_label_x));
 	cbor_encoding_check(cbor_encode_byte_string(&map, x, 32));
 
-	cbor_encoding_check(cbor_encode_int(&map, COSE_KEY_LABEL_Y));
+	cbor_encoding_check(cbor_encode_int(&map, COSE_Key_kty_OKP_EC2_label_y));
 	cbor_encoding_check(cbor_encode_byte_string(&map, y, 32));
 
 	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));

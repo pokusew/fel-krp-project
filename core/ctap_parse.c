@@ -53,37 +53,6 @@ static uint8_t parse_uint8(
 
 }
 
-static uint8_t parse_fixed_byte_string(
-	const CborValue *value,
-	uint8_t *buffer,
-	size_t expected_length,
-	CborValue *next
-) {
-
-	CborError err;
-
-	ctap_cbor_ensure_type(cbor_value_is_byte_string(value));
-
-	size_t length = expected_length;
-	// If the byte string does not fit into the buffer of the given length
-	// the cbor_value_copy_byte_string returns an error and does NOT update the length value.
-	cbor_decoding_check(cbor_value_copy_byte_string(value, buffer, &length, next));
-	// On success, the cbor_value_copy_byte_string updates the length value to the number
-	// of bytes copied to the buffer. From the described contract, it is clear that the following must hold:
-	// length <= expected_length
-	assert(length <= expected_length);
-	if (length != expected_length) {
-		error_log(
-			"parse_fixed_byte_string: invalid length: actual %" PRIsz " < expected %" PRIsz nl,
-			length, expected_length
-		);
-		return CTAP1_ERR_INVALID_LENGTH; // TODO: Use CTAP2_ERR_CBOR_UNEXPECTED_TYPE?
-	}
-
-	return CTAP2_OK;
-
-}
-
 static uint8_t parse_byte_string_to_ctap_string(
 	CborValue *it,
 	ctap_string_t *string
@@ -146,14 +115,40 @@ static uint8_t parse_text_string_to_ctap_string(
 
 }
 
-static uint8_t parse_cose_key(CborValue *it, COSE_Key *cose) {
+static uint8_t parse_copy_fixed_byte_string(
+	CborValue *it,
+	uint8_t *buffer,
+	const size_t expected_length
+) {
+
+	uint8_t ret;
+
+	ctap_string_t byte_string;
+
+	ctap_check(parse_byte_string_to_ctap_string(it, &byte_string));
+
+	if (byte_string.size != expected_length) {
+		error_log(
+			"parse_copy_fixed_byte_string: invalid length: actual %" PRIsz " < expected %" PRIsz nl,
+			byte_string.size, expected_length
+		);
+		// 8. Message Encoding, CTAP2 canonical CBOR encoding form
+		// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#ctap2-canonical-cbor-encoding-form
+		// If structures in messages from the host are missing required members,
+		// or the values of those members have the wrong type,
+		// then the authenticator SHOULD return CTAP2_ERR_CBOR_UNEXPECTED_TYPE.
+		return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+	}
+
+	memcpy(buffer, byte_string.data, expected_length);
+
+	return CTAP2_OK;
+
+}
+
+static uint8_t parse_cose_key(CborValue *it, COSE_Key *cose_key) {
 
 	ctap_parse_map_enter("COSE_Key");
-
-	bool pubkey_x_parsed = false;
-	bool pubkey_y_parsed = false;
-	cose->kty = 0;
-	cose->crv = 0;
 
 	for (size_t i = 0; i < map_length; i++) {
 
@@ -161,42 +156,40 @@ static uint8_t parse_cose_key(CborValue *it, COSE_Key *cose) {
 
 		switch (key) {
 
-			case COSE_KEY_LABEL_KTY:
-				debug_log("COSE_KEY_LABEL_KTY" nl);
+			case COSE_Key_label_kty:
+				debug_log("COSE_Key_label_kty" nl);
 				ctap_cbor_ensure_type(cbor_value_is_integer(&map));
-				cbor_decoding_check(cbor_value_get_int_checked(&map, &cose->kty));
+				cbor_decoding_check(cbor_value_get_int_checked(&map, &cose_key->kty));
 				cbor_decoding_check(cbor_value_advance_fixed(&map));
+				ctap_set_present(cose_key, COSE_Key_field_kty);
 				break;
 
-			case COSE_KEY_LABEL_ALG:
-				debug_log("COSE_KEY_LABEL_ALG" nl);
+			case COSE_Key_label_alg:
+				debug_log("COSE_Key_label_alg" nl);
 				ctap_cbor_ensure_type(cbor_value_is_integer(&map));
-				int alg;
-				cbor_decoding_check(cbor_value_get_int_checked(&map, &alg));
-				// 6.5.6.
-				// getPublicKey()
-				// 3 (alg) = -25 (although this is not the algorithm actually used)
-				ctap_cbor_ensure_type(alg == COSE_ALG_ECDH_ES_HKDF_256);
+				cbor_decoding_check(cbor_value_get_int_checked(&map, &cose_key->alg));
 				cbor_decoding_check(cbor_value_advance_fixed(&map));
+				ctap_set_present(cose_key, COSE_Key_field_alg);
 				break;
 
-			case COSE_KEY_LABEL_CRV:
-				debug_log("COSE_KEY_LABEL_CRV" nl);
+			case COSE_Key_kty_OKP_EC2_label_crv:
+				debug_log("COSE_Key_kty_OKP_EC2_label_crv" nl);
 				ctap_cbor_ensure_type(cbor_value_is_integer(&map));
-				cbor_decoding_check(cbor_value_get_int_checked(&map, &cose->crv));
+				cbor_decoding_check(cbor_value_get_int_checked(&map, &cose_key->crv));
 				cbor_decoding_check(cbor_value_advance_fixed(&map));
+				ctap_set_present(cose_key, COSE_Key_field_crv);
 				break;
 
-			case COSE_KEY_LABEL_X:
-				debug_log("COSE_KEY_LABEL_X" nl);
-				ctap_check(parse_fixed_byte_string(&map, cose->pubkey.x, 32, &map));
-				pubkey_x_parsed = true;
+			case COSE_Key_kty_OKP_EC2_label_x:
+				debug_log("COSE_Key_kty_OKP_EC2_label_x" nl);
+				ctap_check(parse_copy_fixed_byte_string(&map, cose_key->pubkey.x, 32));
+				ctap_set_present(cose_key, COSE_Key_field_pubkey_x);
 				break;
 
-			case COSE_KEY_LABEL_Y:
-				debug_log("COSE_KEY_LABEL_Y" nl);
-				ctap_check(parse_fixed_byte_string(&map, cose->pubkey.y, 32, &map));
-				pubkey_y_parsed = true;
+			case COSE_Key_kty_OKP_EC2_label_y:
+				debug_log("COSE_Key_kty_OKP_EC2_label_y" nl);
+				ctap_check(parse_copy_fixed_byte_string(&map, cose_key->pubkey.y, 32));
+				ctap_set_present(cose_key, COSE_Key_field_pubkey_y);
 				break;
 
 			default:
@@ -209,9 +202,77 @@ static uint8_t parse_cose_key(CborValue *it, COSE_Key *cose) {
 
 	ctap_parse_map_leave();
 
-	// validate
-	if (pubkey_x_parsed == 0 || pubkey_y_parsed == 0 || cose->kty == 0 || cose->crv == 0) {
-		return CTAP2_ERR_MISSING_PARAMETER;
+	// validate: check that all required parameters are present
+
+	if (!ctap_param_is_present(cose_key, COSE_Key_field_kty)) {
+		// https://datatracker.ietf.org/doc/html/rfc9052#name-cose-key-common-parameters
+		// kty: This parameter MUST be present in a key object.
+		debug_log(red("parse_cose_key: missing kty") nl);
+		return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+	}
+
+	if (cose_key->kty == COSE_Key_kty_EC2) {
+		// https://datatracker.ietf.org/doc/html/rfc9053#name-double-coordinate-curves
+		// For public keys, it is REQUIRED that "crv", "x", and "y" be present in the structure.
+		const uint32_t required_params =
+			ctap_param_to_mask(COSE_Key_field_crv)
+			// alg is optional
+			| ctap_param_to_mask(COSE_Key_field_pubkey_x)
+			| ctap_param_to_mask(COSE_Key_field_pubkey_y);
+		if (!ctap_is_present(cose_key->present, required_params)) {
+			debug_log(
+				red(
+					"parse_cose_key: kty EC2 missing some of the required params (crv, x, y)"
+					" present=%" PRIu32 " required=%" PRIu32
+			) nl,
+				cose_key->present, required_params
+			);
+			return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+		}
+		return CTAP2_OK;
+	}
+
+	// other key types are not supported yet
+	debug_log(red("parse_cose_key: unsupported kty value %d") nl, cose_key->kty);
+	return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+
+}
+
+static uint8_t parse_pin_uv_auth_protocol_public_key(CborValue *it, COSE_Key *cose_key) {
+
+	uint8_t ret;
+
+	// 6.5.6. PIN/UV Auth Protocol One
+	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#pinProto1
+	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#puap1keyagmnt-key-agreement-key
+	// getPublicKey()
+	//   getPublicKey() returns a COSE_Key with the following header parameters:
+	//     1 (kty) = 2 (EC2)
+	//     3 (alg) = -25 (although this is not the algorithm actually used)
+	//     -1 (crv) = 1 (P-256)
+	//     -2 (x) = 32-byte, big-endian encoding of the x-coordinate of xB (the key agreement key's public point)
+	//     -3 (y) = 32-byte, big-endian encoding of the y-coordinate of xB
+
+	// parse_cose_key() ensures kty == 2 (EC2) and the presence of the crv, x, y fields
+	ctap_check(parse_cose_key(it, cose_key));
+
+	if (!ctap_param_is_present(cose_key, COSE_Key_field_alg)) {
+		debug_log(red("parse_pin_uv_auth_protocol_public_key: missing alg") nl);
+		return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+	}
+	if (cose_key->alg != COSE_ALG_ECDH_ES_HKDF_256) {
+		debug_log(
+			red("parse_pin_uv_auth_protocol_public_key: invalid alg value %d, expected %d") nl,
+			cose_key->alg, COSE_ALG_ECDH_ES_HKDF_256
+		);
+		return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
+	}
+	if (cose_key->crv != COSE_Key_kty_EC2_crv_P256) {
+		debug_log(
+			red("parse_pin_uv_auth_protocol_public_key: invalid crv value %d, expected %d") nl,
+			cose_key->crv, COSE_Key_kty_EC2_crv_P256
+		);
+		return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
 	}
 
 	return CTAP2_OK;
@@ -248,7 +309,7 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 
 			case CTAP_clientPIN_keyAgreement:
 				debug_log("CTAP_clientPIN_keyAgreement" nl);
-				ctap_check(parse_cose_key(&map, &params->keyAgreement));
+				ctap_check(parse_pin_uv_auth_protocol_public_key(&map, &params->keyAgreement));
 				ctap_set_present(params, CTAP_clientPIN_keyAgreement);
 				break;
 
@@ -856,7 +917,7 @@ static uint8_t parse_get_assertion_hmac_secret_extension(CborValue *it, CTAP_get
 
 			case CTAP_getAssertion_hmac_secret_keyAgreement:
 				debug_log("CTAP_getAssertion_hmac_secret_keyAgreement" nl);
-				ctap_check(parse_cose_key(&map, &params->keyAgreement));
+				ctap_check(parse_pin_uv_auth_protocol_public_key(&map, &params->keyAgreement));
 				ctap_set_present(params, CTAP_getAssertion_hmac_secret_keyAgreement);
 				break;
 
