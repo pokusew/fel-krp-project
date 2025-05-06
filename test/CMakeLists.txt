@@ -260,6 +260,7 @@ core_test(ctap_make_credential)
 core_test(ctap_get_assertion)
 core_test(ctap_get_info)
 core_test(ctap_asn1)
+core_test(ctap_string_truncation)
 core_test(ctaphid)
 
 std_test(tusb_fifo src/tusb_fifo_test.cpp)

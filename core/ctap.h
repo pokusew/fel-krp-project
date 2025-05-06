@@ -552,4 +552,33 @@ uint8_t ctap_reset(ctap_state_t *state);
 
 uint8_t ctap_selection(ctap_state_t *state);
 
+typedef bool (*ctap_truncate_str)(
+	const ctap_string_t *str,
+	uint8_t *storage_buffer,
+	size_t storage_buffer_size,
+	size_t *stored_size
+);
+
+bool ctap_maybe_truncate_string(
+	const ctap_string_t *input_str,
+	uint8_t *storage_buffer,
+	size_t storage_buffer_size,
+	size_t *stored_size
+);
+
+bool ctap_maybe_truncate_rp_id(
+	const ctap_string_t *rp_id,
+	uint8_t *storage_buffer,
+	size_t storage_buffer_size,
+	size_t *stored_size
+);
+
+bool ctap_store_arbitrary_length_string(
+	const ctap_string_t *input_str,
+	ctap_string_t *str,
+	uint8_t *storage_buffer,
+	size_t storage_buffer_size,
+	ctap_truncate_str truncate_fn
+);
+
 #endif // LIONKEY_CTAP_H

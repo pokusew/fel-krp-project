@@ -91,6 +91,12 @@ bool ctap_string_matches(const ctap_string_t *a, const ctap_string_t *b);
 // We chose this limit in our implementation (LionKey) to simplify operations with RP IDs
 // (to reduce memory requirements).
 #define CTAP_RP_ID_MAX_SIZE 255
+static_assert(
+	CTAP_RP_ID_MAX_SIZE >= 32,
+	"CTAP 2.1 violation: If authenticators store relying party identifiers at all, they MUST store at least 32 bytes"
+	// see 6.8.7. Truncation of relying party identifiers
+	//   https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#rpid-truncation
+);
 
 // This limit is imposed by the WebAuthn spec
 // https://w3c.github.io/webauthn/#dom-publickeycredentialuserentity-id
