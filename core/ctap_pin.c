@@ -755,7 +755,8 @@ uint8_t ctap_client_pin_change_pin(
 
 	// 5.19 Authenticator calls resetPinUvAuthToken() for all pinUvAuthProtocols supported
 	//      by this authenticator. (I.e. all existing pinUvAuthTokens are invalidated.)
-	state->pin_protocol[0].initialize(&state->pin_protocol[0]);
+	state->pin_protocol[0].reset_pin_uv_auth_token(&state->pin_protocol[0]);
+	// TODO: Add v2 when supported.
 
 	return CTAP2_OK;
 
