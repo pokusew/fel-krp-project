@@ -140,6 +140,9 @@ LION_ATTR_ALWAYS_INLINE static inline bool ctap_is_present_some(uint32_t present
 #define ctap_set_present(params_ptr, param_number) \
     (params_ptr)->present |= ctap_param_to_mask(param_number)
 
+#define ctap_set_absent(params_ptr, param_number) \
+	(params_ptr)->present &= ~((typeof((params_ptr)->present)) ctap_param_to_mask(param_number))
+
 #define ctap_param_is_present(params_ptr, param_number) \
     ctap_is_present((params_ptr)->present, ctap_param_to_mask(param_number))
 
