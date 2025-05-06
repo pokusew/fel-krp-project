@@ -771,10 +771,10 @@ static uint8_t parse_cred_params(CborValue *it, CTAP_credParams *cred_params) {
  *     by this authenticator but always iterates over every element of pubKeyCredParams to validate them.
  *
  *
- * @param params the parsed makeCredential command parameters from ctap_parse_make_credential
+ * @param mc the parsed makeCredential command parameters from ctap_parse_make_credential
  * @returns a CTAP status code (CTAP2_OK on success)
  */
-uint8_t ctap_parse_make_credential_pub_key_cred_params(CTAP_makeCredential *params) {
+uint8_t ctap_parse_make_credential_pub_key_cred_params(CTAP_makeCredential *mc) {
 
 	uint8_t ret;
 	CborError err;
@@ -783,10 +783,10 @@ uint8_t ctap_parse_make_credential_pub_key_cred_params(CTAP_makeCredential *para
 
 	// This should be guaranteed as this function (ctap_parse_make_credential_pub_key_cred_params)
 	// should always be called only after ctap_parse_make_credential.
-	assert(cbor_value_is_array(&params->pubKeyCredParams));
+	assert(cbor_value_is_array(&mc->pubKeyCredParams));
 
-	cbor_decoding_check(cbor_value_enter_container(&params->pubKeyCredParams, &array));
-	cbor_decoding_check(cbor_value_get_array_length(&params->pubKeyCredParams, &array_length));
+	cbor_decoding_check(cbor_value_enter_container(&mc->pubKeyCredParams, &array));
+	cbor_decoding_check(cbor_value_get_array_length(&mc->pubKeyCredParams, &array_length));
 	debug_log("pubKeyCredParams array_length=%" PRIsz nl, array_length);
 
 	// 6.1.2. authenticatorMakeCredential Algorithm:
@@ -797,7 +797,7 @@ uint8_t ctap_parse_make_credential_pub_key_cred_params(CTAP_makeCredential *para
 		CTAP_credParams cred_params;
 		ctap_check(parse_cred_params(&array, &cred_params));
 		if (!algorithm_chosen && ctap_is_supported_pub_key_cred_alg(&cred_params)) {
-			params->pubKeyCredParams_chosen = cred_params;
+			mc->pubKeyCredParams_chosen = cred_params;
 			algorithm_chosen = true;
 		}
 	}

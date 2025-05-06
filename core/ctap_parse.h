@@ -609,13 +609,13 @@ uint8_t ctap_parse_pub_key_cred_desc_list_next_cred(
 	CTAP_credDesc **cred_desc
 );
 
-uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *params);
+uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *mc);
 
 bool ctap_is_supported_pub_key_cred_alg(const CTAP_credParams *cred_params);
 
-uint8_t ctap_parse_make_credential_pub_key_cred_params(CTAP_makeCredential *params);
+uint8_t ctap_parse_make_credential_pub_key_cred_params(CTAP_makeCredential *mc);
 
-uint8_t ctap_parse_get_assertion(CborValue *it, CTAP_getAssertion *params);
+uint8_t ctap_parse_get_assertion(CborValue *it, CTAP_getAssertion *mc);
 
 uint8_t ctap_parse_credential_management(CborValue *it, CTAP_credentialManagement *cm);
 
