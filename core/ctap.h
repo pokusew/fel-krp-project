@@ -495,6 +495,8 @@ uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t l
 
 uint8_t ctap_get_next_assertion(ctap_state_t *state);
 
+void ctap_discard_get_assertion_state(ctap_state_t *state);
+
 uint8_t ctap_reset(ctap_state_t *state);
 
 uint8_t ctap_selection(ctap_state_t *state);

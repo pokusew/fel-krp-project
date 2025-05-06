@@ -1654,15 +1654,19 @@ uint8_t ctap_get_next_assertion(ctap_state_t *state) {
 
 	// 1. If authenticator does not remember any authenticatorGetAssertion parameters,
 	//    return CTAP2_ERR_NOT_ALLOWED.
+	// 2. If the credentialCounter is equal to or greater than numberOfCredentials,
+	//    return CTAP2_ERR_NOT_ALLOWED.
+	//    Note:
+	//      In our implementation, we discard the state as soon as the iteration reaches the end,
+	//      so only need to check the ga_state->valid.
 	if (!ga_state->valid) {
 		return CTAP2_ERR_NOT_ALLOWED;
 	}
 
-	// 2. If the credentialCounter is equal to or greater (cannot happen in our implementation)
-	//    than numberOfCredentials, return CTAP2_ERR_NOT_ALLOWED.
-	if (ga_state->next_credential_idx == ga_state->num_credentials) {
-		return CTAP2_ERR_NOT_ALLOWED;
-	}
+	// This should be ensured by the check at the end of the function,
+	// which discards the state as soon as the iteration reaches the end
+	// (i.e., if ga_state->next_credential_idx == ga_state->num_credentials).
+	assert(ga_state->next_credential_idx < ga_state->num_credentials);
 
 	// 3. If timer since the last call to authenticatorGetAssertion/authenticatorGetNextAssertion
 	//    is greater than 30 seconds, discard the current authenticatorGetAssertion state
@@ -1688,9 +1692,22 @@ uint8_t ctap_get_next_assertion(ctap_state_t *state) {
 	ga_state->last_cmd_timestamp = ctap_get_current_time();
 	// 8. Increment credentialCounter.
 	ga_state->next_credential_idx++;
+	// Discard the state as soon as the iteration finishes.
+	if (ga_state->next_credential_idx == ga_state->num_credentials) {
+		ctap_discard_get_assertion_state(state);
+	}
 
 	return CTAP2_OK;
 
+}
+
+void ctap_discard_get_assertion_state(ctap_state_t *state) {
+	// This will ensure state->get_assertion_state.valid == false.
+	memset(&state->get_assertion_state, 0, sizeof(state->get_assertion_state));
+	// Note:
+	//   We could just set the ga_state->valid to false, and leave the rest of the state in memory.
+	//   However, as a good practice, we want to avoid keeping any potentially sensitive state in memory
+	//   longer than necessary.
 }
 
 // https://w3c.github.io/webauthn/#credential-id
