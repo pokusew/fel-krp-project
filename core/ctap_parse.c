@@ -404,7 +404,7 @@ static uint8_t parse_rp_entity(CborValue *it, CTAP_rpId *rpId) {
 
 	// validate: check that all required parameters are present
 	if (!id_parsed) {
-		return CTAP2_ERR_MISSING_PARAMETER;
+		return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;
 	}
 
 	return CTAP2_OK;
