@@ -1631,8 +1631,8 @@ uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t l
 		//    (not applicable to LionKey)
 	}
 
-	ctap_get_assertion_state_t *ga_state = &state->get_assertion_state;
-	ga_state->valid = false;
+	ctap_discard_stateful_command_state(state);
+	ctap_get_assertion_state_t *ga_state = &state->stateful_command_state.get_assertion;
 	ga_state->num_credentials = 0;
 	ga_state->next_credential_idx = 0;
 	const size_t max_num_credentials = sizeof(ga_state->credentials) / sizeof(ctap_credential);
@@ -1724,7 +1724,10 @@ uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t l
 	if (!ctap_param_is_present(params, CTAP_getAssertion_allowList) && ga_state->num_credentials > 1) {
 		memcpy(ga_state->client_data_hash, params->clientDataHash.data, sizeof(ga_state->client_data_hash));
 		ga_state->auth_data_flags = auth_data_flags;
-		ga_state->valid = true;
+		state->stateful_command_state.active_cmd = CTAP_STATEFUL_CMD_GET_ASSERTION;
+		// 12.2.2.3. Start a timer. This is used during authenticatorGetNextAssertion command.
+		//           This step is OPTIONAL if transport is done over NFC.
+		ctap_update_stateful_command_timer(state);
 	}
 
 	memcpy(ga_state->auth_data_rp_id_hash, params->rpId.hash, CTAP_SHA256_HASH_SIZE);
@@ -1739,10 +1742,7 @@ uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t l
 		ga_state->num_credentials
 	));
 
-	if (ga_state->valid) {
-		// 12.2.2.3. Start a timer. This is used during authenticatorGetNextAssertion command.
-		//           This step is OPTIONAL if transport is done over NFC.
-		ga_state->last_cmd_timestamp = ctap_get_current_time();
+	if (state->stateful_command_state.active_cmd == CTAP_STATEFUL_CMD_GET_ASSERTION) {
 		// 12.2.2.2. Create a credential counter (credentialCounter) and set it to 1.
 		//    This counter signifies the next credential to be returned by the authenticator,
 		//    assuming zero-based indexing.
@@ -1760,8 +1760,6 @@ uint8_t ctap_get_next_assertion(ctap_state_t *state) {
 
 	uint8_t ret;
 
-	ctap_get_assertion_state_t *ga_state = &state->get_assertion_state;
-
 	// When this command is received, the authenticator performs the following procedure:
 
 	// 1. If authenticator does not remember any authenticatorGetAssertion parameters,
@@ -1771,23 +1769,21 @@ uint8_t ctap_get_next_assertion(ctap_state_t *state) {
 	//    Note:
 	//      In our implementation, we discard the state as soon as the iteration reaches the end,
 	//      so only need to check the ga_state->valid.
-	if (!ga_state->valid) {
+	// 3. If timer since the last call to authenticatorGetAssertion/authenticatorGetNextAssertion
+	//    is greater than 30 seconds, discard the current authenticatorGetAssertion state
+	//    and return CTAP2_ERR_NOT_ALLOWED. This step is OPTIONAL if transport is done over NFC.
+	//    (implemented centrally for all stateful commands in ctap_request() by discarding the state
+	//     when the timer since the last call is greater than 30 seconds)
+	if (state->stateful_command_state.active_cmd != CTAP_STATEFUL_CMD_GET_ASSERTION) {
 		return CTAP2_ERR_NOT_ALLOWED;
 	}
+
+	ctap_get_assertion_state_t *ga_state = &state->stateful_command_state.get_assertion;
 
 	// This should be ensured by the check at the end of the function,
 	// which discards the state as soon as the iteration reaches the end
 	// (i.e., if ga_state->next_credential_idx == ga_state->num_credentials).
 	assert(ga_state->next_credential_idx < ga_state->num_credentials);
-
-	// 3. If timer since the last call to authenticatorGetAssertion/authenticatorGetNextAssertion
-	//    is greater than 30 seconds, discard the current authenticatorGetAssertion state
-	//    and return CTAP2_ERR_NOT_ALLOWED. This step is OPTIONAL if transport is done over NFC.
-	const uint32_t elapsed_ms_since_last_ga_cmd = ctap_get_current_time() - ga_state->last_cmd_timestamp;
-	if (elapsed_ms_since_last_ga_cmd > (30 * 1000)) {
-		ga_state->valid = false;
-		return CTAP2_ERR_NOT_ALLOWED;
-	}
 
 	// 6. Sign the clientDataHash along with authData. (also handles Step 5)
 	ctap_check(generate_get_assertion_response(
@@ -1801,25 +1797,16 @@ uint8_t ctap_get_next_assertion(ctap_state_t *state) {
 	));
 
 	// 7. Reset the timer. This step is OPTIONAL if transport is done over NFC.
-	ga_state->last_cmd_timestamp = ctap_get_current_time();
+	ctap_update_stateful_command_timer(state);
 	// 8. Increment credentialCounter.
 	ga_state->next_credential_idx++;
 	// Discard the state as soon as the iteration finishes.
 	if (ga_state->next_credential_idx == ga_state->num_credentials) {
-		ctap_discard_get_assertion_state(state);
+		ctap_discard_stateful_command_state(state);
 	}
 
 	return CTAP2_OK;
 
-}
-
-void ctap_discard_get_assertion_state(ctap_state_t *state) {
-	// This will ensure state->get_assertion_state.valid == false.
-	memset(&state->get_assertion_state, 0, sizeof(state->get_assertion_state));
-	// Note:
-	//   We could just set the ga_state->valid to false, and leave the rest of the state in memory.
-	//   However, as a good practice, we want to avoid keeping any potentially sensitive state in memory
-	//   longer than necessary.
 }
 
 // https://w3c.github.io/webauthn/#credential-id

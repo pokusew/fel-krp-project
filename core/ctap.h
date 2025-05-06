@@ -421,15 +421,37 @@ typedef struct ctap_credential {
 } ctap_credential;
 
 typedef struct ctap_get_assertion_state {
-	bool valid;
 	uint8_t client_data_hash[CTAP_SHA256_HASH_SIZE];
 	uint8_t auth_data_rp_id_hash[CTAP_SHA256_HASH_SIZE];
 	uint8_t auth_data_flags;
 	size_t num_credentials;
 	size_t next_credential_idx;
-	uint32_t last_cmd_timestamp;
 	ctap_credential credentials[128];
 } ctap_get_assertion_state_t;
+
+typedef enum ctap_stateful_command {
+	CTAP_STATEFUL_CMD_NONE = 0,
+	CTAP_STATEFUL_CMD_GET_ASSERTION = 1,
+} ctap_stateful_command_t;
+
+typedef struct ctap_stateful_command_state {
+	// Note:
+	//   To minimize RAM consumption, we leverage that the CTAP says:
+	//     The authenticator MAY maintain state based on the assumption
+	//     that each stateful command is exclusively preceded by either another instance
+	//     of the same command, or by the corresponding state initializing command,
+	//     and no more than 30 seconds will elapse between such commands. ...
+	//     An authenticator MAY assume this globally, even when the transport-specific binding
+	//     provides for independent streams of platform commands.
+	//   Therefore, we use a union here (and one variable to identify which state, if any, is valid).
+
+	ctap_stateful_command_t active_cmd;
+	uint32_t last_cmd_time;
+	union {
+		ctap_get_assertion_state_t get_assertion;
+	};
+
+} ctap_stateful_command_state_t;
 
 typedef struct ctap_state {
 
@@ -443,7 +465,7 @@ typedef struct ctap_state {
 	uint8_t pin_boot_remaining_attempts;
 	ctap_pin_uv_auth_token_state pin_uv_auth_token_state;
 
-	ctap_get_assertion_state_t get_assertion_state;
+	ctap_stateful_command_state_t stateful_command_state;
 
 } ctap_state_t;
 
@@ -491,6 +513,10 @@ uint8_t ctap_request(
 	size_t params_size,
 	const uint8_t *params
 );
+
+void ctap_discard_stateful_command_state(ctap_state_t *state);
+
+void ctap_update_stateful_command_timer(ctap_state_t *state);
 
 void ctap_init(ctap_state_t *state);
 
@@ -547,8 +573,6 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t length);
 
 uint8_t ctap_get_next_assertion(ctap_state_t *state);
-
-void ctap_discard_get_assertion_state(ctap_state_t *state);
 
 uint8_t ctap_reset(ctap_state_t *state);
 

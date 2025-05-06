@@ -140,9 +140,30 @@ uint8_t ctap_request(
 		//   expires since the stateful commands do not themselves always verify a pinUvAuthToken.
 		// TODO: Discard state also when the pinUvAuthToken is regenerated.
 		debug_log(yellow("the pinUvAuthToken has just expired") nl);
-		if (state->get_assertion_state.valid) {
-			debug_log(red("discarding the authenticatorGetAssertion state because of the pinUvAuthToken expiration") nl);
-			ctap_discard_get_assertion_state(state);
+		if (state->stateful_command_state.active_cmd != CTAP_STATEFUL_CMD_NONE) {
+			debug_log(
+				red("discarding the state of the stateful command %d because the pinUvAuthToken has just expired") nl,
+				state->stateful_command_state.active_cmd
+			);
+			ctap_discard_stateful_command_state(state);
+		}
+	}
+
+	// The CTAP_STATEFUL_CMD_GET_ASSERTION state MUST be discarded if the timer since the last call to
+	// authenticatorGetAssertion/authenticatorGetNextAssertion is greater than 30 seconds.
+	// For the other stateful commands, this timer-based state expiration is OPTIONAL (MAY).
+	// However, we implemented the expiration here centrally for all stateful commands
+	// to simplify their implementation. In case, this central check were to be removed,
+	// we would have to implement an explicit check in at least in ctap_get_next_assertion().
+	if (state->stateful_command_state.active_cmd != CTAP_STATEFUL_CMD_NONE) {
+		const uint32_t elapsed_ms_since_last_cmd = state->last_cmd_time - state->stateful_command_state.last_cmd_time;
+		if (elapsed_ms_since_last_cmd > (30 * 1000)) {
+			ctap_discard_stateful_command_state(state);
+			debug_log(
+				red("discarding the state of the stateful command %d because more than 30 seconds elapsed"
+					"since the last corresponding command") nl,
+				state->stateful_command_state.active_cmd
+			);
 		}
 	}
 
@@ -211,4 +232,29 @@ uint8_t ctap_request(
 
 	return status;
 
+}
+
+void ctap_discard_stateful_command_state(ctap_state_t *state) {
+	// avoid unnecessary memset calls
+	// Our code implementation guarantees that the WHOLE stateful_command_state is zeroed
+	// iff (if and only if) stateful_command_state.active_cmd == CTAP_STATEFUL_CMD_NONE.
+	if (state->stateful_command_state.active_cmd == CTAP_STATEFUL_CMD_NONE) {
+		return;
+	}
+	static_assert(
+		CTAP_STATEFUL_CMD_NONE == 0,
+		"CTAP_STATEFUL_CMD_NONE must be 0,"
+		" so that memset(stateful_command_state, 0, sizeof(ctap_stateful_command_state_t))"
+		" can be used in ctap_discard_stateful_command_state()."
+	);
+	memset(&state->stateful_command_state, 0, sizeof(state->stateful_command_state));
+	// Note:
+	//   We could just set the stateful_command_state.active_cmd to CTAP_STATEFUL_CMD_NONE,
+	//   and leave the rest of the state in memory. However, as a good practice, we want to avoid
+	//   keeping any potentially sensitive state in memory longer than necessary.
+}
+
+void ctap_update_stateful_command_timer(ctap_state_t *state) {
+	assert(state->stateful_command_state.active_cmd != CTAP_STATEFUL_CMD_NONE);
+	state->stateful_command_state.last_cmd_time = state->last_cmd_time;
 }
