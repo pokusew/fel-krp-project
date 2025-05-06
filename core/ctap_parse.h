@@ -521,6 +521,54 @@ LION_ATTR_ALWAYS_INLINE static inline bool ctap_permissions_include_any_of(uint3
 	return (permissions & mask) != 0u;
 }
 
+// 6.8. authenticatorCredentialManagement (0x0A)
+// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorCredentialManagement
+typedef struct CTAP_credentialManagement_subCmdParams {
+	const uint8_t *raw; // not a param, pointer to the raw bytes of the CBOR map
+	size_t raw_size; // not a param, size (in bytes) of the CBOR-encoded raw data
+	uint32_t present; // not a param, holds parsing info (if param was parsed, i.e., present)
+	ctap_string_t rpIDHash; // SHA-256 digest (32 bytes)
+	CTAP_credDesc credentialID;
+	CTAP_userEntity user;
+} CTAP_credentialManagement_subCmdParams;
+#define CTAP_credentialManagement_subCommandParams_rpIDHash      0x01
+#define CTAP_credentialManagement_subCommandParams_credentialID  0x02
+#define CTAP_credentialManagement_subCommandParams_user          0x03
+typedef struct CTAP_credentialManagement {
+	uint32_t present; // not a param, holds parsing info (if param was parsed, i.e., present)
+	uint8_t subCommand;
+	CTAP_credentialManagement_subCmdParams subCommandParams;
+	uint8_t pinUvAuthProtocol;
+	ctap_string_t pinUvAuthParam;
+} CTAP_credentialManagement;
+// 6.5.5. authenticatorClientPIN (0x06) Command Definition
+// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authnrClientPin-cmd-dfn
+// The command takes the following input parameters:
+#define CTAP_credentialManagement_subCommand                     0x01
+#define CTAP_credentialManagement_subCommandParams               0x02
+#define CTAP_credentialManagement_pinUvAuthProtocol              0x03
+#define CTAP_credentialManagement_pinUvAuthParam                 0x04
+// The list of sub commands for credential management is:
+#define CTAP_credentialManagement_subCmd_getCredsMetadata                       0x01
+#define CTAP_credentialManagement_subCmd_enumerateRPsBegin                      0x02
+#define CTAP_credentialManagement_subCmd_enumerateRPsGetNextRP                  0x03
+#define CTAP_credentialManagement_subCmd_enumerateCredentialsBegin              0x04
+#define CTAP_credentialManagement_subCmd_enumerateCredentialsGetNextCredential  0x05
+#define CTAP_credentialManagement_subCmd_deleteCredential                       0x06
+#define CTAP_credentialManagement_subCmd_updateUserInformation                  0x07
+// On success, authenticator returns the following structure in its response:
+#define CTAP_credentialManagement_res_existingResidentCredentialsCount              0x01
+#define CTAP_credentialManagement_res_maxPossibleRemainingResidentCredentialsCount  0x02
+#define CTAP_credentialManagement_res_rp                                            0x03
+#define CTAP_credentialManagement_res_rpIDHash                                      0x04
+#define CTAP_credentialManagement_res_totalRPs                                      0x05
+#define CTAP_credentialManagement_res_user                                          0x06
+#define CTAP_credentialManagement_res_credentialID                                  0x07
+#define CTAP_credentialManagement_res_publicKey                                     0x08
+#define CTAP_credentialManagement_res_totalCredentials                              0x09
+#define CTAP_credentialManagement_res_credProtect                                   0x0A
+#define CTAP_credentialManagement_res_largeBlobKey                                  0x0B
+
 LION_ATTR_ALWAYS_INLINE static inline uint8_t ctap_init_cbor_parser(
 	const uint8_t *data,
 	size_t data_size,
@@ -566,5 +614,7 @@ bool ctap_is_supported_pub_key_cred_alg(const CTAP_credParams *cred_params);
 uint8_t ctap_parse_make_credential_pub_key_cred_params(CTAP_makeCredential *params);
 
 uint8_t ctap_parse_get_assertion(CborValue *it, CTAP_getAssertion *params);
+
+uint8_t ctap_parse_credential_management(CborValue *it, CTAP_credentialManagement *cm);
 
 #endif // LIONKEY_CTAP_PARSE_H

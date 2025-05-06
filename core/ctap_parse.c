@@ -38,6 +38,21 @@ static inline CborError ctap_cbor_value_get_uint8(const CborValue *value, uint8_
     cbor_decoding_check(cbor_value_get_int_checked(&map, &key)); \
     cbor_decoding_check(cbor_value_advance_fixed(&map))
 
+static uint8_t parse_uint8(
+	CborValue *it,
+	uint8_t *result
+) {
+
+	CborError err;
+
+	ctap_cbor_ensure_type(cbor_value_is_unsigned_integer(it));
+	cbor_decoding_check(ctap_cbor_value_get_uint8(it, result));
+	cbor_decoding_check(cbor_value_advance_fixed(it));
+
+	return CTAP2_OK;
+
+}
+
 static uint8_t parse_fixed_byte_string(
 	const CborValue *value,
 	uint8_t *buffer,
@@ -993,6 +1008,117 @@ uint8_t ctap_parse_get_assertion(CborValue *it, CTAP_getAssertion *ga) {
 		ctap_param_to_mask(CTAP_getAssertion_rpId) |
 		ctap_param_to_mask(CTAP_getAssertion_clientDataHash);
 	if (!ctap_is_present(params->present, required_params)) {
+		return CTAP2_ERR_MISSING_PARAMETER;
+	}
+
+	return CTAP2_OK;
+
+}
+
+static uint8_t parse_credential_management_subcommand_params(CborValue *it, CTAP_credentialManagement_subCmdParams *params) {
+
+	ctap_parse_map_enter("authenticatorCredentialManagement subCommandParams");
+
+	params->raw = it->source.ptr;
+
+	for (size_t i = 0; i < map_length; i++) {
+
+		ctap_parse_map_get_int_key();
+
+		switch (key) {
+
+			case CTAP_credentialManagement_subCommandParams_rpIDHash:
+				debug_log("CTAP_credentialManagement_subCommandParams_rpIDHash" nl);
+				ctap_check(parse_byte_string_to_ctap_string(&map, &params->rpIDHash));
+				if (params->rpIDHash.size != CTAP_SHA256_HASH_SIZE) {
+					debug_log(red("invalid rpIDHash.size %" PRIsz) nl, params->rpIDHash.size);
+					return CTAP1_ERR_INVALID_PARAMETER;
+				}
+				ctap_set_present(params, CTAP_credentialManagement_subCommandParams_rpIDHash);
+				break;
+
+			case CTAP_credentialManagement_subCommandParams_credentialID:
+				debug_log("CTAP_credentialManagement_subCommandParams_credentialID" nl);
+				ctap_check(parse_cred_desc(&map, &params->credentialID));
+				ctap_set_present(params, CTAP_credentialManagement_subCommandParams_credentialID);
+				break;
+
+			case CTAP_credentialManagement_subCommandParams_user:
+				debug_log("CTAP_credentialManagement_subCommandParams_user" nl);
+				ctap_check(parse_user_entity(&map, &params->user));
+				ctap_set_present(params, CTAP_credentialManagement_subCommandParams_user);
+				break;
+
+			default:
+				debug_log("ctap_parse_credential_management: unknown key %d" nl, key);
+				cbor_decoding_check(cbor_value_advance(&map));
+
+		}
+
+	}
+
+	ctap_parse_map_leave();
+
+	params->raw_size = it->source.ptr - params->raw;
+	assert(params->raw_size > 0); // even a map with zero key-value pairs is 1 byte (0xa0)
+
+	// validate: check that all required parameters are present
+	// (nothing to do, everything is optional at this point)
+
+	return CTAP2_OK;
+
+}
+
+uint8_t ctap_parse_credential_management(CborValue *it, CTAP_credentialManagement *cm) {
+
+	ctap_parse_map_enter("authenticatorCredentialManagement parameters");
+
+	memset(cm, 0, sizeof(CTAP_credentialManagement));
+
+	for (size_t i = 0; i < map_length; i++) {
+
+		ctap_parse_map_get_int_key();
+
+		switch (key) {
+
+			case CTAP_credentialManagement_subCommand:
+				debug_log("CTAP_credentialManagement_subCommand" nl);
+				ctap_check(parse_uint8(&map, &cm->subCommand));
+				ctap_set_present(cm, CTAP_credentialManagement_subCommand);
+				break;
+
+			case CTAP_credentialManagement_subCommandParams:
+				debug_log("CTAP_credentialManagement_subCommandParams" nl);
+				ctap_check(parse_credential_management_subcommand_params(&map, &cm->subCommandParams));
+				ctap_set_present(cm, CTAP_credentialManagement_subCommandParams);
+				break;
+
+			case CTAP_credentialManagement_pinUvAuthProtocol:
+				debug_log("CTAP_credentialManagement_pinUvAuthProtocol" nl);
+				ctap_check(parse_uint8(&map, &cm->pinUvAuthProtocol));
+				ctap_set_present(cm, CTAP_credentialManagement_pinUvAuthProtocol);
+				break;
+
+			case CTAP_credentialManagement_pinUvAuthParam:
+				debug_log("CTAP_credentialManagement_pinUvAuthParam" nl);
+				ctap_check(parse_byte_string_to_ctap_string(&map, &cm->pinUvAuthParam));
+				ctap_set_present(cm, CTAP_credentialManagement_pinUvAuthParam);
+				break;
+
+			default:
+				debug_log("ctap_parse_credential_management: unknown key %d" nl, key);
+				cbor_decoding_check(cbor_value_advance(&map));
+
+		}
+
+	}
+
+	ctap_parse_map_leave();
+
+	// validate: check that all required parameters are present
+	const uint32_t required_params =
+		ctap_param_to_mask(CTAP_credentialManagement_subCommand);
+	if (!ctap_is_present(cm->present, required_params)) {
 		return CTAP2_ERR_MISSING_PARAMETER;
 	}
 
