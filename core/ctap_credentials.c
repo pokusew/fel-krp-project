@@ -109,7 +109,7 @@ static inline bool get_option_value_or_true(const CTAP_mc_ga_options *options, c
 	return is_option_present(options, option) ? get_option_value(options, option) : true;
 }
 
-static inline uint8_t verify(
+static inline uint8_t verify_client_data_hash(
 	ctap_state_t *state,
 	const CTAP_mc_ga_common *params,
 	ctap_pin_protocol_t *pin_protocol
@@ -752,7 +752,7 @@ static uint8_t ensure_valid_pin_uv_auth_param(
 	// 1. Call verify(key=pinUvAuthToken, message=clientDataHash, signature: pinUvAuthParam).
 	//    1. If the verification returns error,
 	//       then end the operation by returning CTAP2_ERR_PIN_AUTH_INVALID error.
-	ctap_check(verify(state, params, pin_protocol));
+	ctap_check(verify_client_data_hash(state, params, pin_protocol));
 	// 2. Verify that the pinUvAuthToken has the required permissions,
 	//    if not, then end the operation by returning CTAP2_ERR_PIN_AUTH_INVALID.
 	if (!ctap_pin_uv_auth_token_has_permissions(
