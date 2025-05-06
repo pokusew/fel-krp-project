@@ -853,7 +853,7 @@ uint8_t ctap_client_pin_get_pin_token(
 
 }
 
-uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(
+uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_with_permissions(
 	ctap_state_t *state,
 	ctap_pin_protocol_t *pin_protocol,
 	const CTAP_clientPIN *cp
@@ -1096,7 +1096,7 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 
 		case CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingPinWithPermissions:
 			debug_log(magenta("CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingPinWithPermissions") nl);
-			return ctap_client_pin_get_pin_uv_auth_token_using_pin_pin_with_permissions(state, pin_protocol, &cp);
+			return ctap_client_pin_get_pin_uv_auth_token_using_pin_with_permissions(state, pin_protocol, &cp);
 
 	}
 
