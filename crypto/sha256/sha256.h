@@ -1,34 +1,28 @@
-/*********************************************************************
-* Filename:   sha256.h
-* Author:     Brad Conte (brad AT bradconte.com)
-* Copyright:
-* Disclaimer: This code is presented "as is" without any guarantees.
-* Details:    Defines the API for the corresponding SHA1 implementation.
-*********************************************************************/
+/**
+ * SHA-256 implementation
+ * Original author: Brad Conte (brad AT bradconte.com)
+ * Original source: https://github.com/B-Con/crypto-algorithms/blob/master/sha256.h
+ * Modified by Martin Endler for the LionKey project.
+ */
 
-#ifndef SHA256_H
-#define SHA256_H
+#ifndef LIONKEY_SHA256_H
+#define LIONKEY_SHA256_H
 
-/*************************** HEADER FILES ***************************/
+#include <stdint.h>
 #include <stddef.h>
 
-/****************************** MACROS ******************************/
-#define SHA256_BLOCK_SIZE 32            // SHA256 outputs a 32 byte digest
+#define LIONKEY_SHA256_OUTPUT_SIZE 32 // SHA-256 outputs a 32-byte digest
+#define LIONKEY_SHA256_BLOCK_SIZE 64 // SHA-256 uses a 64-byte block
 
-/**************************** DATA TYPES ****************************/
-typedef unsigned char BYTE;             // 8-bit byte
-typedef unsigned int  WORD;             // 32-bit word, change to "long" for 16-bit machines
+typedef struct sha256_ctx {
+	uint8_t data[LIONKEY_SHA256_BLOCK_SIZE];
+	uint32_t data_length;
+	uint64_t bit_length;
+	uint32_t state[8];
+} sha256_ctx_t;
 
-typedef struct {
-	BYTE data[64];
-	WORD datalen;
-	unsigned long long bitlen;
-	WORD state[8];
-} SHA256_CTX;
+void sha256_init(sha256_ctx_t *ctx);
+void sha256_update(sha256_ctx_t *ctx, const uint8_t *data, size_t data_length);
+void sha256_final(sha256_ctx_t *ctx, uint8_t *hash);
 
-/*********************** FUNCTION DECLARATIONS **********************/
-void sha256_init(SHA256_CTX *ctx);
-void sha256_update(SHA256_CTX *ctx, const BYTE data[], size_t len);
-void sha256_final(SHA256_CTX *ctx, BYTE hash[]);
-
-#endif   // SHA256_H
+#endif // LIONKEY_SHA256_H

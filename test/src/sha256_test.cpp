@@ -9,21 +9,18 @@ extern "C" {
 }
 namespace {
 
-constexpr size_t SHA256_INTERNAL_BLOCK_SIZE = 64;
-constexpr size_t SHA256_OUTPUT_SIZE = 32;
-
 class InputHashPair {
 
 public:
 	const std::string name;
 	const std::vector<uint8_t> input;
-	const std::array<uint8_t, SHA256_OUTPUT_SIZE> expected_hash;
+	const std::array<uint8_t, LIONKEY_SHA256_OUTPUT_SIZE> expected_hash;
 
 	template<size_t N>
 	InputHashPair(
 		std::string name,
 		const std::array<uint8_t, N> &input,
-		const std::array<uint8_t, SHA256_OUTPUT_SIZE> &expected_hash
+		const std::array<uint8_t, LIONKEY_SHA256_OUTPUT_SIZE> &expected_hash
 	) :
 		name(std::move(name)),
 		input(input.data(), &input.data()[N]),
@@ -33,7 +30,7 @@ public:
 	InputHashPair(
 		std::string name,
 		const char (&input)[N],
-		const std::array<uint8_t, SHA256_OUTPUT_SIZE> &expected_hash
+		const std::array<uint8_t, LIONKEY_SHA256_OUTPUT_SIZE> &expected_hash
 	) :
 		name(std::move(name)),
 		input(input, &input[N - 1]),
@@ -49,14 +46,14 @@ TEST_P(Sha256Test, ComputesHash) {
 	const auto &expected_hash = GetParam().expected_hash;
 	const auto &input = GetParam().input;
 
-	std::array<uint8_t, SHA256_OUTPUT_SIZE> hash{};
+	std::array<uint8_t, LIONKEY_SHA256_OUTPUT_SIZE> hash{};
 
-	SHA256_CTX sha256_ctx; // NOLINT(*-pro-type-member-init)
+	sha256_ctx_t sha256_ctx; // NOLINT(*-pro-type-member-init)
 	sha256_init(&sha256_ctx);
 	sha256_update(&sha256_ctx, input.data(), input.size());
 	sha256_final(&sha256_ctx, hash.data());
 
-	EXPECT_SAME_BYTES_S(SHA256_OUTPUT_SIZE, hash.data(), expected_hash.data());
+	EXPECT_SAME_BYTES_S(LIONKEY_SHA256_OUTPUT_SIZE, hash.data(), expected_hash.data());
 
 }
 

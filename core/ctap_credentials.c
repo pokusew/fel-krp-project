@@ -279,7 +279,7 @@ static uint8_t encode_rp_entity(
 }
 
 void ctap_compute_rp_id_hash(uint8_t *rp_id_hash, const CTAP_rpId *rp_id) {
-	SHA256_CTX sha256_ctx;
+	sha256_ctx_t sha256_ctx;
 	sha256_init(&sha256_ctx);
 	sha256_update(&sha256_ctx, rp_id->id.data, rp_id->id.size);
 	sha256_final(&sha256_ctx, rp_id_hash);
@@ -376,7 +376,7 @@ static uint8_t compute_signature(
 
 	// message_hash = SHA256(authenticatorData || clientDataHash)
 	uint8_t message_hash[CTAP_SHA256_HASH_SIZE];
-	SHA256_CTX sha256_ctx;
+	sha256_ctx_t sha256_ctx;
 	sha256_init(&sha256_ctx);
 	sha256_update(&sha256_ctx, (const uint8_t *) auth_data, auth_data_size);
 	sha256_update(&sha256_ctx, client_data_hash, 32);

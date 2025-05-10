@@ -78,9 +78,11 @@ target_sources(sha256
 		PRIVATE
 		../crypto/sha256/sha256.c
 		../crypto/sha256/hmac.c
+		../crypto/sha256/hkdf.c
 		INTERFACE
 		../crypto/sha256/sha256.h
 		../crypto/sha256/hmac.h
+		../crypto/sha256/hkdf.h
 )
 target_include_directories(sha256
 		INTERFACE
@@ -250,6 +252,9 @@ target_link_libraries(test_sha256 sha256 hex_utils gtest_custom_assertions)
 
 std_test(hmac_sha256 src/hmac_sha256_test.cpp)
 target_link_libraries(test_hmac_sha256 sha256 hex_utils gtest_custom_assertions)
+
+std_test(hkdf_sha256 src/hkdf_sha256_test.cpp)
+target_link_libraries(test_hkdf_sha256 sha256 hex_utils gtest_custom_assertions)
 
 core_test(ctap_parse_client_pin)
 core_test(ctap_parse_make_credential)

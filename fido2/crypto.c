@@ -50,7 +50,7 @@ typedef enum {
 } mbedtls_ecp_group_id;
 
 
-static SHA256_CTX sha256_ctx;
+static sha256_ctx_t sha256_ctx;
 static cf_sha512_context sha512_ctx;
 static const struct uECC_Curve_t *_es256_curve = NULL;
 static const uint8_t *_signing_key = NULL;
