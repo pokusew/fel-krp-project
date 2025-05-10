@@ -195,8 +195,9 @@ typedef struct ctap_pin_protocol {
 	uint8_t pin_uv_auth_token[CTAP_PIN_UV_AUTH_TOKEN_SIZE];
 	uint8_t key_agreement_public_key[64];
 	uint8_t key_agreement_private_key[32];
-	size_t shared_secret_length;
-	size_t encryption_extra_length;
+
+	const size_t shared_secret_length;
+	const size_t encryption_extra_length;
 
 	/**
 	 * Initializes the protocol for use.
@@ -207,7 +208,7 @@ typedef struct ctap_pin_protocol {
 	 * @retval 0 on success
 	 * @retval 1 on error
 	 */
-	int (*initialize)(
+	int (*const initialize)(
 		struct ctap_pin_protocol *protocol
 	);
 
@@ -218,7 +219,7 @@ typedef struct ctap_pin_protocol {
 	 * @retval 0 on success
 	 * @retval 1 on error
 	 */
-	int (*regenerate)(
+	int (*const regenerate)(
 		struct ctap_pin_protocol *protocol
 	);
 
@@ -228,7 +229,7 @@ typedef struct ctap_pin_protocol {
 	 * @retval 0 on success
 	 * @retval 1 on error
 	 */
-	int (*reset_pin_uv_auth_token)(
+	int (*const reset_pin_uv_auth_token)(
 		struct ctap_pin_protocol *protocol
 	);
 
@@ -241,7 +242,7 @@ typedef struct ctap_pin_protocol {
 	 * @retval CTAP1_ERR_OTHER when a CBOR encoding error occurs
 	 * @retval CTAP2_OK when the COSE_Key was successfully encoded using the given CBOR encoder
 	 */
-	uint8_t (*get_public_key)(
+	uint8_t (*const get_public_key)(
 		struct ctap_pin_protocol *protocol,
 		CborEncoder *encoder
 	);
@@ -262,7 +263,7 @@ typedef struct ctap_pin_protocol {
 	 * @retval 0 on success
 	 * @retval 1 on error
 	 */
-	int (*decapsulate)(
+	int (*const decapsulate)(
 		const struct ctap_pin_protocol *protocol,
 		const COSE_Key *peer_public_key,
 		uint8_t *shared_secret
@@ -282,7 +283,7 @@ typedef struct ctap_pin_protocol {
 	 * @retval 0 on success
 	 * @retval 1 on error
 	 */
-	int (*encrypt)(
+	int (*const encrypt)(
 		const uint8_t *shared_secret,
 		const uint8_t *plaintext, const size_t plaintext_length,
 		uint8_t *ciphertext
@@ -302,7 +303,7 @@ typedef struct ctap_pin_protocol {
 	 * @retval 0 on success
 	 * @retval 1 on error
 	 */
-	int (*decrypt)(
+	int (*const decrypt)(
 		const uint8_t *shared_secret,
 		const uint8_t *ciphertext, const size_t ciphertext_length,
 		uint8_t *plaintext
@@ -318,7 +319,7 @@ typedef struct ctap_pin_protocol {
 	 * @param shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
 	 *                      (32 bytes for v1, 64 bytes for v2)
 	 */
-	void (*verify_init_with_shared_secret)(
+	void (*const verify_init_with_shared_secret)(
 		const struct ctap_pin_protocol *protocol,
 		hmac_sha256_ctx_t *ctx,
 		const uint8_t *shared_secret
@@ -338,7 +339,7 @@ typedef struct ctap_pin_protocol {
 	 * @retval 0 on success
 	 * @retval 1 on error (the pinUvAuthToken is NOT in use)
 	 */
-	int (*verify_init_with_pin_uv_auth_token)(
+	int (*const verify_init_with_pin_uv_auth_token)(
 		const struct ctap_pin_protocol *protocol,
 		hmac_sha256_ctx_t *ctx,
 		ctap_pin_uv_auth_token_state *pin_uv_auth_token_state
@@ -358,7 +359,7 @@ typedef struct ctap_pin_protocol {
 	 * @param message_data a chunk of the message
 	 * @param message_data_length the size of the chunk of the message
 	 */
-	void (*verify_update)(
+	void (*const verify_update)(
 		const struct ctap_pin_protocol *protocol,
 		hmac_sha256_ctx_t *ctx,
 		const uint8_t *message_data, const size_t message_data_length
@@ -379,13 +380,30 @@ typedef struct ctap_pin_protocol {
 	 * @retval 0 on success (the signature matches the computed HMAC-256 digest),
 	 * @retval 1 on error (invalid signature length or the signature does NOT match the computed HMAC-256 digest)
 	 */
-	int (*verify_final)(
+	int (*const verify_final)(
 		const struct ctap_pin_protocol *protocol,
 		hmac_sha256_ctx_t *ctx,
 		const uint8_t *signature, const size_t signature_length
 	);
 
 } ctap_pin_protocol_t;
+
+#define CTAP_PIN_PROTOCOL_V1_CONST_INIT \
+    { \
+        .shared_secret_length = 32, \
+        .encryption_extra_length = 0, \
+        .initialize = ctap_pin_protocol_v1_initialize, \
+        .regenerate = ctap_pin_protocol_v1_regenerate, \
+        .reset_pin_uv_auth_token = ctap_pin_protocol_v1_reset_pin_uv_auth_token, \
+        .get_public_key = ctap_pin_protocol_v1_get_public_key, \
+        .decapsulate = ctap_pin_protocol_v1_decapsulate, \
+        .encrypt = ctap_pin_protocol_v1_encrypt, \
+        .decrypt = ctap_pin_protocol_v1_decrypt, \
+        .verify_init_with_shared_secret = ctap_pin_protocol_v1_verify_init_with_shared_secret, \
+        .verify_init_with_pin_uv_auth_token = ctap_pin_protocol_v1_verify_init_with_pin_uv_auth_token, \
+        .verify_update = ctap_pin_protocol_v1_verify_update, \
+        .verify_final = ctap_pin_protocol_v1_verify_final, \
+    }
 
 typedef struct ctap_credentials_map_key {
 	bool used;
@@ -485,6 +503,20 @@ typedef struct ctap_state {
 
 } ctap_state_t;
 
+#define CTAP_PIN_PROTOCOLS_CONST_INIT \
+    { \
+		CTAP_PIN_PROTOCOL_V1_CONST_INIT, \
+    }
+
+#define CTAP_STATE_CONST_INIT(response_data_max_size, response_data) \
+    { \
+		.response = { \
+			.data_max_size = (response_data_max_size), \
+			.data = (response_data), \
+		}, \
+        .pin_protocol = CTAP_PIN_PROTOCOLS_CONST_INIT, \
+	}
+
 typedef enum ctap_user_presence_result {
 	CTAP_UP_RESULT_CANCEL,
 	CTAP_UP_RESULT_TIMEOUT,
@@ -536,6 +568,10 @@ void ctap_update_stateful_command_timer(ctap_state_t *state);
 
 void ctap_init(ctap_state_t *state);
 
+void ctap_all_pin_protocols_initialize(ctap_state_t *state);
+
+void ctap_all_pin_protocols_reset_pin_uv_auth_token(ctap_state_t *state);
+
 void ctap_rng_reset(uint32_t seed);
 
 int ctap_generate_rng(uint8_t *buffer, size_t length);
@@ -554,7 +590,55 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 
 uint8_t ctap_get_pin_protocol(ctap_state_t *state, size_t protocol_version, ctap_pin_protocol_t **pin_protocol);
 
-void ctap_pin_protocol_v1_init(ctap_pin_protocol_t *protocol);
+int ctap_pin_protocol_v1_initialize(ctap_pin_protocol_t *protocol);
+
+int ctap_pin_protocol_v1_regenerate(ctap_pin_protocol_t *protocol);
+
+int ctap_pin_protocol_v1_reset_pin_uv_auth_token(ctap_pin_protocol_t *protocol);
+
+uint8_t ctap_pin_protocol_v1_get_public_key(ctap_pin_protocol_t *protocol, CborEncoder *encoder);
+
+int ctap_pin_protocol_v1_decapsulate(
+	const ctap_pin_protocol_t *protocol,
+	const COSE_Key *peer_public_key,
+	uint8_t shared_secret[32]
+);
+
+int ctap_pin_protocol_v1_encrypt(
+	const uint8_t *shared_secret,
+	const uint8_t *plaintext, size_t plaintext_length,
+	uint8_t *ciphertext
+);
+
+int ctap_pin_protocol_v1_decrypt(
+	const uint8_t *shared_secret,
+	const uint8_t *ciphertext, size_t ciphertext_length,
+	uint8_t *plaintext
+);
+
+void ctap_pin_protocol_v1_verify_init_with_shared_secret(
+	const ctap_pin_protocol_t *protocol,
+	hmac_sha256_ctx_t *hmac_sha256_ctx,
+	const uint8_t *shared_secret
+);
+
+int ctap_pin_protocol_v1_verify_init_with_pin_uv_auth_token(
+	const ctap_pin_protocol_t *protocol,
+	hmac_sha256_ctx_t *hmac_sha256_ctx,
+	ctap_pin_uv_auth_token_state *pin_uv_auth_token_state
+);
+
+void ctap_pin_protocol_v1_verify_update(
+	const ctap_pin_protocol_t *protocol,
+	hmac_sha256_ctx_t *hmac_sha256_ctx,
+	const uint8_t *message_data, size_t message_data_length
+);
+
+int ctap_pin_protocol_v1_verify_final(
+	const ctap_pin_protocol_t *protocol,
+	hmac_sha256_ctx_t *hmac_sha256_ctx,
+	const uint8_t *signature, size_t signature_length
+);
 
 void ctap_pin_uv_auth_token_begin_using(ctap_state_t *state, bool user_is_present, uint32_t permissions);
 

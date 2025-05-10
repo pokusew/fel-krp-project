@@ -53,9 +53,41 @@ void authenticator_write_state(ctap_state_t *state) {
 
 }
 
+void ctap_all_pin_protocols_initialize(ctap_state_t *state) {
+	const size_t num_pin_protocols = sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t);
+	for (size_t i = 0; i < num_pin_protocols; ++i) {
+		ctap_pin_protocol_t *pin_protocol = &state->pin_protocol[i];
+
+		assert(pin_protocol->shared_secret_length != 0);
+		assert(pin_protocol->initialize != NULL);
+		assert(pin_protocol->regenerate != NULL);
+		assert(pin_protocol->reset_pin_uv_auth_token != NULL);
+		assert(pin_protocol->get_public_key != NULL);
+		assert(pin_protocol->decapsulate != NULL);
+		assert(pin_protocol->encrypt != NULL);
+		assert(pin_protocol->decrypt != NULL);
+		assert(pin_protocol->verify_init_with_shared_secret != NULL);
+		assert(pin_protocol->verify_init_with_pin_uv_auth_token != NULL);
+		assert(pin_protocol->verify_update != NULL);
+		assert(pin_protocol->verify_final != NULL);
+
+		pin_protocol->initialize(pin_protocol); // TODO: handle error
+	}
+}
+
+void ctap_all_pin_protocols_reset_pin_uv_auth_token(ctap_state_t *state) {
+	const size_t num_pin_protocols = sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t);
+	for (size_t i = 0; i < num_pin_protocols; ++i) {
+		ctap_pin_protocol_t *pin_protocol = &state->pin_protocol[i];
+		pin_protocol->reset_pin_uv_auth_token(pin_protocol); // TODO: handle error
+	}
+}
+
 void ctap_init(ctap_state_t *state) {
 
 	debug_log("ctap_init" nl);
+
+	assert(state->response.data != NULL && state->response.data_max_size != 0);
 
 	// crypto_ecc256_init();
 	uECC_set_rng((uECC_RNG_Function) ctap_generate_rng);
@@ -91,12 +123,7 @@ void ctap_init(ctap_state_t *state) {
 
 	// 6.5.5.1. Authenticator Configuration Operations Upon Power Up
 	// At power-up, the authenticator calls initialize for each pinUvAuthProtocol that it supports.
-	static_assert(
-		sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t) == 1,
-		"unexpected length of the state->pin_protocol array"
-	);
-	ctap_pin_protocol_v1_init(&state->pin_protocol[0]);
-	// TODO: Add support for PIN/UV Auth Protocol v2.
+	ctap_all_pin_protocols_initialize(state);
 
 	// do_migration_if_required(&state);
 
