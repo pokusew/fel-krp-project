@@ -168,12 +168,7 @@ constexpr auto create_get_pin_token(
 class CtapClientPinTest : public testing::Test {
 protected:
 	uint8_t ctap_response_buffer[CTAP_RESPONSE_BUFFER_SIZE]{};
-	ctap_state_t ctap{
-		.response = {
-			.data_max_size = sizeof(ctap_response_buffer),
-			.data = ctap_response_buffer,
-		},
-	};
+	ctap_state_t ctap = CTAP_STATE_CONST_INIT(sizeof(ctap_response_buffer), ctap_response_buffer);
 	ctap_response_t &response = ctap.response;
 	uint8_t status{};
 

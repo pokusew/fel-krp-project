@@ -125,8 +125,8 @@ void ctap_pin_uv_auth_token_stop_using(ctap_pin_uv_auth_token_state *token_state
 	memset(token_state, 0, sizeof(ctap_pin_uv_auth_token_state));
 }
 
-static int ctap_pin_protocol_v1_initialize(
-	ctap_pin_protocol_t *protocol
+int ctap_pin_protocol_v1_initialize(
+	ctap_pin_protocol_t *const protocol
 ) {
 	int ret = 0;
 	ret |= protocol->regenerate(protocol);
@@ -134,8 +134,8 @@ static int ctap_pin_protocol_v1_initialize(
 	return ret;
 }
 
-static int ctap_pin_protocol_v1_regenerate(
-	ctap_pin_protocol_t *protocol
+int ctap_pin_protocol_v1_regenerate(
+	ctap_pin_protocol_t *const protocol
 ) {
 	// Generate a fresh, random P-256 private key, x, and compute the associated public point.
 
@@ -162,8 +162,8 @@ static int ctap_pin_protocol_v1_regenerate(
 	return 1;
 }
 
-static int ctap_pin_protocol_v1_reset_pin_uv_auth_token(
-	ctap_pin_protocol_t *protocol
+int ctap_pin_protocol_v1_reset_pin_uv_auth_token(
+	ctap_pin_protocol_t *const protocol
 ) {
 	ctap_generate_rng(
 		protocol->pin_uv_auth_token,
@@ -174,9 +174,9 @@ static int ctap_pin_protocol_v1_reset_pin_uv_auth_token(
 	return 0;
 }
 
-static uint8_t ctap_pin_protocol_v1_get_public_key(
-	ctap_pin_protocol_t *protocol,
-	CborEncoder *encoder
+uint8_t ctap_pin_protocol_v1_get_public_key(
+	ctap_pin_protocol_t *const protocol,
+	CborEncoder *const encoder
 ) {
 
 	const uint8_t *x = protocol->key_agreement_public_key;
@@ -209,10 +209,10 @@ static uint8_t ctap_pin_protocol_v1_get_public_key(
 }
 
 
-static int ctap_pin_protocol_v1_decapsulate(
-	const ctap_pin_protocol_t *protocol,
-	const COSE_Key *peer_public_key,
-	uint8_t shared_secret[32]
+int ctap_pin_protocol_v1_decapsulate(
+	const ctap_pin_protocol_t *const protocol,
+	const COSE_Key *const peer_public_key,
+	uint8_t *const shared_secret
 ) {
 	// 6.5.6. PIN/UV Auth Protocol One
 	//
@@ -257,10 +257,10 @@ static int ctap_pin_protocol_v1_decapsulate(
 	return 0;
 }
 
-static int ctap_pin_protocol_v1_encrypt(
-	const uint8_t *shared_secret,
-	const uint8_t *plaintext, const size_t plaintext_length,
-	uint8_t *ciphertext
+int ctap_pin_protocol_v1_encrypt(
+	const uint8_t *const shared_secret,
+	const uint8_t *const plaintext, const size_t plaintext_length,
+	uint8_t *const ciphertext
 ) {
 	if (plaintext_length % TINYAES_AES_BLOCKLEN != 0) {
 		return 1;
@@ -276,10 +276,10 @@ static int ctap_pin_protocol_v1_encrypt(
 	return 0;
 }
 
-static int ctap_pin_protocol_v1_decrypt(
-	const uint8_t *shared_secret,
-	const uint8_t *ciphertext, const size_t ciphertext_length,
-	uint8_t *plaintext
+int ctap_pin_protocol_v1_decrypt(
+	const uint8_t *const shared_secret,
+	const uint8_t *const ciphertext, const size_t ciphertext_length,
+	uint8_t *const plaintext
 ) {
 	if (ciphertext_length % TINYAES_AES_BLOCKLEN != 0) {
 		return 1;
@@ -295,10 +295,10 @@ static int ctap_pin_protocol_v1_decrypt(
 	return 0;
 }
 
-static void ctap_pin_protocol_v1_verify_init_with_shared_secret(
-	const ctap_pin_protocol_t *protocol,
-	hmac_sha256_ctx_t *hmac_sha256_ctx,
-	const uint8_t *shared_secret
+void ctap_pin_protocol_v1_verify_init_with_shared_secret(
+	const ctap_pin_protocol_t *const protocol,
+	hmac_sha256_ctx_t *const hmac_sha256_ctx,
+	const uint8_t *const shared_secret
 ) {
 	// 6.5.6. PIN/UV Auth Protocol One
 	// verify(key, message, signature) → success | error
@@ -310,10 +310,10 @@ static void ctap_pin_protocol_v1_verify_init_with_shared_secret(
 	hmac_sha256_init(hmac_sha256_ctx, shared_secret, protocol->shared_secret_length);
 }
 
-static int ctap_pin_protocol_v1_verify_init_with_pin_uv_auth_token(
-	const ctap_pin_protocol_t *protocol,
-	hmac_sha256_ctx_t *hmac_sha256_ctx,
-	ctap_pin_uv_auth_token_state *pin_uv_auth_token_state
+int ctap_pin_protocol_v1_verify_init_with_pin_uv_auth_token(
+	const ctap_pin_protocol_t *const protocol,
+	hmac_sha256_ctx_t *const hmac_sha256_ctx,
+	ctap_pin_uv_auth_token_state *const pin_uv_auth_token_state
 ) {
 	// 6.5.6. PIN/UV Auth Protocol One
 	// verify(key, message, signature) → success | error
@@ -330,10 +330,10 @@ static int ctap_pin_protocol_v1_verify_init_with_pin_uv_auth_token(
 }
 
 
-static void ctap_pin_protocol_v1_verify_update(
-	const ctap_pin_protocol_t *protocol,
-	hmac_sha256_ctx_t *hmac_sha256_ctx,
-	const uint8_t *message_data, const size_t message_data_length
+void ctap_pin_protocol_v1_verify_update(
+	const ctap_pin_protocol_t *const protocol,
+	hmac_sha256_ctx_t *const hmac_sha256_ctx,
+	const uint8_t *const message_data, const size_t message_data_length
 ) {
 	// 6.5.6. PIN/UV Auth Protocol One
 	// verify(key, message, signature) → success | error
@@ -345,10 +345,10 @@ static void ctap_pin_protocol_v1_verify_update(
 }
 
 
-static int ctap_pin_protocol_v1_verify_final(
-	const ctap_pin_protocol_t *protocol,
-	hmac_sha256_ctx_t *hmac_sha256_ctx,
-	const uint8_t *signature, const size_t signature_length
+int ctap_pin_protocol_v1_verify_final(
+	const ctap_pin_protocol_t *const protocol,
+	hmac_sha256_ctx_t *const hmac_sha256_ctx,
+	const uint8_t *const signature, const size_t signature_length
 ) {
 	// 6.5.6. PIN/UV Auth Protocol One
 	// verify(key, message, signature) → success | error
@@ -362,29 +362,6 @@ static int ctap_pin_protocol_v1_verify_final(
 		return 1;
 	}
 	return 0;
-}
-
-
-void ctap_pin_protocol_v1_init(ctap_pin_protocol_t *protocol) {
-
-	protocol->shared_secret_length = 32;
-	protocol->encryption_extra_length = 0;
-
-	protocol->initialize = ctap_pin_protocol_v1_initialize;
-	protocol->regenerate = ctap_pin_protocol_v1_regenerate;
-	protocol->reset_pin_uv_auth_token = ctap_pin_protocol_v1_reset_pin_uv_auth_token;
-	protocol->get_public_key = ctap_pin_protocol_v1_get_public_key;
-	protocol->decapsulate = ctap_pin_protocol_v1_decapsulate;
-	protocol->encrypt = ctap_pin_protocol_v1_encrypt;
-	protocol->decrypt = ctap_pin_protocol_v1_decrypt;
-	protocol->verify_init_with_shared_secret = ctap_pin_protocol_v1_verify_init_with_shared_secret;
-	protocol->verify_init_with_pin_uv_auth_token = ctap_pin_protocol_v1_verify_init_with_pin_uv_auth_token;
-	protocol->verify_update = ctap_pin_protocol_v1_verify_update;
-	protocol->verify_final = ctap_pin_protocol_v1_verify_final;
-
-	// TODO: handle initialize error
-	protocol->initialize(protocol);
-
 }
 
 /**
@@ -747,8 +724,7 @@ uint8_t ctap_client_pin_change_pin(
 
 	// 5.19 Authenticator calls resetPinUvAuthToken() for all pinUvAuthProtocols supported
 	//      by this authenticator. (I.e. all existing pinUvAuthTokens are invalidated.)
-	state->pin_protocol[0].reset_pin_uv_auth_token(&state->pin_protocol[0]);
-	// TODO: Add v2 when supported.
+	ctap_all_pin_protocols_reset_pin_uv_auth_token(state);
 
 	return CTAP2_OK;
 
@@ -783,8 +759,7 @@ static uint8_t get_pin_token_using_pin_with_permissions(
 	// Create a new pinUvAuthToken by calling resetPinUvAuthToken()
 	// for all pinUvAuthProtocols supported by this authenticator.
 	// (I.e. all existing pinUvAuthTokens are invalidated.)
-	state->pin_protocol[0].reset_pin_uv_auth_token(&state->pin_protocol[0]);
-	// TODO: Add v2 when supported.
+	ctap_all_pin_protocols_reset_pin_uv_auth_token(state);
 
 	// Call beginUsingPinUvAuthToken(userIsPresent: false).
 	ctap_pin_uv_auth_token_begin_using(state, false, permissions);
