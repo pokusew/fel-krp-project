@@ -16,13 +16,13 @@ testing::AssertionResult SameBytes(
 			return testing::AssertionFailure()
 				<< fmt::format(
 					"bytes differ when comparing {0} bytes ({1}):"
-					"\n  {3:>{2}}: {4:02X}"
-					"\n  {5:>{2}}: {6:02X}"
+					"\n  {3:>{2}}: {4:02x}"
+					"\n  {5:>{2}}: {6:02x}"
 					"\n  {8:>{9}}  ^^ first diff at index = {7}",
 					size, size_expr, field_width,
-					actual_expr, fmt::join(actual, actual + size, " "),
-					expected_expr, fmt::join(expected, expected + size, " "),
-					i, "", field_width + (i * 3)
+					actual_expr, fmt::join(actual, actual + size, ""),
+					expected_expr, fmt::join(expected, expected + size, ""),
+					i, "", field_width + (i * 2)
 				);
 		}
 	}
