@@ -9,15 +9,12 @@ extern "C" {
 }
 namespace {
 
-constexpr size_t SHA256_INTERNAL_BLOCK_SIZE = 64;
-constexpr size_t SHA256_OUTPUT_SIZE = 32;
-
 class InputHashPair {
 public:
 	const std::string name;
 	const std::vector<uint8_t> key;
 	const std::vector<uint8_t> input;
-	const std::array<uint8_t, SHA256_OUTPUT_SIZE> expected_hmac;
+	const std::array<uint8_t, LIONKEY_SHA256_OUTPUT_SIZE> expected_hmac;
 
 	template<size_t N>
 	static std::vector<uint8_t> to_vector(const std::array<uint8_t, N> &input) {
@@ -36,7 +33,7 @@ public:
 		std::string name,
 		const KeyType &key,
 		const InputType &input,
-		const std::array<uint8_t, SHA256_OUTPUT_SIZE> &expected_hmac
+		const std::array<uint8_t, LIONKEY_SHA256_OUTPUT_SIZE> &expected_hmac
 	) :
 		name(std::move(name)),
 		key(to_vector(key)),
@@ -54,14 +51,14 @@ TEST_P(HmacSha256Test, ComputesHmac) {
 	const auto &key = GetParam().key;
 	const auto &input = GetParam().input;
 
-	std::array<uint8_t, SHA256_OUTPUT_SIZE> hmac{};
+	std::array<uint8_t, LIONKEY_SHA256_OUTPUT_SIZE> hmac{};
 
 	hmac_sha256_ctx_t ctx; // NOLINT(*-pro-type-member-init)
 	hmac_sha256_init(&ctx, key.data(), key.size());
 	hmac_sha256_update(&ctx, input.data(), input.size());
 	hmac_sha256_final(&ctx, hmac.data());
 
-	EXPECT_SAME_BYTES_S(SHA256_OUTPUT_SIZE, hmac.data(), expected_hmac.data());
+	EXPECT_SAME_BYTES_S(LIONKEY_SHA256_OUTPUT_SIZE, hmac.data(), expected_hmac.data());
 
 }
 

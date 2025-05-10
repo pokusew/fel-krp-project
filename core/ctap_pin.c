@@ -246,7 +246,7 @@ static int ctap_pin_protocol_v1_decapsulate(
 	debug_log(yellow("shared secret before hash ") nl "  ");
 	dump_hex(shared_secret, 32);
 
-	SHA256_CTX sha256_ctx;
+	sha256_ctx_t sha256_ctx;
 	sha256_init(&sha256_ctx);
 	sha256_update(&sha256_ctx, shared_secret, 32);
 	sha256_final(&sha256_ctx, shared_secret);
@@ -628,7 +628,7 @@ static uint8_t set_pin(
 	debug_log(green("new_pin = %s") nl, new_pin);
 
 	uint8_t new_pin_hash[CTAP_SHA256_HASH_SIZE];
-	SHA256_CTX sha256_ctx;
+	sha256_ctx_t sha256_ctx;
 	sha256_init(&sha256_ctx);
 	sha256_update(&sha256_ctx, new_pin, new_pin_length);
 	sha256_final(&sha256_ctx, new_pin_hash);
