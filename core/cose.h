@@ -27,11 +27,22 @@ typedef struct COSE_Key {
 	int kty;
 	int alg;
 	int crv;
-	struct {
+	struct COSE_Key_pubkey {
 		uint8_t x[32];
 		uint8_t y[32];
 	} pubkey;
 } COSE_Key;
+#ifndef __cplusplus
+static_assert(
+	sizeof(struct COSE_Key_pubkey) == 64,
+	"sizeof(struct COSE_Key_pubkey) == 64"
+);
+#else
+static_assert(
+	sizeof(COSE_Key::COSE_Key_pubkey) == 64,
+	"sizeof(COSE_Key::COSE_Key_pubkey) == 64"
+);
+#endif
 
 // https://www.iana.org/assignments/cose/cose.xhtml#key-common-parameters
 // https://datatracker.ietf.org/doc/html/rfc9052#name-cose-key-common-parameters
