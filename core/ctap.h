@@ -196,6 +196,7 @@ typedef struct ctap_pin_protocol {
 	uint8_t key_agreement_public_key[64];
 	uint8_t key_agreement_private_key[32];
 
+	const size_t version;
 	const size_t shared_secret_length;
 	const size_t encryption_extra_length;
 
@@ -203,6 +204,8 @@ typedef struct ctap_pin_protocol {
 	 * Initializes the protocol for use.
 	 *
 	 * This process is run by the authenticator at power-on.
+	 *
+	 * @see ctap_pin_protocol_initialize()
 	 *
 	 * @param protocol the protocol
 	 * @retval 0 on success
@@ -215,6 +218,8 @@ typedef struct ctap_pin_protocol {
 	/**
 	 * Generates a fresh ECDH key agreement key pair (key_agreement_public_key, key_agreement_private_key).
 	 *
+	 * @see ctap_pin_protocol_regenerate()
+	 *
 	 * @param protocol the protocol
 	 * @retval 0 on success
 	 * @retval 1 on error
@@ -225,6 +230,9 @@ typedef struct ctap_pin_protocol {
 
 	/**
 	 * Generates a fresh pinUvAuthToken.
+	 *
+	 * @see ctap_pin_protocol_reset_pin_uv_auth_token()
+	 *
 	 * @param protocol the protocol
 	 * @retval 0 on success
 	 * @retval 1 on error
@@ -235,6 +243,8 @@ typedef struct ctap_pin_protocol {
 
 	/**
 	 * Encodes the current key_agreement_public_key as a COSE_Key object into the given CBOR stream.
+	 *
+	 * @see ctap_pin_protocol_get_public_key()
 	 *
 	 * @param protocol the protocol
 	 * @param encoder CBOR encoder
@@ -251,10 +261,13 @@ typedef struct ctap_pin_protocol {
 	 * Processes the output of encapsulate from the peer and produces a shared secret,
 	 * known to both platform and authenticator.
 	 *
-	 * In other words, it computes a shared key using the peer's public key (`peer_public_key`)
+	 * In other words, it computes a shared key (point) using the peer's public key (`peer_public_key`)
 	 * and the authenticator's private key (`protocol.key_agreement_private_key`)
 	 * using ECDH (Elliptic-curve Diffie-Hellman). It then derives the shared secret
-	 * from the computed shared key (the exact algorithm varies between protocol versions).
+	 * from the computed shared key (point) by calling protocol->kdf()
+	 * (the exact algorithm varies between protocol versions).
+	 *
+	 * @see ctap_pin_protocol_decapsulate()
 	 *
 	 * @param protocol this
 	 * @param peer_public_key the public key of the peer (the platform, resp. the client),
@@ -270,9 +283,36 @@ typedef struct ctap_pin_protocol {
 	);
 
 	/**
+	 * Derives a shared secret from an ECDH shared key (point).
+	 *
+	 * KDF = Key Derivation Function
+	 *
+	 * This method should not be called directly. It is called internally by decapsulate().
+	 *
+	 * @see ctap_pin_protocol_decapsulate()
+	 * @see ctap_pin_protocol_v1_kdf()
+	 * @see ctap_pin_protocol_v2_kdf()
+	 *
+	 * @param protocol this
+	 * @param ecdh_shared_point_z the ECDH shared key (point), the result of an ECDH key agreement
+	 * @param [out] shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
+	 *                            (32 bytes for v1, 64 bytes for v2)
+	 * @retval 0 on success
+	 * @retval 1 on error
+	 */
+	int (*const kdf)(
+		const struct ctap_pin_protocol *protocol,
+		const uint8_t *ecdh_shared_point_z,
+		uint8_t *shared_secret
+	);
+
+	/**
 	 * Encrypts a plaintext using a shared secret as a key and outputs a ciphertext to the given ciphertext buffer.
 	 *
 	 * The plaintext remains unchanged.
+	 *
+	 * @see ctap_pin_protocol_v1_encrypt()
+	 * @see ctap_pin_protocol_v2_encrypt()
 	 *
 	 * @param [in] shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
 	 *                           (32 bytes for v1, 64 bytes for v2)
@@ -294,6 +334,9 @@ typedef struct ctap_pin_protocol {
 	 *
 	 * The ciphertext remains unchanged.
 	 *
+	 * @see ctap_pin_protocol_v1_decrypt()
+	 * @see ctap_pin_protocol_v2_decrypt()
+	 *
 	 * @param [in] shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
 	 *                           (32 bytes for v1, 64 bytes for v2)
 	 * @param [in] ciphertext the ciphertext
@@ -314,6 +357,13 @@ typedef struct ctap_pin_protocol {
 	 *
 	 * Uses a shared secret as the HMAC key.
 	 *
+	 * @see ctap_pin_protocol_v1_verify_init_with_shared_secret()
+	 * @see ctap_pin_protocol_v2_verify_init_with_shared_secret()
+	 * @see ctap_pin_protocol_verify_init_with_pin_uv_auth_token()
+	 * @see ctap_pin_protocol_verify_update()
+	 * @see ctap_pin_protocol_v1_verify_final()
+	 * @see ctap_pin_protocol_v2_verify_final()
+	 *
 	 * @param protocol the protocol
 	 * @param ctx the pointer to the HMAC-256 context that will be initialized by this call
 	 * @param shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
@@ -331,6 +381,13 @@ typedef struct ctap_pin_protocol {
 	 * Uses the current pinUvAuthToken `protocol.pin_uv_auth_token` as the HMAC key.
 	 * It also checks whether the pinUvAuthToken is in use or not.
 	 * If the pinUvAuthToken is not in use, it returns an error.
+	 *
+	 * @see ctap_pin_protocol_v1_verify_init_with_shared_secret()
+	 * @see ctap_pin_protocol_v2_verify_init_with_shared_secret()
+	 * @see ctap_pin_protocol_verify_init_with_pin_uv_auth_token()
+	 * @see ctap_pin_protocol_verify_update()
+	 * @see ctap_pin_protocol_v1_verify_final()
+	 * @see ctap_pin_protocol_v2_verify_final()
 	 *
 	 * @param protocol the protocol
 	 * @param ctx the pointer to the HMAC-256 context that will be initialized by this call
@@ -352,6 +409,13 @@ typedef struct ctap_pin_protocol {
 	 * When the message has zero length, this function does not have to be called at all
 	 * (e.g., the following call sequence is completely correct: `verify_init_*() -> verify_final()`).
 	 *
+	 * @see ctap_pin_protocol_v1_verify_init_with_shared_secret()
+	 * @see ctap_pin_protocol_v2_verify_init_with_shared_secret()
+	 * @see ctap_pin_protocol_verify_init_with_pin_uv_auth_token()
+	 * @see ctap_pin_protocol_verify_update()
+	 * @see ctap_pin_protocol_v1_verify_final()
+	 * @see ctap_pin_protocol_v2_verify_final()
+	 *
 	 * @param protocol the protocol
 	 * @param ctx the pointer to the HMAC-256 context
 	 *            that has been already initialized by `verify_init_with_shared_secret()`
@@ -371,6 +435,13 @@ typedef struct ctap_pin_protocol {
 	 * This function must be called only after the context has been initialized by `verify_init_*()`
 	 * and the message (if non-zero length) has been passed by one or more `verify_update()` calls.
 	 *
+	 * @see ctap_pin_protocol_v1_verify_init_with_shared_secret()
+	 * @see ctap_pin_protocol_v2_verify_init_with_shared_secret()
+	 * @see ctap_pin_protocol_verify_init_with_pin_uv_auth_token()
+	 * @see ctap_pin_protocol_verify_update()
+	 * @see ctap_pin_protocol_v1_verify_final()
+	 * @see ctap_pin_protocol_v2_verify_final()
+	 *
 	 * @param protocol the protocol
 	 * @param ctx the pointer to the HMAC-256 context
 	 *            that has been already initialized by `verify_init_with_shared_secret()`
@@ -389,21 +460,42 @@ typedef struct ctap_pin_protocol {
 } ctap_pin_protocol_t;
 
 #define CTAP_PIN_PROTOCOL_V1_CONST_INIT \
-    { \
-        .shared_secret_length = 32, \
-        .encryption_extra_length = 0, \
-        .initialize = ctap_pin_protocol_v1_initialize, \
-        .regenerate = ctap_pin_protocol_v1_regenerate, \
-        .reset_pin_uv_auth_token = ctap_pin_protocol_v1_reset_pin_uv_auth_token, \
-        .get_public_key = ctap_pin_protocol_v1_get_public_key, \
-        .decapsulate = ctap_pin_protocol_v1_decapsulate, \
-        .encrypt = ctap_pin_protocol_v1_encrypt, \
-        .decrypt = ctap_pin_protocol_v1_decrypt, \
-        .verify_init_with_shared_secret = ctap_pin_protocol_v1_verify_init_with_shared_secret, \
-        .verify_init_with_pin_uv_auth_token = ctap_pin_protocol_v1_verify_init_with_pin_uv_auth_token, \
-        .verify_update = ctap_pin_protocol_v1_verify_update, \
-        .verify_final = ctap_pin_protocol_v1_verify_final, \
-    }
+	{ \
+		.version = 1, \
+		.shared_secret_length = 32, \
+		.encryption_extra_length = 0, \
+		.initialize = ctap_pin_protocol_initialize, \
+		.regenerate = ctap_pin_protocol_regenerate, \
+		.reset_pin_uv_auth_token = ctap_pin_protocol_reset_pin_uv_auth_token, \
+		.get_public_key = ctap_pin_protocol_get_public_key, \
+		.decapsulate = ctap_pin_protocol_decapsulate, \
+		.kdf = ctap_pin_protocol_v1_kdf, \
+		.encrypt = ctap_pin_protocol_v1_encrypt, \
+		.decrypt = ctap_pin_protocol_v1_decrypt, \
+		.verify_init_with_shared_secret = ctap_pin_protocol_v1_verify_init_with_shared_secret, \
+		.verify_init_with_pin_uv_auth_token = ctap_pin_protocol_verify_init_with_pin_uv_auth_token, \
+		.verify_update = ctap_pin_protocol_verify_update, \
+		.verify_final = ctap_pin_protocol_v1_verify_final, \
+	}
+
+#define CTAP_PIN_PROTOCOL_V2_CONST_INIT \
+	{ \
+		.version = 2, \
+		.shared_secret_length = 64, \
+		.encryption_extra_length = 16, \
+		.initialize = ctap_pin_protocol_initialize, \
+		.regenerate = ctap_pin_protocol_regenerate, \
+		.reset_pin_uv_auth_token = ctap_pin_protocol_reset_pin_uv_auth_token, \
+		.get_public_key = ctap_pin_protocol_get_public_key, \
+		.decapsulate = ctap_pin_protocol_decapsulate, \
+		.kdf = ctap_pin_protocol_v2_kdf, \
+		.encrypt = ctap_pin_protocol_v2_encrypt, \
+		.decrypt = ctap_pin_protocol_v2_decrypt, \
+		.verify_init_with_shared_secret = ctap_pin_protocol_v2_verify_init_with_shared_secret, \
+		.verify_init_with_pin_uv_auth_token = ctap_pin_protocol_verify_init_with_pin_uv_auth_token, \
+		.verify_update = ctap_pin_protocol_verify_update, \
+		.verify_final = ctap_pin_protocol_v2_verify_final, \
+	}
 
 typedef struct ctap_credentials_map_key {
 	bool used;
@@ -495,7 +587,7 @@ typedef struct ctap_state {
 
 	ctap_response_t response;
 
-	ctap_pin_protocol_t pin_protocol[1];
+	ctap_pin_protocol_t pin_protocols[2];
 	uint8_t pin_boot_remaining_attempts;
 	ctap_pin_uv_auth_token_state pin_uv_auth_token_state;
 
@@ -506,6 +598,7 @@ typedef struct ctap_state {
 #define CTAP_PIN_PROTOCOLS_CONST_INIT \
     { \
 		CTAP_PIN_PROTOCOL_V1_CONST_INIT, \
+		CTAP_PIN_PROTOCOL_V2_CONST_INIT, \
     }
 
 #define CTAP_STATE_CONST_INIT(response_data_max_size, response_data) \
@@ -514,7 +607,7 @@ typedef struct ctap_state {
 			.data_max_size = (response_data_max_size), \
 			.data = (response_data), \
 		}, \
-        .pin_protocol = CTAP_PIN_PROTOCOLS_CONST_INIT, \
+        .pin_protocols = CTAP_PIN_PROTOCOLS_CONST_INIT, \
 	}
 
 typedef enum ctap_user_presence_result {
@@ -590,21 +683,39 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 
 uint8_t ctap_get_pin_protocol(ctap_state_t *state, size_t protocol_version, ctap_pin_protocol_t **pin_protocol);
 
-int ctap_pin_protocol_v1_initialize(ctap_pin_protocol_t *protocol);
+int ctap_pin_protocol_initialize(ctap_pin_protocol_t *protocol);
 
-int ctap_pin_protocol_v1_regenerate(ctap_pin_protocol_t *protocol);
+int ctap_pin_protocol_regenerate(ctap_pin_protocol_t *protocol);
 
-int ctap_pin_protocol_v1_reset_pin_uv_auth_token(ctap_pin_protocol_t *protocol);
+int ctap_pin_protocol_reset_pin_uv_auth_token(ctap_pin_protocol_t *protocol);
 
-uint8_t ctap_pin_protocol_v1_get_public_key(ctap_pin_protocol_t *protocol, CborEncoder *encoder);
+uint8_t ctap_pin_protocol_get_public_key(ctap_pin_protocol_t *protocol, CborEncoder *encoder);
 
-int ctap_pin_protocol_v1_decapsulate(
+int ctap_pin_protocol_decapsulate(
 	const ctap_pin_protocol_t *protocol,
 	const COSE_Key *peer_public_key,
-	uint8_t shared_secret[32]
+	uint8_t *shared_secret
+);
+
+int ctap_pin_protocol_v1_kdf(
+	const ctap_pin_protocol_t *protocol,
+	const uint8_t *ecdh_shared_point_z,
+	uint8_t *shared_secret
+);
+
+int ctap_pin_protocol_v2_kdf(
+	const ctap_pin_protocol_t *protocol,
+	const uint8_t *ecdh_shared_point_z,
+	uint8_t *shared_secret
 );
 
 int ctap_pin_protocol_v1_encrypt(
+	const uint8_t *shared_secret,
+	const uint8_t *plaintext, size_t plaintext_length,
+	uint8_t *ciphertext
+);
+
+int ctap_pin_protocol_v2_encrypt(
 	const uint8_t *shared_secret,
 	const uint8_t *plaintext, size_t plaintext_length,
 	uint8_t *ciphertext
@@ -616,25 +727,43 @@ int ctap_pin_protocol_v1_decrypt(
 	uint8_t *plaintext
 );
 
+int ctap_pin_protocol_v2_decrypt(
+	const uint8_t *shared_secret,
+	const uint8_t *ciphertext, size_t ciphertext_length,
+	uint8_t *plaintext
+);
+
 void ctap_pin_protocol_v1_verify_init_with_shared_secret(
 	const ctap_pin_protocol_t *protocol,
 	hmac_sha256_ctx_t *hmac_sha256_ctx,
 	const uint8_t *shared_secret
 );
 
-int ctap_pin_protocol_v1_verify_init_with_pin_uv_auth_token(
+void ctap_pin_protocol_v2_verify_init_with_shared_secret(
+	const ctap_pin_protocol_t *protocol,
+	hmac_sha256_ctx_t *hmac_sha256_ctx,
+	const uint8_t *shared_secret
+);
+
+int ctap_pin_protocol_verify_init_with_pin_uv_auth_token(
 	const ctap_pin_protocol_t *protocol,
 	hmac_sha256_ctx_t *hmac_sha256_ctx,
 	ctap_pin_uv_auth_token_state *pin_uv_auth_token_state
 );
 
-void ctap_pin_protocol_v1_verify_update(
+void ctap_pin_protocol_verify_update(
 	const ctap_pin_protocol_t *protocol,
 	hmac_sha256_ctx_t *hmac_sha256_ctx,
 	const uint8_t *message_data, size_t message_data_length
 );
 
 int ctap_pin_protocol_v1_verify_final(
+	const ctap_pin_protocol_t *protocol,
+	hmac_sha256_ctx_t *hmac_sha256_ctx,
+	const uint8_t *signature, size_t signature_length
+);
+
+int ctap_pin_protocol_v2_verify_final(
 	const ctap_pin_protocol_t *protocol,
 	hmac_sha256_ctx_t *hmac_sha256_ctx,
 	const uint8_t *signature, size_t signature_length

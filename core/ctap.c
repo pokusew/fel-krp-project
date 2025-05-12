@@ -54,9 +54,9 @@ void authenticator_write_state(ctap_state_t *state) {
 }
 
 void ctap_all_pin_protocols_initialize(ctap_state_t *state) {
-	const size_t num_pin_protocols = sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t);
+	const size_t num_pin_protocols = sizeof(state->pin_protocols) / sizeof(ctap_pin_protocol_t);
 	for (size_t i = 0; i < num_pin_protocols; ++i) {
-		ctap_pin_protocol_t *pin_protocol = &state->pin_protocol[i];
+		ctap_pin_protocol_t *pin_protocol = &state->pin_protocols[i];
 
 		assert(pin_protocol->shared_secret_length != 0);
 		assert(pin_protocol->initialize != NULL);
@@ -64,6 +64,7 @@ void ctap_all_pin_protocols_initialize(ctap_state_t *state) {
 		assert(pin_protocol->reset_pin_uv_auth_token != NULL);
 		assert(pin_protocol->get_public_key != NULL);
 		assert(pin_protocol->decapsulate != NULL);
+		assert(pin_protocol->kdf != NULL);
 		assert(pin_protocol->encrypt != NULL);
 		assert(pin_protocol->decrypt != NULL);
 		assert(pin_protocol->verify_init_with_shared_secret != NULL);
@@ -76,9 +77,9 @@ void ctap_all_pin_protocols_initialize(ctap_state_t *state) {
 }
 
 void ctap_all_pin_protocols_reset_pin_uv_auth_token(ctap_state_t *state) {
-	const size_t num_pin_protocols = sizeof(state->pin_protocol) / sizeof(ctap_pin_protocol_t);
+	const size_t num_pin_protocols = sizeof(state->pin_protocols) / sizeof(ctap_pin_protocol_t);
 	for (size_t i = 0; i < num_pin_protocols; ++i) {
-		ctap_pin_protocol_t *pin_protocol = &state->pin_protocol[i];
+		ctap_pin_protocol_t *pin_protocol = &state->pin_protocols[i];
 		pin_protocol->reset_pin_uv_auth_token(pin_protocol); // TODO: handle error
 	}
 }

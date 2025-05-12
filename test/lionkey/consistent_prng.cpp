@@ -22,7 +22,7 @@ extern "C" int ctap_generate_rng(uint8_t *buffer, size_t length) {
 		//       i.e., use one rand() output to set (up to) four bytes of the buffer at once.
 		buffer[i] = (uint8_t) rand();
 	}
-	return 1;
+	return 1; // 1 = no error (to be compatible with uECC)
 }
 
 }

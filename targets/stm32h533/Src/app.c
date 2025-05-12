@@ -12,7 +12,7 @@ int ctap_generate_rng(uint8_t *buffer, size_t length) {
 		// TODO: replace stdlib rand() with the STM32H533 RAND peripheral
 		buffer[i] = (uint8_t) rand();
 	}
-	return 1;
+	return 1; // 1 = no error (to be compatible with uECC)
 }
 
 // supported using UART debug chars:

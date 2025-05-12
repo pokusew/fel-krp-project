@@ -71,9 +71,11 @@ target_sources(sha256
 		PRIVATE
 		../../crypto/sha256/sha256.c
 		../../crypto/sha256/hmac.c
+		../../crypto/sha256/hkdf.c
 		INTERFACE
 		../../crypto/sha256/sha256.h
 		../../crypto/sha256/hmac.h
+		../../crypto/sha256/hkdf.h
 )
 target_include_directories(sha256
 		INTERFACE
