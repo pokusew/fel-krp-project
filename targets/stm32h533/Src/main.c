@@ -45,6 +45,8 @@
 COM_InitTypeDef BspCOMInit;
 __IO uint32_t BspButtonState = BUTTON_RELEASED;
 
+RNG_HandleTypeDef hrng;
+
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -53,6 +55,8 @@ __IO uint32_t BspButtonState = BUTTON_RELEASED;
 void SystemClock_Config(void);
 
 static void MX_GPIO_Init(void);
+
+static void MX_RNG_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -103,6 +107,7 @@ int main(void) {
 
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
+	MX_RNG_Init();
 	/* USER CODE BEGIN 2 */
 
 	/* USER CODE END 2 */
@@ -144,7 +149,7 @@ void SystemClock_Config(void) {
 
 	/** Configure the main internal regulator output voltage
 	*/
-	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+	__HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
 
 	while (!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
 
@@ -156,9 +161,9 @@ void SystemClock_Config(void) {
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
 	RCC_OscInitStruct.PLL.PLLSource = RCC_PLL1_SOURCE_HSE;
 	RCC_OscInitStruct.PLL.PLLM = 2;
-	RCC_OscInitStruct.PLL.PLLN = 16;
-	RCC_OscInitStruct.PLL.PLLP = 6;
-	RCC_OscInitStruct.PLL.PLLQ = 4;
+	RCC_OscInitStruct.PLL.PLLN = 40;
+	RCC_OscInitStruct.PLL.PLLP = 2;
+	RCC_OscInitStruct.PLL.PLLQ = 10;
 	RCC_OscInitStruct.PLL.PLLR = 2;
 	RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1_VCIRANGE_3;
 	RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1_VCORANGE_WIDE;
@@ -178,13 +183,38 @@ void SystemClock_Config(void) {
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 	RCC_ClkInitStruct.APB3CLKDivider = RCC_HCLK_DIV1;
 
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK) {
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK) {
 		Error_Handler();
 	}
 
 	/** Configure the programming delay
 	*/
-	__HAL_FLASH_SET_PROGRAM_DELAY(FLASH_PROGRAMMING_DELAY_0);
+	__HAL_FLASH_SET_PROGRAM_DELAY(FLASH_PROGRAMMING_DELAY_2);
+}
+
+/**
+  * @brief RNG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_RNG_Init(void) {
+
+	/* USER CODE BEGIN RNG_Init 0 */
+
+	/* USER CODE END RNG_Init 0 */
+
+	/* USER CODE BEGIN RNG_Init 1 */
+
+	/* USER CODE END RNG_Init 1 */
+	hrng.Instance = RNG;
+	hrng.Init.ClockErrorDetection = RNG_CED_ENABLE;
+	if (HAL_RNG_Init(&hrng) != HAL_OK) {
+		Error_Handler();
+	}
+	/* USER CODE BEGIN RNG_Init 2 */
+
+	/* USER CODE END RNG_Init 2 */
+
 }
 
 /**
