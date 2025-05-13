@@ -322,7 +322,7 @@ export class PinUvAuthProtocolTwo extends PinUvAuthProtocolOne {
 			'sha256',
 			sharedPointZ,
 			HKDF_SHA_256_ZERO_SALT,
-			'CTAP2 HMAC key',
+			'CTAP2 AES key',
 			32,
 		);
 		const sharedSecret = Buffer.concat([Buffer.from(hmacKey), Buffer.from(aesKey)]);
@@ -338,7 +338,8 @@ export class PinUvAuthProtocolTwo extends PinUvAuthProtocolOne {
 		// When key is the pinUvAuthToken, it is exactly 32 bytes long and thus this step has no effect.
 		const hmacKey = key.length >= 32 ? key.subarray(0, 32) : key;
 		const digest = computeHmacSha256Digest(hmacKey, message);
-		return digest.subarray(0, 16);
+		assert.equal(digest.length, 32);
+		return digest;
 	}
 
 	verify(key: Buffer, message: Buffer, signature: Buffer): void {
