@@ -23,10 +23,11 @@ int ctap_generate_rng(uint8_t *buffer, size_t length) {
 
 ctaphid_state_t app_ctaphid;
 static uint8_t app_ctaphid_cbor_response_buffer[1 + 4096];
-ctap_state_t app_ctap = CTAP_STATE_CONST_INIT(
-	sizeof(app_ctaphid_cbor_response_buffer) - 1,
-	&app_ctaphid_cbor_response_buffer[1]
-);
+ctap_response_t app_ctap_response = {
+	.data_max_size = sizeof(app_ctaphid_cbor_response_buffer) - 1,
+	.data = &app_ctaphid_cbor_response_buffer[1]
+};
+ctap_state_t app_ctap = CTAP_STATE_CONST_INIT;
 
 static inline void app_hid_task(void) {
 	tud_task(); // tinyusb device task
@@ -248,12 +249,13 @@ noreturn void app_run(void) {
 						&app_ctap,
 						message->payload[0],
 						message->payload_length - 1,
-						&message->payload[1]
+						&message->payload[1],
+						&app_ctap_response
 					);
 					ctaphid_message_to_packets(
 						message->cid,
 						CTAPHID_CBOR,
-						1 + app_ctap.response.length,
+						1 + app_ctap_response.length,
 						app_ctaphid_cbor_response_buffer,
 						handle_packet_using_send_or_queue_ctaphid_packet,
 						NULL

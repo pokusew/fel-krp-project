@@ -14,8 +14,11 @@ namespace {
 class CtapMakeCredentialTest : public testing::Test {
 protected:
 	uint8_t ctap_response_buffer[CTAP_RESPONSE_BUFFER_SIZE]{};
-	ctap_state_t ctap = CTAP_STATE_CONST_INIT(sizeof(ctap_response_buffer), ctap_response_buffer);
-	ctap_response_t &response = ctap.response;
+	ctap_state_t ctap = CTAP_STATE_CONST_INIT;
+	ctap_response_t response{
+		.data_max_size = sizeof(ctap_response_buffer),
+		.data = ctap_response_buffer,
+	};
 	uint8_t status{};
 
 	CtapMakeCredentialTest() {
@@ -36,7 +39,8 @@ protected:
 			&ctap,
 			CTAP_CMD_MAKE_CREDENTIAL,
 			N,
-			params.data()
+			params.data(),
+			&response
 		);
 	}
 

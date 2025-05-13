@@ -771,9 +771,9 @@ static uint8_t set_pin(
 }
 
 uint8_t ctap_client_pin_set_pin(
-	ctap_state_t *state,
-	ctap_pin_protocol_t *pin_protocol,
-	const CTAP_clientPIN *cp
+	ctap_state_t *const state,
+	ctap_pin_protocol_t *const pin_protocol,
+	const CTAP_clientPIN *const cp
 ) {
 
 	// 6.5.5.5 Setting a New PIN
@@ -818,9 +818,9 @@ uint8_t ctap_client_pin_set_pin(
 }
 
 uint8_t ctap_client_pin_change_pin(
-	ctap_state_t *state,
-	ctap_pin_protocol_t *pin_protocol,
-	const CTAP_clientPIN *cp
+	ctap_state_t *const state,
+	ctap_pin_protocol_t *const pin_protocol,
+	const CTAP_clientPIN *const cp
 ) {
 
 	uint8_t ret;
@@ -877,12 +877,13 @@ uint8_t ctap_client_pin_change_pin(
 }
 
 static uint8_t get_pin_token_using_pin_with_permissions(
-	ctap_state_t *state,
-	ctap_pin_protocol_t *pin_protocol,
-	const COSE_Key *key_agreement,
-	const ctap_string_t *pin_hash_enc,
+	ctap_state_t *const state,
+	ctap_pin_protocol_t *const pin_protocol,
+	const COSE_Key *const key_agreement,
+	const ctap_string_t *const pin_hash_enc,
 	const uint32_t permissions,
-	const CTAP_rpId *rp_id
+	const CTAP_rpId *const rp_id,
+	CborEncoder *encoder
 ) {
 
 	uint8_t ret;
@@ -936,7 +937,6 @@ static uint8_t get_pin_token_using_pin_with_permissions(
 		return CTAP1_ERR_OTHER;
 	}
 
-	CborEncoder *encoder = &state->response.encoder;
 	CborEncoder map;
 	CborError err;
 
@@ -953,9 +953,10 @@ static uint8_t get_pin_token_using_pin_with_permissions(
 }
 
 uint8_t ctap_client_pin_get_pin_token(
-	ctap_state_t *state,
-	ctap_pin_protocol_t *pin_protocol,
-	const CTAP_clientPIN *cp
+	ctap_state_t *const state,
+	ctap_pin_protocol_t *const pin_protocol,
+	const CTAP_clientPIN *const cp,
+	CborEncoder *const encoder
 ) {
 
 	// 6.5.5.7.1. Getting pinUvAuthToken using getPinToken (superseded)
@@ -990,15 +991,17 @@ uint8_t ctap_client_pin_get_pin_token(
 		CTAP_clientPIN_pinUvAuthToken_permission_mc | CTAP_clientPIN_pinUvAuthToken_permission_ga,
 		// Note that the permissions RP ID is not set even though it is required for mc and ga permissions.
 		// It will be set on first use of the pinUvAuthToken with an RP ID.
-		NULL
+		NULL,
+		encoder
 	);
 
 }
 
 uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_with_permissions(
-	ctap_state_t *state,
-	ctap_pin_protocol_t *pin_protocol,
-	const CTAP_clientPIN *cp
+	ctap_state_t *const state,
+	ctap_pin_protocol_t *const pin_protocol,
+	const CTAP_clientPIN *const cp,
+	CborEncoder *const encoder
 ) {
 
 	// 6.5.5.7.2. Getting pinUvAuthToken using getPinUvAuthTokenUsingPinWithPermissions (ClientPIN)
@@ -1089,7 +1092,8 @@ uint8_t ctap_client_pin_get_pin_uv_auth_token_using_pin_with_permissions(
 		// Note: We do not clear the undefined (unknown) permissions since their presence does not affect anything.
 		cp->permissions,
 		// If the rpId parameter is present, associate the permissions RP ID with the pinUvAuthToken.
-		rpId_present ? &cp->rpId : NULL
+		rpId_present ? &cp->rpId : NULL,
+		encoder
 	);
 
 }
@@ -1106,22 +1110,17 @@ uint8_t ctap_get_pin_protocol(ctap_state_t *state, size_t protocol_version, ctap
 	return CTAP2_OK;
 }
 
-uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t length) {
+uint8_t ctap_client_pin(ctap_state_t *const state, CborValue *const it, CborEncoder *const encoder) {
 
 	uint8_t ret;
 	CborError err;
 
-	CborParser parser;
-	CborValue it;
-	ctap_check(ctap_init_cbor_parser(request, length, &parser, &it));
-
 	CTAP_clientPIN cp;
-	ctap_check(ctap_parse_client_pin(&it, &cp));
+	ctap_check(ctap_parse_client_pin(it, &cp));
 
 	ctap_pin_protocol_t *pin_protocol;
 	ctap_check(ctap_get_pin_protocol(state, cp.pinUvAuthProtocol, &pin_protocol));
 
-	CborEncoder *encoder = &state->response.encoder;
 	CborEncoder map;
 
 	switch (cp.subCommand) {
@@ -1166,7 +1165,7 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 
 		case CTAP_clientPIN_subCmd_getPinToken:
 			debug_log(magenta("CTAP_clientPIN_subCmd_getPinToken") nl);
-			return ctap_client_pin_get_pin_token(state, pin_protocol, &cp);
+			return ctap_client_pin_get_pin_token(state, pin_protocol, &cp, encoder);
 
 		case CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingUvWithPermissions:
 		case CTAP_clientPIN_subCmd_getUVRetries:
@@ -1176,7 +1175,7 @@ uint8_t ctap_client_pin(ctap_state_t *state, const uint8_t *request, size_t leng
 
 		case CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingPinWithPermissions:
 			debug_log(magenta("CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingPinWithPermissions") nl);
-			return ctap_client_pin_get_pin_uv_auth_token_using_pin_with_permissions(state, pin_protocol, &cp);
+			return ctap_client_pin_get_pin_uv_auth_token_using_pin_with_permissions(state, pin_protocol, &cp, encoder);
 
 	}
 

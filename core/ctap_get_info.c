@@ -59,9 +59,11 @@ bool ctap_get_info_is_option_absent(const ctap_state_t *state, const uint32_t op
 	return !ctap_get_info_is_option_present(state, option);
 }
 
-uint8_t ctap_get_info(ctap_state_t *state) {
+uint8_t ctap_get_info(ctap_state_t *state, CborValue *it, CborEncoder *encoder) {
 
-	CborEncoder *encoder = &state->response.encoder;
+	// This command does not take any parameters.
+	lion_unused(it);
+
 	CborEncoder map;
 	CborError err;
 

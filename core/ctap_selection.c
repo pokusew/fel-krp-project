@@ -1,6 +1,13 @@
 #include "ctap.h"
 
-uint8_t ctap_selection(ctap_state_t *state) {
+uint8_t ctap_selection(ctap_state_t *const state, CborValue *const it, CborEncoder *const encoder) {
+
+	// This command does not use or modify the CTAP state.
+	lion_unused(state);
+	// This command does not take any parameters.
+	lion_unused(it);
+	// This command does return any response data (only the status code).
+	lion_unused(encoder);
 
 	// 6.9. authenticatorSelection (0x0B)
 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorSelection

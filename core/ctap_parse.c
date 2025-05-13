@@ -283,6 +283,10 @@ uint8_t ctap_parse_client_pin(CborValue *it, CTAP_clientPIN *params) {
 
 	ctap_parse_map_enter("authenticatorClientPin parameters");
 
+	if (it == NULL) {
+		return CTAP2_ERR_MISSING_PARAMETER;
+	}
+
 	memset(params, 0, sizeof(CTAP_clientPIN));
 
 	for (size_t i = 0; i < map_length; i++) {
@@ -571,6 +575,10 @@ static uint8_t parse_make_credential_extensions(CborValue *it, CTAP_makeCredenti
 uint8_t ctap_parse_make_credential(CborValue *it, CTAP_makeCredential *mc) {
 
 	ctap_parse_map_enter("authenticatorMakeCredential parameters");
+
+	if (it == NULL) {
+		return CTAP2_ERR_MISSING_PARAMETER;
+	}
 
 	memset(mc, 0, sizeof(CTAP_makeCredential));
 	CTAP_mc_ga_common *const params = &mc->common;
@@ -995,6 +1003,10 @@ uint8_t ctap_parse_get_assertion(CborValue *it, CTAP_getAssertion *ga) {
 
 	ctap_parse_map_enter("authenticatorGetAssertion parameters");
 
+	if (it == NULL) {
+		return CTAP2_ERR_MISSING_PARAMETER;
+	}
+
 	memset(ga, 0, sizeof(CTAP_getAssertion));
 	CTAP_mc_ga_common *const params = &ga->common;
 
@@ -1133,6 +1145,10 @@ static uint8_t parse_credential_management_subcommand_params(CborValue *it, CTAP
 uint8_t ctap_parse_credential_management(CborValue *it, CTAP_credentialManagement *cm) {
 
 	ctap_parse_map_enter("authenticatorCredentialManagement parameters");
+
+	if (it == NULL) {
+		return CTAP2_ERR_MISSING_PARAMETER;
+	}
 
 	memset(cm, 0, sizeof(CTAP_credentialManagement));
 

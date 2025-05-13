@@ -5,14 +5,6 @@
 #include "ctap_parse.h"
 #include <uECC.h>
 
-// int ctap_generate_rng(uint8_t *buffer, size_t length) {
-// 	debug_log("ctap_generate_rng: %zu bytes to %p" nl, length, buffer);
-// 	for (size_t i = 0; i < length; i++) {
-// 		buffer[i] = (uint8_t) rand();
-// 	}
-// 	return 1;
-// }
-
 bool ctap_string_matches(const ctap_string_t *a, const ctap_string_t *b) {
 	const size_t size = a->size;
 	if (size != b->size) {
@@ -21,9 +13,9 @@ bool ctap_string_matches(const ctap_string_t *a, const ctap_string_t *b) {
 	return memcmp(a->data, b->data, size) == 0;
 }
 
-static void ctap_state_init(ctap_persistent_state_t *state) {
+static void ctap_init_persistent_state_tmp(ctap_persistent_state_t *state) {
 
-	debug_log("ctap_state_init" nl);
+	debug_log("ctap_init_persistent_state_tmp" nl);
 
 	// set to 0xff instead of 0x00 to be easier on flash
 	memset(state, 0xff, sizeof(ctap_persistent_state_t));
@@ -46,10 +38,6 @@ static void ctap_state_init(ctap_persistent_state_t *state) {
 	state->num_rk_stored = 0;
 
 	ctap_reset_credentials_store();
-
-}
-
-void authenticator_write_state(ctap_state_t *state) {
 
 }
 
@@ -88,47 +76,16 @@ void ctap_init(ctap_state_t *state) {
 
 	debug_log("ctap_init" nl);
 
-	assert(state->response.data != NULL && state->response.data_max_size != 0);
-
-	// crypto_ecc256_init();
 	uECC_set_rng((uECC_RNG_Function) ctap_generate_rng);
 
-	// int is_init = authenticator_read_state(&state);
-
-	// device_set_status(CTAPHID_STATUS_IDLE);
-
-	// if (false) {
-	// 	debug_log(
-	// 		"auth state is initialized" nl
-	// 		"  is_pin_set = %" wPRIu8 nl
-	// 		"  remaining_tries = %" wPRId8 nl
-	// 		"  num_rk_stored = %" PRIu16 nl
-	// 		"  is_initialized = 0x%08" PRIx32 nl
-	// 		"  is_invalid = 0x%08" PRIx32 nl,
-	// 		state.is_pin_set,
-	// 		state.remaining_tries,
-	// 		state.num_rk_stored,
-	// 		state.is_initialized,
-	// 		state.is_invalid
-	// 	);
-	// 	debug_log("  master_keys = ");
-	// 	dump_hex(state->persistent.master_keys, KEY_SPACE_BYTES);
-	// 	debug_log("  PIN_SALT = ");
-	// 	dump_hex(state->persistent.PIN_SALT, sizeof(state->persistent.PIN_SALT));
-	// } else {
-		ctap_state_init(&state->persistent);
-		authenticator_write_state(state);
-	// }
+	// TODO: Replace once proper persistence is implemented.
+	ctap_init_persistent_state_tmp(&state->persistent);
 
 	state->pin_boot_remaining_attempts = PIN_PER_BOOT_ATTEMPTS;
 
 	// 6.5.5.1. Authenticator Configuration Operations Upon Power Up
 	// At power-up, the authenticator calls initialize for each pinUvAuthProtocol that it supports.
 	ctap_all_pin_protocols_initialize(state);
-
-	// do_migration_if_required(&state);
-
-	// crypto_load_master_secret(state->persistent->master_keys);
 
 	if (state->persistent.is_pin_set) {
 		info_log("pin remaining_tries=%" wPRId8 nl, state->persistent.pin_total_remaining_attempts);
@@ -138,26 +95,103 @@ void ctap_init(ctap_state_t *state) {
 
 }
 
+static const ctap_command_handler_t ctap_command_handlers[] = {
+	[CTAP_CMD_MAKE_CREDENTIAL] = ctap_make_credential,
+	[CTAP_CMD_GET_ASSERTION] = ctap_get_assertion,
+	[CTAP_CMD_GET_NEXT_ASSERTION] = ctap_get_next_assertion,
+	[CTAP_CMD_GET_INFO] = ctap_get_info,
+	[CTAP_CMD_CLIENT_PIN] = ctap_client_pin,
+	[CTAP_CMD_RESET] = ctap_reset,
+	[CTAP_CMD_CREDENTIAL_MANAGEMENT] = ctap_credential_management,
+	[CTAP_CMD_SELECTION] = ctap_selection,
+};
+static const uint8_t ctap_command_handlers_num = sizeof(ctap_command_handlers) / sizeof(ctap_command_handler_t);
+static_assert(
+	sizeof(ctap_command_handlers) / sizeof(ctap_command_handler_t) == 12,
+	"sizeof(ctap_command_handlers) / sizeof(ctap_command_handler) == 12"
+);
+
+ctap_command_handler_t ctap_get_command_handler(const uint8_t cmd) {
+	// if the cmd value is out of bounds to be used as index for the ctap_command_handlers array
+	if (cmd >= ctap_command_handlers_num) {
+		return NULL;
+	}
+	// still, there might be a NULL at the cmd index in the ctap_command_handlers array
+	return ctap_command_handlers[cmd];
+}
+
+#if LIONKEY_DEBUG_LEVEL > 0
+
+static const ctap_string_t ctap_command_names[] = {
+	[CTAP_CMD_MAKE_CREDENTIAL] = ctap_str_i("CTAP_CMD_MAKE_CREDENTIAL"),
+	[CTAP_CMD_GET_ASSERTION] = ctap_str_i("CTAP_CMD_GET_ASSERTION"),
+	[CTAP_CMD_GET_NEXT_ASSERTION] = ctap_str_i("CTAP_CMD_GET_NEXT_ASSERTION"),
+	[CTAP_CMD_GET_INFO] = ctap_str_i("CTAP_CMD_GET_INFO"),
+	[CTAP_CMD_CLIENT_PIN] = ctap_str_i("CTAP_CMD_CLIENT_PIN"),
+	[CTAP_CMD_RESET] = ctap_str_i("CTAP_CMD_RESET"),
+	[CTAP_CMD_CREDENTIAL_MANAGEMENT] = ctap_str_i("CTAP_CMD_CREDENTIAL_MANAGEMENT"),
+	[CTAP_CMD_SELECTION] = ctap_str_i("CTAP_CMD_SELECTION"),
+};
+static const uint8_t ctap_command_names_num = sizeof(ctap_command_names) / sizeof(ctap_string_t);
+static_assert(
+	sizeof(ctap_command_names) / sizeof(ctap_string_t) == 12,
+	"sizeof(ctap_command_names) / sizeof(ctap_string_t) == 12"
+);
+
+static const ctap_string_t *ctap_get_command_name(const uint8_t cmd) {
+	// if the cmd value is out of bounds to be used as index for the ctap_command_names array
+	if (cmd >= ctap_command_names_num) {
+		return NULL;
+	}
+	// still, there might be a NULL at the cmd index in the ctap_command_names array
+	return &ctap_command_names[cmd];
+}
+
+#endif
+
+/**
+ * Processes a CTAP2 command, updates the CTAP state, and returns a response
+ * (a CTAP status code + CBOR-encoded response data)
+ *
+ * @param [in,out] state the current CTAP state, will be updated
+ * @param [in] cmd the CTAP2 command code
+ * @param [in] params_size the size of the params byte array, might be 0, if there are no params
+ * @param [in] params a byte array of params_size length, the command parameters encoded as CBOR,
+ *                    MUST NOT be NULL iff params_size > 0, i.e., NULL is allowed iff params_size == 0
+ * @param [in,out] response The response.data field must point to a non-null buffer
+ *                          of response.data_max_size (> 0) bytes.
+ *                          Upon return, the response.length will be set to the number of bytes of the CBOR-encoded
+ *                          response bytes that were written to the response.data.
+ *                          The following holds: 0 <= response.length <= response.data_max_size.
+ *                          If the response cannot fit into the given buffer,
+ *                          the CTAP1_ERR_OTHER error is returned (see cbor_encoding_check(),
+ *                          and the response.length is set to 0 (note that the response.data might contain partially
+ *                          written response, up to the response.data_max_size bytes).
+ *
+ * @return a CTAP status code
+ * @retval CTAP2_OK if the command was processed successfully
+ * @retval a CTAP error code if the command was NOT processed successfully
+ */
 uint8_t ctap_request(
-	ctap_state_t *state,
-	uint8_t cmd,
-	size_t params_size,
-	const uint8_t *params
+	ctap_state_t *const state,
+	const uint8_t cmd,
+	const size_t params_size,
+	const uint8_t *params,
+	ctap_response_t *const response
 ) {
+
+	assert(state != NULL);
+	assert(params_size == 0 || params != NULL);
+	assert(response != NULL && response->data != NULL && response->data_max_size != 0);
 
 	// get the current time once at the beginning of the command processing
 	// to have one constant value throughout the whole command processing
 	state->last_cmd_time = ctap_get_current_time();
 
-	CborEncoder *encoder = &state->response.encoder;
-
-	uint8_t status;
-
-	assert(state->response.data != NULL && state->response.data_max_size != 0);
-	cbor_encoder_init(encoder, state->response.data, state->response.data_max_size, 0);
-
-	error_log("ctap_request cmd=0x%02" wPRIx8 " params_size=%" PRIsz nl, cmd, params_size);
-	dump_hex(params, params_size);
+	info_log("ctap_request cmd=0x%02" wPRIx8 " params_size=%" PRIsz nl, cmd, params_size);
+	if (params_size > 0) {
+		dump_hex(params, params_size);
+	}
 
 	if (ctap_pin_uv_auth_token_check_usage_timer(state)) {
 		// the pinUvAuthToken has just expired
@@ -195,71 +229,78 @@ uint8_t ctap_request(
 		}
 	}
 
-	switch (cmd) {
-		case CTAP_CMD_MAKE_CREDENTIAL:
-			info_log(magenta("CTAP_CMD_MAKE_CREDENTIAL") nl);
-			status = ctap_make_credential(state, params, params_size);
-			break;
-		case CTAP_CMD_GET_ASSERTION:
-			info_log(magenta("CTAP_CMD_GET_ASSERTION") nl);
-			status = ctap_get_assertion(state, params, params_size);
-			break;
-		case CTAP_CMD_GET_NEXT_ASSERTION:
-			info_log(magenta("CTAP_CMD_GET_NEXT_ASSERTION") nl);
-			// Consider returning an error (e.g., CTAP1_ERR_INVALID_PARAMETER)
-			// if any input parameters are provided (because the authenticatorGetInfo command does not
-			// take any inputs parameters). Currently, we ignore any unexpected parameters.
-			status = ctap_get_next_assertion(state);
-			break;
-		case CTAP_CMD_GET_INFO:
-			info_log(magenta("CTAP_CMD_GET_INFO") nl);
-			// Consider returning an error (e.g., CTAP1_ERR_INVALID_PARAMETER)
-			// if any input parameters are provided (because the authenticatorGetInfo command does not
-			// take any inputs parameters). Currently, we ignore any unexpected parameters.
-			status = ctap_get_info(state);
-			break;
-		case CTAP_CMD_CLIENT_PIN:
-			info_log(magenta("CTAP_CLIENT_PIN") nl);
-			status = ctap_client_pin(state, params, params_size);
-			break;
-		case CTAP_CMD_RESET:
-			info_log(magenta("CTAP_CMD_RESET") nl);
-			// Consider returning an error (e.g., CTAP1_ERR_INVALID_PARAMETER)
-			// if any input parameters are provided (because the authenticatorGetInfo command does not
-			// take any inputs parameters). Currently, we ignore any unexpected parameters.
-			status = ctap_reset(state);
-			break;
-		case CTAP_CMD_CREDENTIAL_MANAGEMENT:
-			info_log(magenta("CTAP_CMD_CREDENTIAL_MANAGEMENT") nl);
-			status = ctap_credential_management(state, params, params_size);
-			break;
-		case CTAP_CMD_SELECTION:
-			info_log(magenta("CTAP_CMD_SELECTION") nl);
-			// Consider returning an error (e.g., CTAP1_ERR_INVALID_PARAMETER)
-			// if any input parameters are provided (because the authenticatorSelection command does not
-			// take any inputs parameters). Currently, we ignore any unexpected parameters.
-			status = ctap_selection(state);
-			break;
-		default:
-			status = CTAP1_ERR_INVALID_COMMAND;
-			error_log(red("error: invalid cmd: 0x%02" wPRIx8) nl, cmd);
+	uint8_t status;
+
+	ctap_command_handler_t handler = ctap_get_command_handler(cmd);
+
+	// note: we do not use fast return here so that the debug block at the end always run (even for errors)
+
+	// to simplify the code, we set the response length to 0 here once so that we don't forget
+	// (even though it is necessary only for error cases,  because on success,
+	// it will be set to the actual response length)
+	response->length = 0;
+
+	if (handler == NULL) {
+
+		status = CTAP1_ERR_INVALID_COMMAND;
+		error_log(red("error: invalid cmd: 0x%02" wPRIx8) nl, cmd);
+
+	} else {
+
+		if (LIONKEY_DEBUG_LEVEL > 0) {
+			const ctap_string_t *const cmd_name = ctap_get_command_name(cmd);
+			debug_log(magenta("%.*s") nl, (int) cmd_name->size, cmd_name->data);
+		}
+
+		// prepare response CBOR encoder
+		CborEncoder response_encoder;
+		cbor_encoder_init(&response_encoder, response->data, response->data_max_size, 0);
+
+		// initialize params CBOR parser
+		CborParser params_parser;
+		CborValue params_it;
+		CborValue *params_it_ptr = NULL;
+		if (params_size > 0) {
+			// ctap_init_cbor_parser() might immediately return CTAP2_ERR_INVALID_CBOR
+			// if the params' first byte(s) are not a valid CBOR
+			status = ctap_init_cbor_parser(params, params_size, &params_parser, &params_it);
+			if (status == CTAP2_OK) {
+				params_it_ptr = &params_it;
+			}
+		} else {
+			status = CTAP2_OK;
+		}
+
+		// only invoke the handler if the ctap_init_cbor_parser() call succeeded
+		if (status == CTAP2_OK) {
+			// Note that some commands do not take any input parameters at all.
+			// Their corresponding handlers completely ignore the params argument.
+			// (this is probably the best future-proof behavior, similar to the ignoring
+			// of any individual unexpected parameter names within the params CBOR map).
+			status = handler(state, params_it_ptr, &response_encoder);
+			if (status == CTAP2_OK) {
+				response->length = cbor_encoder_get_buffer_size(&response_encoder, response->data);
+			}
+		}
+
 	}
 
-	if (status == CTAP2_OK) {
-		state->response.length = cbor_encoder_get_buffer_size(encoder, state->response.data);
-	} else {
-		state->response.length = 0;
-	}
-
-	if (status == CTAP2_OK) {
-		debug_log(
-			green("ctap_request: response status code 0x%02" wPRIx8 ", response length %" PRIsz " bytes") nl,
-			status,
-			state->response.length
-		);
-		dump_hex(state->response.data, state->response.length);
-	} else {
-		debug_log(red("ctap_request: error response status code 0x%02" wPRIx8) nl, status);
+	if (LIONKEY_DEBUG_LEVEL > 1) {
+		uint32_t duration = ctap_get_current_time() - state->last_cmd_time;
+		if (status == CTAP2_OK) {
+			info_log(
+				green(
+					"ctap_request: response status code"
+					" 0x%02" wPRIx8 " in %" PRId32 " ms, response length %" PRIsz " bytes") nl,
+				status, duration, response->length
+			);
+			dump_hex(response->data, response->length);
+		} else {
+			info_log(
+				red("ctap_request: error response status code 0x%02" wPRIx8 " in %" PRId32 " ms") nl,
+				status, duration
+			);
+		}
 	}
 
 	return status;

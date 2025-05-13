@@ -55,6 +55,7 @@ typedef struct ctap_string {
 } ctap_string_t;
 
 #define ctap_str(str) ((const ctap_string_t) {.size = sizeof((str)) - 1, .data = (const uint8_t *) (str)})
+#define ctap_str_i(str) {.size = sizeof((str)) - 1, .data = (const uint8_t *) (str)}
 
 bool ctap_string_matches(const ctap_string_t *a, const ctap_string_t *b);
 

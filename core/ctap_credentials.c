@@ -1269,18 +1269,14 @@ static uint8_t enumerate_rp_ids_of_discoverable_credentials(
 
 }
 
-uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t length) {
+uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, CborEncoder *const encoder) {
 
 	uint8_t ret;
 	CborError err;
 
-	CborParser parser;
-	CborValue it;
-	ctap_check(ctap_init_cbor_parser(request, length, &parser, &it));
-
 	CTAP_makeCredential mc;
 	CTAP_mc_ga_common *const params = &mc.common;
-	ctap_check(ctap_parse_make_credential(&it, &mc));
+	ctap_check(ctap_parse_make_credential(it, &mc));
 
 	const bool pinUvAuthParam_present = ctap_param_is_present(params, CTAP_makeCredential_pinUvAuthParam);
 	ctap_pin_protocol_t *pin_protocol = NULL;
@@ -1525,7 +1521,6 @@ uint8_t ctap_make_credential(ctap_state_t *state, const uint8_t *request, size_t
 
 	const size_t auth_data_total_size = sizeof(auth_data.fixed_header) + auth_data_variable_size;
 
-	CborEncoder *encoder = &state->response.encoder;
 	CborEncoder map;
 
 	// start response map
@@ -1662,17 +1657,13 @@ static uint8_t generate_get_assertion_response(
 
 }
 
-uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t length) {
+uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborEncoder *const encoder) {
 
 	uint8_t ret;
 
-	CborParser parser;
-	CborValue it;
-	ctap_check(ctap_init_cbor_parser(request, length, &parser, &it));
-
 	CTAP_getAssertion ga;
 	CTAP_mc_ga_common *const params = &ga.common;
-	ctap_check(ctap_parse_get_assertion(&it, &ga));
+	ctap_check(ctap_parse_get_assertion(it, &ga));
 
 	const bool pinUvAuthParam_present = ctap_param_is_present(params, CTAP_getAssertion_pinUvAuthParam);
 	ctap_pin_protocol_t *pin_protocol = NULL;
@@ -1837,7 +1828,7 @@ uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t l
 
 	// 13. Sign the clientDataHash along with authData.
 	ctap_check(generate_get_assertion_response(
-		&state->response.encoder,
+		encoder,
 		&ga_state->credentials[ga_state->next_credential_idx],
 		ga_state->auth_data_rp_id_hash,
 		params->clientDataHash.data,
@@ -1856,7 +1847,10 @@ uint8_t ctap_get_assertion(ctap_state_t *state, const uint8_t *request, size_t l
 
 }
 
-uint8_t ctap_get_next_assertion(ctap_state_t *state) {
+uint8_t ctap_get_next_assertion(ctap_state_t *const state, CborValue *const it, CborEncoder *const encoder) {
+
+	// This command does not take any parameters.
+	lion_unused(it);
 
 	// 6.3. authenticatorGetNextAssertion (0x08)
 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorGetNextAssertion
@@ -1890,7 +1884,7 @@ uint8_t ctap_get_next_assertion(ctap_state_t *state) {
 
 	// 6. Sign the clientDataHash along with authData. (also handles Step 5)
 	ctap_check(generate_get_assertion_response(
-		&state->response.encoder,
+		encoder,
 		// 4. Select the credential indexed by credentialCounter.
 		&ga_state->credentials[ga_state->next_credential_idx],
 		ga_state->auth_data_rp_id_hash,
@@ -1959,7 +1953,7 @@ static inline uint8_t verify_credential_management_params(
 	return CTAP2_OK;
 }
 
-static uint8_t credential_management_get_creds_metadata(ctap_state_t *state) {
+static uint8_t credential_management_get_creds_metadata(ctap_state_t *const state, CborEncoder *const encoder) {
 
 	// the pinUvAuthToken used for getCredsMetadata must NOT have a permissions RP ID associated
 	if (state->pin_uv_auth_token_state.rpId_set) {
@@ -1967,7 +1961,6 @@ static uint8_t credential_management_get_creds_metadata(ctap_state_t *state) {
 	}
 
 	CborError err;
-	CborEncoder *encoder = &state->response.encoder;
 	CborEncoder map;
 
 	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 2));
@@ -2018,7 +2011,7 @@ static uint8_t encode_credential_management_enumerate_rps_response(
 
 }
 
-static uint8_t credential_management_enumerate_rps_begin(ctap_state_t *state) {
+static uint8_t credential_management_enumerate_rps_begin(ctap_state_t *const state, CborEncoder *const encoder) {
 
 	// the pinUvAuthToken used for enumerateRPsBegin must NOT have a permissions RP ID associated
 	if (state->pin_uv_auth_token_state.rpId_set) {
@@ -2046,7 +2039,7 @@ static uint8_t credential_management_enumerate_rps_begin(ctap_state_t *state) {
 	assert(enumerate_rps_state->num_rps > 0);
 
 	ctap_check(encode_credential_management_enumerate_rps_response(
-		&state->response.encoder,
+		encoder,
 		enumerate_rps_state->rp_ids[enumerate_rps_state->next_rp_idx],
 		enumerate_rps_state->num_rps
 	));
@@ -2061,7 +2054,7 @@ static uint8_t credential_management_enumerate_rps_begin(ctap_state_t *state) {
 
 }
 
-static uint8_t credential_management_enumerate_rps_get_next_rp(ctap_state_t *state) {
+static uint8_t credential_management_enumerate_rps_get_next_rp(ctap_state_t *const state, CborEncoder *const encoder) {
 
 	if (state->stateful_command_state.active_cmd != CTAP_STATEFUL_CMD_CRED_MGMT_ENUMERATE_RPS) {
 		return CTAP2_ERR_NOT_ALLOWED;
@@ -2072,7 +2065,7 @@ static uint8_t credential_management_enumerate_rps_get_next_rp(ctap_state_t *sta
 	uint8_t ret;
 
 	ctap_check(encode_credential_management_enumerate_rps_response(
-		&state->response.encoder,
+		encoder,
 		enumerate_rps_state->rp_ids[enumerate_rps_state->next_rp_idx],
 		0 // totalRPs (0x05) is omitted for the authenticatorCredentialManagement/enumerateRPsGetNextRP
 	));
@@ -2136,8 +2129,9 @@ static uint8_t encode_credential_management_enumerate_credentials_response(
 }
 
 static uint8_t credential_management_enumerate_credentials_begin(
-	ctap_state_t *state,
-	const CTAP_credentialManagement *cm
+	ctap_state_t *const state,
+	const CTAP_credentialManagement *const cm,
+	CborEncoder *const encoder
 ) {
 
 	if ((
@@ -2195,7 +2189,7 @@ static uint8_t credential_management_enumerate_credentials_begin(
 	}
 
 	ctap_check(encode_credential_management_enumerate_credentials_response(
-		&state->response.encoder,
+		encoder,
 		&enumerate_credentials_state->credentials[enumerate_credentials_state->next_credential_idx],
 		enumerate_credentials_state->num_credentials
 	));
@@ -2210,7 +2204,10 @@ static uint8_t credential_management_enumerate_credentials_begin(
 
 }
 
-static uint8_t credential_management_enumerate_credentials_get_next_credential(ctap_state_t *state) {
+static uint8_t credential_management_enumerate_credentials_get_next_credential(
+	ctap_state_t *const state,
+	CborEncoder *const encoder
+) {
 
 	if (state->stateful_command_state.active_cmd != CTAP_STATEFUL_CMD_CRED_MGMT_ENUMERATE_CREDENTIALS) {
 		return CTAP2_ERR_NOT_ALLOWED;
@@ -2221,7 +2218,7 @@ static uint8_t credential_management_enumerate_credentials_get_next_credential(c
 	uint8_t ret;
 
 	ctap_check(encode_credential_management_enumerate_credentials_response(
-		&state->response.encoder,
+		encoder,
 		&enumerate_credentials_state->credentials[enumerate_credentials_state->next_credential_idx],
 		0 // totalCredentials (0x09) is omitted for the authenticatorCredentialManagement/enumerateCredentialsGetNextCredential
 	));
@@ -2236,7 +2233,10 @@ static uint8_t credential_management_enumerate_credentials_get_next_credential(c
 
 }
 
-static uint8_t credential_management_delete_credential(ctap_state_t *state, const CTAP_credentialManagement *cm) {
+static uint8_t credential_management_delete_credential(
+	ctap_state_t *const state,
+	const CTAP_credentialManagement *const cm
+) {
 
 	ctap_discard_stateful_command_state(state);
 
@@ -2273,7 +2273,10 @@ static uint8_t credential_management_delete_credential(ctap_state_t *state, cons
 
 }
 
-static uint8_t credential_management_update_user_information(ctap_state_t *state, const CTAP_credentialManagement *cm) {
+static uint8_t credential_management_update_user_information(
+	ctap_state_t *const state,
+	const CTAP_credentialManagement *const cm
+) {
 
 	ctap_discard_stateful_command_state(state);
 
@@ -2352,16 +2355,12 @@ static uint8_t credential_management_update_user_information(ctap_state_t *state
 
 }
 
-uint8_t ctap_credential_management(ctap_state_t *state, const uint8_t *request, size_t length) {
+uint8_t ctap_credential_management(ctap_state_t *const state, CborValue *const it, CborEncoder *const encoder) {
 
 	uint8_t ret;
 
-	CborParser parser;
-	CborValue it;
-	ctap_check(ctap_init_cbor_parser(request, length, &parser, &it));
-
 	CTAP_credentialManagement cm;
-	ctap_check(ctap_parse_credential_management(&it, &cm));
+	ctap_check(ctap_parse_credential_management(it, &cm));
 
 	// 6.8. authenticatorCredentialManagement (0x0A)
 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authenticatorCredentialManagement
@@ -2393,23 +2392,23 @@ uint8_t ctap_credential_management(ctap_state_t *state, const uint8_t *request, 
 
 		case CTAP_credentialManagement_subCmd_getCredsMetadata:
 			debug_log(magenta("CTAP_credentialManagement_subCmd_getCredsMetadata") nl);
-			return credential_management_get_creds_metadata(state);
+			return credential_management_get_creds_metadata(state, encoder);
 
 		case CTAP_credentialManagement_subCmd_enumerateRPsBegin:
 			debug_log(magenta("CTAP_credentialManagement_subCmd_enumerateRPsBegin") nl);
-			return credential_management_enumerate_rps_begin(state);
+			return credential_management_enumerate_rps_begin(state, encoder);
 
 		case CTAP_credentialManagement_subCmd_enumerateRPsGetNextRP:
 			debug_log(magenta("CTAP_credentialManagement_subCmd_enumerateRPsGetNextRP") nl);
-			return credential_management_enumerate_rps_get_next_rp(state);
+			return credential_management_enumerate_rps_get_next_rp(state, encoder);
 
 		case CTAP_credentialManagement_subCmd_enumerateCredentialsBegin:
 			debug_log(magenta("CTAP_credentialManagement_subCmd_enumerateCredentialsBegin") nl);
-			return credential_management_enumerate_credentials_begin(state, &cm);
+			return credential_management_enumerate_credentials_begin(state, &cm, encoder);
 
 		case CTAP_credentialManagement_subCmd_enumerateCredentialsGetNextCredential:
 			debug_log(magenta("CTAP_credentialManagement_subCmd_enumerateCredentialsGetNextCredential") nl);
-			return credential_management_enumerate_credentials_get_next_credential(state);
+			return credential_management_enumerate_credentials_get_next_credential(state, encoder);
 
 		case CTAP_credentialManagement_subCmd_deleteCredential:
 			debug_log(magenta("CTAP_credentialManagement_subCmd_deleteCredential") nl);
