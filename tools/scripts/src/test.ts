@@ -37,13 +37,23 @@ function processPin(pin: string, name = 'pin'): ProcessedPin {
 	return { pin, bytes, padded, hash };
 }
 
-const TEST_AUTHENTICATOR_PUBLIC_KEY = createPinUvAuthProtocolEcdhCoseKey({
+const TEST_AUTHENTICATOR_PUBLIC_KEY_V1 = createPinUvAuthProtocolEcdhCoseKey({
 	x: Buffer.from(
 		'2fec0a433af4ff216b7996d7304614be3ff2238e9d4b0b63337ea0fcac6967d0',
 		'hex',
 	),
 	y: Buffer.from(
 		'6d78c07b4cabd8b82f03870a74f23f5a2a655d17703df812dabab1a5f273acfa',
+		'hex',
+	),
+});
+const TEST_AUTHENTICATOR_PUBLIC_KEY_V2 = createPinUvAuthProtocolEcdhCoseKey({
+	x: Buffer.from(
+		'ada80bf2155208a482007a76b77100f37a0b78a1f5aaf7a20193fa4630bb8490',
+		'hex',
+	),
+	y: Buffer.from(
+		'f0143340ed13ba4e5546728599a02ce3f170b40eb9dfd8d23454fd98192feee3',
 		'hex',
 	),
 });
@@ -57,8 +67,8 @@ function setOrChangePin(
 	oldPinStr: string | undefined,
 	newPinStr: string,
 	platform: PinUvAuthProtocol = new PinUvAuthProtocolOne(),
-	platformPrivateKey: Buffer = TEST_PLATFORM_PRIVATE_KEY,
-	authenticatorPublicKey: CoseKey = TEST_AUTHENTICATOR_PUBLIC_KEY,
+	platformPrivateKey: Buffer,
+	authenticatorPublicKey: CoseKey,
 ) {
 	console.log(oldPinStr === undefined ? '--- setPin ---' : '--- changePin ---');
 
@@ -119,10 +129,20 @@ function main(args: string[]) {
 
 	const protocol: PinUvAuthProtocol =
 		version === 'v1' ? new PinUvAuthProtocolOne() : new PinUvAuthProtocolTwo();
+	const authenticatorPublicKey: CoseKey =
+		version === 'v1'
+			? TEST_AUTHENTICATOR_PUBLIC_KEY_V1
+			: TEST_AUTHENTICATOR_PUBLIC_KEY_V2;
 
 	if (subCommand === 'setPin') {
 		const newPin = args[2];
-		setOrChangePin(undefined, newPin, protocol);
+		setOrChangePin(
+			undefined,
+			newPin,
+			protocol,
+			TEST_PLATFORM_PRIVATE_KEY,
+			authenticatorPublicKey,
+		);
 		return;
 	}
 
@@ -134,9 +154,14 @@ function main(args: string[]) {
 		}
 		const oldPin = args[2];
 		const newPin = args[3];
-		setOrChangePin(oldPin, newPin, protocol);
+		setOrChangePin(
+			oldPin,
+			newPin,
+			protocol,
+			TEST_PLATFORM_PRIVATE_KEY,
+			authenticatorPublicKey,
+		);
 	}
 }
 
 main(process.argv.slice(2));
-
