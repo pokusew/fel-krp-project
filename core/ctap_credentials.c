@@ -1829,6 +1829,19 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 		//    This counter signifies the next credential to be returned by the authenticator,
 		//    assuming zero-based indexing.
 		ga_state->next_credential_idx++;
+	} else {
+		// We could just leave the partial state in memory since it's not valid anyway
+		// (because, at this point, stateful_command_state.active_cmd == CTAP_STATEFUL_CMD_NONE).
+		// However, as a good practice, we want to avoid keeping any potentially sensitive state
+		// in memory longer than necessary. To avoid unnecessary large memset()
+		// in ctap_discard_stateful_command_state(), we manually clean up the partial state.
+		memset(ga_state->auth_data_rp_id_hash, 0, CTAP_SHA256_HASH_SIZE);
+		static_assert(
+			sizeof(ga_state->credentials[0]) == sizeof(ctap_credential),
+			"sizeof(ga_state->credentials[0]) == sizeof(ctap_credential)"
+		);
+		memset(ga_state->credentials, 0, sizeof(ga_state->credentials[0]) * ga_state->num_credentials);
+		ga_state->num_credentials = 0;
 	}
 
 	return CTAP2_OK;
@@ -2029,10 +2042,27 @@ static uint8_t credential_management_enumerate_rps_begin(ctap_state_t *const sta
 		enumerate_rps_state->num_rps
 	));
 
-	if (enumerate_rps_state->num_rps > 0) {
+	if (enumerate_rps_state->num_rps > 1) {
 		state->stateful_command_state.active_cmd = CTAP_STATEFUL_CMD_CRED_MGMT_ENUMERATE_RPS;
 		enumerate_rps_state->next_rp_idx++;
 		ctap_update_stateful_command_timer(state);
+	} else {
+		// We could just leave the partial state in memory since it's not valid anyway
+		// (because, at this point, stateful_command_state.active_cmd == CTAP_STATEFUL_CMD_NONE).
+		// However, as a good practice, we want to avoid keeping any potentially sensitive state
+		// in memory longer than necessary. To avoid unnecessary large memset()
+		// in ctap_discard_stateful_command_state(), we manually clean up the partial state.
+		assert(enumerate_rps_state->num_rps == 1);
+		enumerate_rps_state->num_rps = 0;
+		static_assert(
+			sizeof(enumerate_rps_state->rp_ids[0]) == sizeof(CTAP_rpId *),
+			"sizeof(enumerate_rps_state->rp_ids[0]) == sizeof(CTAP_rpId *)"
+		);
+		memset(
+			&enumerate_rps_state->rp_ids[0],
+			0,
+			sizeof(enumerate_rps_state->rp_ids[0])
+		);
 	}
 
 	return CTAP2_OK;
@@ -2179,10 +2209,27 @@ static uint8_t credential_management_enumerate_credentials_begin(
 		enumerate_credentials_state->num_credentials
 	));
 
-	if (enumerate_credentials_state->num_credentials > 0) {
+	if (enumerate_credentials_state->num_credentials > 1) {
 		state->stateful_command_state.active_cmd = CTAP_STATEFUL_CMD_CRED_MGMT_ENUMERATE_CREDENTIALS;
 		enumerate_credentials_state->next_credential_idx++;
 		ctap_update_stateful_command_timer(state);
+	} else {
+		// We could just leave the partial state in memory since it's not valid anyway
+		// (because, at this point, stateful_command_state.active_cmd == CTAP_STATEFUL_CMD_NONE).
+		// However, as a good practice, we want to avoid keeping any potentially sensitive state
+		// in memory longer than necessary. To avoid unnecessary large memset()
+		// in ctap_discard_stateful_command_state(), we manually clean up the partial state.
+		assert(enumerate_credentials_state->num_credentials == 1);
+		enumerate_credentials_state->num_credentials = 0;
+		static_assert(
+			sizeof(enumerate_credentials_state->credentials[0]) == sizeof(ctap_credential),
+			"sizeof(enumerate_credentials_state->credentials[0]) == sizeof(ctap_credential)"
+		);
+		memset(
+			&enumerate_credentials_state->credentials[0],
+			0,
+			sizeof(enumerate_credentials_state->credentials[0])
+		);
 	}
 
 	return CTAP2_OK;
