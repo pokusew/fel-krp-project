@@ -51,7 +51,7 @@ void ctap_pin_uv_auth_token_begin_using(
  * * If a limit is reached that causes the pinUvAuthToken to expire, this function invokes
  *   ctap_pin_uv_auth_token_stop_using(), which invalidates the pinUvAuthToken (i.e., sets the in_use flag to false
  *   and clears all other state variables as well) and this function returns true.
- *   Note that the ctap_pin_uv_auth_token_stop_using() also invkoes the
+ *   Note that the ctap_pin_uv_auth_token_stop_using() also invokes ctap_discard_stateful_command_state().
  *   The caller can perform any additional cleanup steps on the pinUvAuthToken
  *   expiration (which is signalized by the true return value).
  *
@@ -83,12 +83,12 @@ bool ctap_pin_uv_auth_token_check_usage_timer(ctap_state_t *const state) {
 		return true;
 	}
 	// rolling timer
-	const uint32_t elapsed_since_last_use = current_time - token_state->usage_timer.start;
+	const uint32_t elapsed_since_last_use = current_time - token_state->usage_timer.last_use;
 	if (elapsed_since_last_use > token_state->initial_usage_time_limit) {
 		ctap_pin_uv_auth_token_stop_using(state);
 		return true;
 	}
-	// remove cached user presence if the
+	// remove cached user presence if the user present time limit is reached
 	if (elapsed_since_start > token_state->user_present_time_limit) {
 		ctap_pin_uv_auth_token_clear_user_present_flag(state);
 	}
