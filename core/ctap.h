@@ -168,6 +168,16 @@ typedef struct ctap_pin_uv_auth_token_state {
 
 	/**
 	 * A userPresent flag, initially false.
+	 *
+	 * Note that the userPresent flag can be set to true by the
+	 * CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingUvWithPermissions subcommand
+	 * if the employed built-in user verification method supplies evidence of user interaction
+	 * (see 6.5.5.7.3., Step 12. ... beginUsingPinUvAuthToken(userIsPresent: true)).
+	 * LionKey currently does not support any built-in user verification method (thus it does not implement
+	 * the CTAP_clientPIN_subCmd_getPinUvAuthTokenUsingUvWithPermissions subcommand).
+	 * Therefore the userPresent flag is always false and we could remove all the related logic from our code.
+	 * For now, we decided to keep the already-implemented logic in place in we case we added support
+	 * for some built-in user verification method in the future.
 	 */
 	bool user_present;
 
