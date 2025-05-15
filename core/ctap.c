@@ -170,7 +170,7 @@ LION_ATTR_ALWAYS_INLINE static inline bool ctap_discard_stateful_command_state_i
 	// to simplify their implementation. In case, this central check were to be removed,
 	// we would have to implement an explicit check at least in ctap_get_next_assertion().
 	if (ctap_has_stateful_command_state(state)) {
-		const uint32_t elapsed_ms_since_last_cmd = state->last_cmd_time - state->stateful_command_state.last_cmd_time;
+		const uint32_t elapsed_ms_since_last_cmd = state->current_time - state->stateful_command_state.last_cmd_time;
 		if (elapsed_ms_since_last_cmd > (30 * 1000)) {
 			debug_log(
 				red("discarding the state of the stateful command %d because more than 30 seconds elapsed"
@@ -281,7 +281,7 @@ uint8_t ctap_request(
 
 	// get the current time once at the beginning of the command processing
 	// to have one constant value throughout the whole command processing
-	state->last_cmd_time = ctap_get_current_time();
+	state->current_time = ctap_get_current_time();
 
 	info_log("ctap_request cmd=0x%02" wPRIx8 " params_size=%" PRIsz nl, cmd, params_size);
 	if (params_size > 0) {
@@ -295,7 +295,7 @@ uint8_t ctap_request(
 	uint8_t status = ctap_invoke_handler(state, cmd, params_size, params, response);
 
 	if (LIONKEY_DEBUG_LEVEL > 1) {
-		uint32_t duration = ctap_get_current_time() - state->last_cmd_time;
+		uint32_t duration = ctap_get_current_time() - state->current_time;
 		if (status == CTAP2_OK) {
 			info_log(
 				green(
@@ -338,5 +338,5 @@ void ctap_discard_stateful_command_state(ctap_state_t *state) {
 
 void ctap_update_stateful_command_timer(ctap_state_t *state) {
 	assert(ctap_has_stateful_command_state(state));
-	state->stateful_command_state.last_cmd_time = state->last_cmd_time;
+	state->stateful_command_state.last_cmd_time = state->current_time;
 }

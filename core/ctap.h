@@ -582,7 +582,7 @@ typedef struct ctap_state {
 
 	ctap_persistent_state_t persistent;
 
-	uint32_t last_cmd_time;
+	uint32_t current_time;
 
 	ctap_pin_protocol_t pin_protocols[2];
 	uint8_t pin_boot_remaining_attempts;
