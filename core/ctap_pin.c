@@ -65,16 +65,20 @@ void ctap_pin_uv_auth_token_begin_using(
  */
 bool ctap_pin_uv_auth_token_check_usage_timer(ctap_state_t *const state) {
 	ctap_pin_uv_auth_token_state *const token_state = &state->pin_uv_auth_token_state;
+
 	if (!token_state->in_use) {
 		return false;
 	}
+
 	const uint32_t current_time = state->current_time;
+
 	// max usage time limit
 	const uint32_t elapsed_since_start = current_time - token_state->usage_timer.start;
 	if (elapsed_since_start > token_state->max_usage_time_period) {
 		ctap_pin_uv_auth_token_stop_using(state);
 		return true;
 	}
+
 	// initial usage time limit (the pinUvAuthToken MUST be used at least once
 	// within this time limit in order for it to remain valid for the full max usage time limit)
 	const bool used_at_least_once = token_state->usage_timer.last_use > token_state->usage_timer.start;
@@ -82,16 +86,28 @@ bool ctap_pin_uv_auth_token_check_usage_timer(ctap_state_t *const state) {
 		ctap_pin_uv_auth_token_stop_using(state);
 		return true;
 	}
-	// rolling timer
-	const uint32_t elapsed_since_last_use = current_time - token_state->usage_timer.last_use;
-	if (elapsed_since_last_use > token_state->initial_usage_time_limit) {
-		ctap_pin_uv_auth_token_stop_using(state);
-		return true;
-	}
+
+	// rolling timer:
+	//   Fully functional, but disabled for now to better accommodate infrequent user interactions,
+	//   which are typical for authenticatorCredentialManagement.
+	//   See the related note in the spec (below the rolling timer definition):
+	//     https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#puatoken-rolling-timer
+	//   Alternatively, we could enable the rolling timer based on the pinUvAuthToken's permissions
+	//   - i.e., only enable the rolling timer when the pinUvAuthToken is NOT used
+	//           for the authenticatorCredentialManagement command.
+	// if (!ctap_pin_uv_auth_token_has_permissions(state, CTAP_clientPIN_pinUvAuthToken_permission_cm)) {
+	// 	const uint32_t elapsed_since_last_use = current_time - token_state->usage_timer.last_use;
+	// 	if (elapsed_since_last_use > token_state->initial_usage_time_limit) {
+	// 		ctap_pin_uv_auth_token_stop_using(state);
+	// 		return true;
+	// 	}
+	// }
+
 	// remove cached user presence if the user present time limit is reached
-	if (elapsed_since_start > token_state->user_present_time_limit) {
+	if (token_state->user_present && elapsed_since_start > token_state->user_present_time_limit) {
 		ctap_pin_uv_auth_token_clear_user_present_flag(state);
 	}
+
 	return false;
 }
 
