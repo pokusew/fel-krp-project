@@ -780,17 +780,17 @@ void ctap_pin_uv_auth_token_begin_using(ctap_state_t *state, bool user_is_presen
 
 bool ctap_pin_uv_auth_token_check_usage_timer(ctap_state_t *state);
 
-bool ctap_pin_uv_auth_token_get_user_present_flag_value(ctap_pin_uv_auth_token_state *token_state);
+bool ctap_pin_uv_auth_token_get_user_present_flag_value(const ctap_state_t *state);
 
-bool ctap_pin_uv_auth_token_get_user_verified_flag_value(ctap_pin_uv_auth_token_state *token_state);
+bool ctap_pin_uv_auth_token_get_user_verified_flag_value(const ctap_state_t *state);
 
-void ctap_pin_uv_auth_token_clear_user_present_flag(ctap_pin_uv_auth_token_state *token_state);
+void ctap_pin_uv_auth_token_clear_user_present_flag(ctap_state_t *state);
 
-void ctap_pin_uv_auth_token_clear_user_verified_flag(ctap_pin_uv_auth_token_state *token_state);
+void ctap_pin_uv_auth_token_clear_user_verified_flag(ctap_state_t *state);
 
-void ctap_pin_uv_auth_token_clear_permissions_except_lbw(ctap_pin_uv_auth_token_state *token_state);
+void ctap_pin_uv_auth_token_clear_permissions_except_lbw(ctap_state_t *state);
 
-bool ctap_pin_uv_auth_token_has_permissions(ctap_pin_uv_auth_token_state *token_state, uint32_t permissions);
+bool ctap_pin_uv_auth_token_has_permissions(const ctap_state_t *state, uint32_t permissions);
 
 void ctap_pin_uv_auth_token_stop_using(ctap_state_t *state);
 

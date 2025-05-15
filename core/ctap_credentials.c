@@ -901,15 +901,10 @@ static uint8_t ensure_valid_pin_uv_auth_param(
 	ctap_check(verify_client_data_hash(state, params, pin_protocol));
 	// 2. Verify that the pinUvAuthToken has the required permissions,
 	//    if not, then end the operation by returning CTAP2_ERR_PIN_AUTH_INVALID.
-	if (!ctap_pin_uv_auth_token_has_permissions(
-		&state->pin_uv_auth_token_state,
-		permissions
-	)) {
+	if (!ctap_pin_uv_auth_token_has_permissions(state, permissions)) {
 		debug_log(
-			red(
-				"pinUvAuthToken does not have the required permissions:"
-				" current=%" PRIu32 " required=%" PRIu32
-		) nl,
+			red("pinUvAuthToken does not have the required permissions:"
+				" current=%" PRIu32 " required=%" PRIu32) nl,
 			state->pin_uv_auth_token_state.permissions,
 			permissions
 		);
@@ -923,10 +918,7 @@ static uint8_t ensure_valid_pin_uv_auth_param(
 		&& memcmp(state->pin_uv_auth_token_state.rpId_hash, params->rpId.hash, CTAP_SHA256_HASH_SIZE) != 0
 	)) {
 		debug_log(
-			red(
-				"pinUvAuthToken RP ID mismatch:"
-				" required='%.*s' hash = "
-			),
+			red("pinUvAuthToken RP ID mismatch: required='%.*s' hash = "),
 			(int) params->rpId.id.size, params->rpId.id.data
 		);
 		dump_hex(params->rpId.hash, sizeof(params->rpId.hash));
@@ -936,7 +928,7 @@ static uint8_t ensure_valid_pin_uv_auth_param(
 	}
 	// Let userVerifiedFlagValue be the result of calling getUserVerifiedFlagValue().
 	// If userVerifiedFlagValue is false then end the operation by returning CTAP2_ERR_PIN_AUTH_INVALID.
-	if (!ctap_pin_uv_auth_token_get_user_verified_flag_value(&state->pin_uv_auth_token_state)) {
+	if (!ctap_pin_uv_auth_token_get_user_verified_flag_value(state)) {
 		debug_log(red("pinUvAuthToken user_verified=false") nl);
 		return CTAP2_ERR_PIN_AUTH_INVALID;
 	}
@@ -955,9 +947,7 @@ static uint8_t ensure_valid_pin_uv_auth_param(
 }
 
 static uint8_t ensure_user_present(ctap_state_t *state, const bool pinUvAuthParam_present) {
-	const bool user_present = pinUvAuthParam_present && ctap_pin_uv_auth_token_get_user_present_flag_value(
-		&state->pin_uv_auth_token_state
-	);
+	const bool user_present = pinUvAuthParam_present && ctap_pin_uv_auth_token_get_user_present_flag_value(state);
 	if (!user_present) {
 		// 1. Request evidence of user interaction in an authenticator-specific way (e.g., flash the LED light).
 		//    If the authenticator has a display, show the items contained within the user and rp parameter
@@ -1019,11 +1009,9 @@ static uint8_t process_exclude_list(
 			continue;
 		}
 		// TODO:
-		//   What is the pinUvAuthParam is invalid?
+		//   What if is the pinUvAuthParam is invalid here?
 		//   Note that it is validated only if !allow_no_verification && state->persistent.is_pin_set (see Step 11).
-		const bool user_present = pinUvAuthParam_present && ctap_pin_uv_auth_token_get_user_present_flag_value(
-			&state->pin_uv_auth_token_state
-		);
+		const bool user_present = pinUvAuthParam_present && ctap_pin_uv_auth_token_get_user_present_flag_value(state);
 		if (!user_present) {
 			debug_log("process_exclude_list: collecting user presence ..." nl);
 			ctap_user_presence_result_t up_result = ctap_wait_for_user_presence();
@@ -1396,9 +1384,9 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 	//       Note: This consumes both the "user present state", sometimes referred to as the "cached UP",
 	//       and the "user verified state", sometimes referred to as "cached UV".
 	//       These functions are no-ops if there is not an in-use pinUvAuthToken.
-	ctap_pin_uv_auth_token_clear_user_present_flag(&state->pin_uv_auth_token_state);
-	ctap_pin_uv_auth_token_clear_user_verified_flag(&state->pin_uv_auth_token_state);
-	ctap_pin_uv_auth_token_clear_permissions_except_lbw(&state->pin_uv_auth_token_state);
+	ctap_pin_uv_auth_token_clear_user_present_flag(state);
+	ctap_pin_uv_auth_token_clear_user_verified_flag(state);
+	ctap_pin_uv_auth_token_clear_permissions_except_lbw(state);
 
 	// extensions processing
 
@@ -1782,9 +1770,9 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 		//      Note: This consumes both the "user present state", sometimes referred to as the "cached UP",
 		//      and the "user verified state", sometimes referred to as "cached UV".
 		//      These functions are no-ops if there is not an in-use pinUvAuthToken.
-		ctap_pin_uv_auth_token_clear_user_present_flag(&state->pin_uv_auth_token_state);
-		ctap_pin_uv_auth_token_clear_user_verified_flag(&state->pin_uv_auth_token_state);
-		ctap_pin_uv_auth_token_clear_permissions_except_lbw(&state->pin_uv_auth_token_state);
+		ctap_pin_uv_auth_token_clear_user_present_flag(state);
+		ctap_pin_uv_auth_token_clear_user_verified_flag(state);
+		ctap_pin_uv_auth_token_clear_permissions_except_lbw(state);
 	}
 
 	// extensions processing
@@ -1938,10 +1926,7 @@ static inline uint8_t verify_credential_management_params(
 	) != 0) {
 		return CTAP2_ERR_PIN_AUTH_INVALID;
 	}
-	if (!ctap_pin_uv_auth_token_has_permissions(
-		&state->pin_uv_auth_token_state,
-		CTAP_clientPIN_pinUvAuthToken_permission_cm
-	)) {
+	if (!ctap_pin_uv_auth_token_has_permissions(state, CTAP_clientPIN_pinUvAuthToken_permission_cm)) {
 		debug_log(
 			red("pinUvAuthToken does not have the cm permission:"
 				" current=%" PRIu32 " required=%" PRIu32) nl,
