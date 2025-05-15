@@ -784,6 +784,8 @@ static uint8_t delete_credential(const int idx) {
 }
 
 void ctap_reset_credentials_store(void) {
+	num_stored_credentials = 0;
+	num_stored_discoverable_credentials = 0;
 	memset(credentials_map_keys, 0, sizeof(credentials_map_keys));
 	memset(credentials_map_values, 0, sizeof(credentials_map_values));
 }
