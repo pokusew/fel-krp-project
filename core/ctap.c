@@ -142,7 +142,7 @@ static_assert(
 	"sizeof(ctap_command_names) / sizeof(ctap_string_t) == 12"
 );
 
-static const ctap_string_t *ctap_get_command_name(const uint8_t cmd) {
+LION_ATTR_ALWAYS_INLINE static inline const ctap_string_t *ctap_get_command_name(const uint8_t cmd) {
 	// if the cmd value is out of bounds to be used as index for the ctap_command_names array
 	if (cmd >= ctap_command_names_num) {
 		return NULL;
@@ -151,7 +151,98 @@ static const ctap_string_t *ctap_get_command_name(const uint8_t cmd) {
 	return &ctap_command_names[cmd];
 }
 
+LION_ATTR_ALWAYS_INLINE static inline void ctap_debug_log_command_name(const uint8_t cmd) {
+	const ctap_string_t *const cmd_name = ctap_get_command_name(cmd);
+	if (cmd_name != NULL) {
+		debug_log(magenta("%.*s") nl, (int) cmd_name->size, cmd_name->data);
+	} else {
+		debug_log(magenta("unknown command name, cmd = %" PRIu8) nl, cmd);
+	}
+}
+
 #endif
+
+LION_ATTR_ALWAYS_INLINE static inline bool ctap_discard_stateful_command_state_if_expired(ctap_state_t *const state) {
+	// The CTAP_STATEFUL_CMD_GET_ASSERTION state MUST be discarded if the timer since the last call to
+	// authenticatorGetAssertion/authenticatorGetNextAssertion is greater than 30 seconds.
+	// For the other stateful commands, this timer-based state expiration is OPTIONAL (MAY).
+	// However, we implemented the expiration here centrally for all stateful commands
+	// to simplify their implementation. In case, this central check were to be removed,
+	// we would have to implement an explicit check at least in ctap_get_next_assertion().
+	if (ctap_has_stateful_command_state(state)) {
+		const uint32_t elapsed_ms_since_last_cmd = state->last_cmd_time - state->stateful_command_state.last_cmd_time;
+		if (elapsed_ms_since_last_cmd > (30 * 1000)) {
+			debug_log(
+				red("discarding the state of the stateful command %d because more than 30 seconds elapsed"
+					"since the last corresponding command") nl,
+				state->stateful_command_state.active_cmd
+			);
+			ctap_discard_stateful_command_state(state);
+			return true;
+		}
+	}
+	return false;
+}
+
+LION_ATTR_ALWAYS_INLINE static inline uint8_t ctap_invoke_handler(
+	ctap_state_t *const state,
+	const uint8_t cmd,
+	const size_t params_size,
+	const uint8_t *params,
+	ctap_response_t *const response
+) {
+
+	uint8_t status;
+
+	ctap_command_handler_t handler = ctap_get_command_handler(cmd);
+
+	// initially, set the response length to 0 (to simplify the code below)
+	// - on success (CTAP2_OK), it is set to the actual response length
+	// - otherwise, it remains set to 0 (error responses cannot have any data)
+	response->length = 0;
+
+	if (handler == NULL) {
+		error_log(red("error: invalid cmd: 0x%02" wPRIx8) nl, cmd);
+		return CTAP1_ERR_INVALID_COMMAND;
+	}
+
+	if_debug(ctap_debug_log_command_name(cmd));
+
+	// prepare the response CBOR encoder
+	CborEncoder response_encoder;
+	cbor_encoder_init(&response_encoder, response->data, response->data_max_size, 0);
+
+	// initialize the params CBOR parser if a non-zero length params is passed
+	CborParser params_parser;
+	CborValue params_it;
+	CborValue *params_it_ptr = NULL;
+	if (params_size > 0) {
+		// ctap_init_cbor_parser() might immediately return CTAP2_ERR_INVALID_CBOR
+		// if the params' first byte(s) are not a valid CBOR
+		status = ctap_init_cbor_parser(params, params_size, &params_parser, &params_it);
+		if (status != CTAP2_OK) {
+			return status;
+		}
+		params_it_ptr = &params_it;
+	}
+
+	// Note that some commands do not take any input parameters at all.
+	// Their corresponding handlers completely ignore the params (CborValue *it) argument.
+	// This is probably the best future-proof behavior, similar to the ignoring
+	// of any individual unexpected parameter names within the params CBOR map.
+	// Note that the params argument (CborValue *it) might be NULL if no params are present.
+	// The handlers MUST handle that correctly (e.g., return an CTAP2_ERR_MISSING_PARAMETER error
+	// if the command takes input parameters but the params argument is NULL).
+	status = handler(state, params_it_ptr, &response_encoder);
+
+	// only success responses have data
+	if (status == CTAP2_OK) {
+		response->length = cbor_encoder_get_buffer_size(&response_encoder, response->data);
+	}
+
+	return status;
+
+}
 
 /**
  * Processes a CTAP2 command, updates the CTAP state, and returns a response
@@ -199,80 +290,9 @@ uint8_t ctap_request(
 
 	ctap_pin_uv_auth_token_check_usage_timer(state);
 
-	// The CTAP_STATEFUL_CMD_GET_ASSERTION state MUST be discarded if the timer since the last call to
-	// authenticatorGetAssertion/authenticatorGetNextAssertion is greater than 30 seconds.
-	// For the other stateful commands, this timer-based state expiration is OPTIONAL (MAY).
-	// However, we implemented the expiration here centrally for all stateful commands
-	// to simplify their implementation. In case, this central check were to be removed,
-	// we would have to implement an explicit check at least in ctap_get_next_assertion().
-	if (ctap_has_stateful_command_state(state)) {
-		const uint32_t elapsed_ms_since_last_cmd = state->last_cmd_time - state->stateful_command_state.last_cmd_time;
-		if (elapsed_ms_since_last_cmd > (30 * 1000)) {
-			debug_log(
-				red("discarding the state of the stateful command %d because more than 30 seconds elapsed"
-					"since the last corresponding command") nl,
-				state->stateful_command_state.active_cmd
-			);
-			ctap_discard_stateful_command_state(state);
-			return true;
-		}
-	}
+	ctap_discard_stateful_command_state_if_expired(state);
 
-	uint8_t status;
-
-	ctap_command_handler_t handler = ctap_get_command_handler(cmd);
-
-	// note: we do not use fast return here so that the debug block at the end always run (even for errors)
-
-	// to simplify the code, we set the response length to 0 here once so that we don't forget
-	// (even though it is necessary only for error cases,  because on success,
-	// it will be set to the actual response length)
-	response->length = 0;
-
-	if (handler == NULL) {
-
-		status = CTAP1_ERR_INVALID_COMMAND;
-		error_log(red("error: invalid cmd: 0x%02" wPRIx8) nl, cmd);
-
-	} else {
-
-		if (LIONKEY_DEBUG_LEVEL > 0) {
-			const ctap_string_t *const cmd_name = ctap_get_command_name(cmd);
-			debug_log(magenta("%.*s") nl, (int) cmd_name->size, cmd_name->data);
-		}
-
-		// prepare response CBOR encoder
-		CborEncoder response_encoder;
-		cbor_encoder_init(&response_encoder, response->data, response->data_max_size, 0);
-
-		// initialize params CBOR parser
-		CborParser params_parser;
-		CborValue params_it;
-		CborValue *params_it_ptr = NULL;
-		if (params_size > 0) {
-			// ctap_init_cbor_parser() might immediately return CTAP2_ERR_INVALID_CBOR
-			// if the params' first byte(s) are not a valid CBOR
-			status = ctap_init_cbor_parser(params, params_size, &params_parser, &params_it);
-			if (status == CTAP2_OK) {
-				params_it_ptr = &params_it;
-			}
-		} else {
-			status = CTAP2_OK;
-		}
-
-		// only invoke the handler if the ctap_init_cbor_parser() call succeeded
-		if (status == CTAP2_OK) {
-			// Note that some commands do not take any input parameters at all.
-			// Their corresponding handlers completely ignore the params argument.
-			// (this is probably the best future-proof behavior, similar to the ignoring
-			// of any individual unexpected parameter names within the params CBOR map).
-			status = handler(state, params_it_ptr, &response_encoder);
-			if (status == CTAP2_OK) {
-				response->length = cbor_encoder_get_buffer_size(&response_encoder, response->data);
-			}
-		}
-
-	}
+	uint8_t status = ctap_invoke_handler(state, cmd, params_size, params, response);
 
 	if (LIONKEY_DEBUG_LEVEL > 1) {
 		uint32_t duration = ctap_get_current_time() - state->last_cmd_time;
