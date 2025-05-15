@@ -978,7 +978,7 @@ static uint8_t parse_get_assertion_extensions(CborValue *it, CTAP_getAssertion *
 
 		if (ctap_string_matches(&key, &ctap_str("hmac-secret"))) {
 
-			ctap_check(parse_get_assertion_hmac_secret_extension(it, &ga->hmac_secret));
+			ctap_check(parse_get_assertion_hmac_secret_extension(&map, &ga->hmac_secret));
 			params->extensions_present |= CTAP_extension_hmac_secret;
 
 		} else {
