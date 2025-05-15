@@ -70,6 +70,10 @@ void ctap_all_pin_protocols_reset_pin_uv_auth_token(ctap_state_t *state) {
 		ctap_pin_protocol_t *pin_protocol = &state->pin_protocols[i];
 		pin_protocol->reset_pin_uv_auth_token(pin_protocol); // TODO: handle error
 	}
+	// If the pinUvAuthToken was "in use", this ensures that
+	// all of the pinUvAuthToken's state variables are reset to their initial values
+	// and MOST IMPORTANTLY any active stateful command state is discarded.
+	ctap_pin_uv_auth_token_stop_using(state);
 }
 
 void ctap_init(ctap_state_t *state) {
@@ -193,39 +197,24 @@ uint8_t ctap_request(
 		dump_hex(params, params_size);
 	}
 
-	if (ctap_pin_uv_auth_token_check_usage_timer(state)) {
-		// the pinUvAuthToken has just expired
-		// 6. Authenticator API, stateful commands
-		//   https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#stateful-commands
-		//   An authenticator MUST discard the state for a stateful command
-		//   if the pinUvAuthToken that authenticated the state initializing command
-		//   expires since the stateful commands do not themselves always verify a pinUvAuthToken.
-		// TODO: Discard state also when the pinUvAuthToken is regenerated.
-		debug_log(yellow("the pinUvAuthToken has just expired") nl);
-		if (state->stateful_command_state.active_cmd != CTAP_STATEFUL_CMD_NONE) {
-			debug_log(
-				red("discarding the state of the stateful command %d because the pinUvAuthToken has just expired") nl,
-				state->stateful_command_state.active_cmd
-			);
-			ctap_discard_stateful_command_state(state);
-		}
-	}
+	ctap_pin_uv_auth_token_check_usage_timer(state);
 
 	// The CTAP_STATEFUL_CMD_GET_ASSERTION state MUST be discarded if the timer since the last call to
 	// authenticatorGetAssertion/authenticatorGetNextAssertion is greater than 30 seconds.
 	// For the other stateful commands, this timer-based state expiration is OPTIONAL (MAY).
 	// However, we implemented the expiration here centrally for all stateful commands
 	// to simplify their implementation. In case, this central check were to be removed,
-	// we would have to implement an explicit check in at least in ctap_get_next_assertion().
-	if (state->stateful_command_state.active_cmd != CTAP_STATEFUL_CMD_NONE) {
+	// we would have to implement an explicit check at least in ctap_get_next_assertion().
+	if (ctap_has_stateful_command_state(state)) {
 		const uint32_t elapsed_ms_since_last_cmd = state->last_cmd_time - state->stateful_command_state.last_cmd_time;
 		if (elapsed_ms_since_last_cmd > (30 * 1000)) {
-			ctap_discard_stateful_command_state(state);
 			debug_log(
 				red("discarding the state of the stateful command %d because more than 30 seconds elapsed"
 					"since the last corresponding command") nl,
 				state->stateful_command_state.active_cmd
 			);
+			ctap_discard_stateful_command_state(state);
+			return true;
 		}
 	}
 
@@ -308,10 +297,10 @@ uint8_t ctap_request(
 }
 
 void ctap_discard_stateful_command_state(ctap_state_t *state) {
-	// avoid unnecessary memset calls
+	// avoid unnecessary memset() calls
 	// Our code implementation guarantees that the WHOLE stateful_command_state is zeroed
 	// iff (if and only if) stateful_command_state.active_cmd == CTAP_STATEFUL_CMD_NONE.
-	if (state->stateful_command_state.active_cmd == CTAP_STATEFUL_CMD_NONE) {
+	if (!ctap_has_stateful_command_state(state)) {
 		return;
 	}
 	static_assert(
@@ -328,6 +317,6 @@ void ctap_discard_stateful_command_state(ctap_state_t *state) {
 }
 
 void ctap_update_stateful_command_timer(ctap_state_t *state) {
-	assert(state->stateful_command_state.active_cmd != CTAP_STATEFUL_CMD_NONE);
+	assert(ctap_has_stateful_command_state(state));
 	state->stateful_command_state.last_cmd_time = state->last_cmd_time;
 }

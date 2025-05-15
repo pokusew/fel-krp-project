@@ -592,6 +592,10 @@ typedef struct ctap_state {
 
 } ctap_state_t;
 
+LION_ATTR_ALWAYS_INLINE static inline bool ctap_has_stateful_command_state(const ctap_state_t *const state) {
+	return state->stateful_command_state.active_cmd != CTAP_STATEFUL_CMD_NONE;
+}
+
 #define CTAP_PIN_PROTOCOLS_CONST_INIT \
     { \
         CTAP_PIN_PROTOCOL_V1_CONST_INIT, \
@@ -788,7 +792,7 @@ void ctap_pin_uv_auth_token_clear_permissions_except_lbw(ctap_pin_uv_auth_token_
 
 bool ctap_pin_uv_auth_token_has_permissions(ctap_pin_uv_auth_token_state *token_state, uint32_t permissions);
 
-void ctap_pin_uv_auth_token_stop_using(ctap_pin_uv_auth_token_state *token_state);
+void ctap_pin_uv_auth_token_stop_using(ctap_state_t *state);
 
 void ctap_convert_to_asn1_der_ecdsa_sig_value(
 	const uint8_t *signature,
