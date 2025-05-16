@@ -5,14 +5,6 @@
 #include "ctap_parse.h"
 #include <uECC.h>
 
-bool ctap_string_matches(const ctap_string_t *a, const ctap_string_t *b) {
-	const size_t size = a->size;
-	if (size != b->size) {
-		return false;
-	}
-	return memcmp(a->data, b->data, size) == 0;
-}
-
 static void ctap_init_persistent_state_tmp(ctap_persistent_state_t *state) {
 
 	debug_log("ctap_init_persistent_state_tmp" nl);

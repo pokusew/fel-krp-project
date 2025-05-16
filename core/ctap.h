@@ -2,6 +2,7 @@
 #define LIONKEY_CTAP_H
 
 #include "ctap_parse.h"
+#include "ctap_asn1.h"
 #include "compiler.h"
 #include <cbor.h>
 #include <hmac.h>
@@ -804,15 +805,65 @@ bool ctap_pin_uv_auth_token_has_permissions(const ctap_state_t *state, uint32_t 
 
 void ctap_pin_uv_auth_token_stop_using(ctap_state_t *state);
 
-void ctap_convert_to_asn1_der_ecdsa_sig_value(
-	const uint8_t *signature,
-	uint8_t *asn1_der_signature,
-	size_t *asn1_der_signature_size
-);
-
 void ctap_compute_rp_id_hash(uint8_t *rp_id_hash, const CTAP_rpId *rp_id);
 
+size_t ctap_get_num_stored_credentials(void);
+
+size_t ctap_get_num_stored_discoverable_credentials(void);
+
+size_t ctap_get_num_max_possible_remaining_discoverable_credentials(void);
+
+ctap_credentials_map_key *ctap_get_credential_key_by_idx(int idx);
+
+ctap_credentials_map_value *ctap_get_credential_value_by_idx(int idx);
+
+bool ctap_credential_matches_rp_id_hash(
+	const ctap_credentials_map_key *key,
+	const uint8_t *rp_id_hash
+);
+
+bool ctap_credential_matches_rp(
+	const ctap_credentials_map_key *key,
+	const CTAP_rpId *rp_id
+);
+
+int ctap_find_credential_index(
+	const CTAP_rpId *rp_id,
+	const CTAP_userHandle *user_handle
+);
+
+int ctap_lookup_credential_by_desc(const CTAP_credDesc *cred_desc);
+
+uint8_t ctap_store_credential(
+	const CTAP_rpId *rp_id,
+	const CTAP_userEntity *user,
+	const ctap_credentials_map_value *credential
+);
+
+uint8_t ctap_delete_credential(int idx);
+
 void ctap_reset_credentials_store(void);
+
+bool ctap_should_add_credential_to_list(
+	const ctap_credentials_map_value *cred_value,
+	bool is_from_allow_list,
+	bool response_has_uv
+);
+
+uint8_t ctap_find_discoverable_credentials_by_rp_id(
+	const CTAP_rpId *rp_id,
+	const uint8_t *rp_id_hash,
+	bool response_has_uv,
+	ctap_credential *credentials,
+	size_t *num_credentials,
+	size_t max_num_credentials
+);
+
+uint8_t ctap_enumerate_rp_ids_of_discoverable_credentials(
+	CTAP_rpId **rp_ids,
+	size_t *num_rp_ids,
+	size_t max_num_rp_ids
+);
 
 uint8_t ctap_make_credential(ctap_state_t *state, CborValue *it, CborEncoder *encoder);
 
@@ -826,33 +877,36 @@ uint8_t ctap_credential_management(ctap_state_t *state, CborValue *it, CborEncod
 
 uint8_t ctap_selection(ctap_state_t *state, CborValue *it, CborEncoder *encoder);
 
-typedef bool (*ctap_truncate_str)(
-	const ctap_string_t *str,
-	uint8_t *storage_buffer,
-	size_t storage_buffer_size,
-	size_t *stored_size
+uint8_t ctap_encode_ctap_string_as_byte_string(
+	CborEncoder *encoder,
+	const ctap_string_t *str
 );
 
-bool ctap_maybe_truncate_string(
-	const ctap_string_t *input_str,
-	uint8_t *storage_buffer,
-	size_t storage_buffer_size,
-	size_t *stored_size
+uint8_t ctap_encode_ctap_string_as_text_string(
+	CborEncoder *encoder,
+	const ctap_string_t *str
 );
 
-bool ctap_maybe_truncate_rp_id(
-	const ctap_string_t *rp_id,
-	uint8_t *storage_buffer,
-	size_t storage_buffer_size,
-	size_t *stored_size
+uint8_t ctap_encode_public_key(
+	CborEncoder *encoder,
+	const uint8_t *public_key
 );
 
-bool ctap_store_arbitrary_length_string(
-	const ctap_string_t *input_str,
-	ctap_string_t *str,
-	uint8_t *storage_buffer,
-	size_t storage_buffer_size,
-	ctap_truncate_str truncate_fn
+uint8_t ctap_encode_pub_key_cred_desc(
+	CborEncoder *encoder,
+	size_t cred_id_size,
+	const uint8_t *cred_id_data
+);
+
+uint8_t ctap_encode_pub_key_cred_user_entity(
+	CborEncoder *encoder,
+	const CTAP_userEntity *user,
+	bool include_user_identifiable_info
+);
+
+uint8_t ctap_encode_rp_entity(
+	CborEncoder *encoder,
+	const CTAP_rpId *rp_id
 );
 
 #endif // LIONKEY_CTAP_H

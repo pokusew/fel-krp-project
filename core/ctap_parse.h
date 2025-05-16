@@ -8,6 +8,7 @@
 #include <cbor.h>
 
 #include "ctap_errors.h"
+#include "ctap_string.h"
 #include "cose.h"
 #include "compiler.h"
 #include "utils.h"
@@ -48,16 +49,6 @@
         return CTAP1_ERR_OTHER;                          \
     }                                                    \
     ((void) 0)
-
-typedef struct ctap_string {
-	size_t size;
-	const uint8_t *data;
-} ctap_string_t;
-
-#define ctap_str(str) ((const ctap_string_t) {.size = sizeof((str)) - 1, .data = (const uint8_t *) (str)})
-#define ctap_str_i(str) {.size = sizeof((str)) - 1, .data = (const uint8_t *) (str)}
-
-bool ctap_string_matches(const ctap_string_t *a, const ctap_string_t *b);
 
 // request (message)
 // CTAPHID_CBOR

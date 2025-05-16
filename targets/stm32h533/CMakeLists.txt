@@ -85,12 +85,17 @@ target_include_directories(sha256
 add_library(core STATIC)
 target_sources(core PUBLIC
 		../../core/ctap.c
+		../../core/ctap_asn1.c
+		../../core/ctap_credential_management.c
+		../../core/ctap_credential_store.c
 		../../core/ctap_credentials.c
+		../../core/ctap_encode.c
 		../../core/ctap_get_info.c
 		../../core/ctap_parse.c
 		../../core/ctap_pin.c
 		../../core/ctap_reset.c
 		../../core/ctap_selection.c
+		../../core/ctap_string.c
 		../../core/ctaphid.c
 		../../core/utils.c
 )
