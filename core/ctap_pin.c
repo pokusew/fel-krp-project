@@ -629,10 +629,10 @@ static uint8_t handle_invalid_pin(ctap_state_t *state, ctap_pin_protocol_t *pin_
 }
 
 static uint8_t check_pin_hash(
-	ctap_state_t *state,
-	ctap_pin_protocol_t *pin_protocol,
-	const ctap_string_t *pin_hash_enc,
-	const uint8_t *shared_secret
+	ctap_state_t *const state,
+	ctap_pin_protocol_t *const pin_protocol,
+	const ctap_string_t *const pin_hash_enc,
+	const uint8_t *const shared_secret
 ) {
 	// These preconditions should be ensured by the caller function.
 	assert(state->persistent.pin_total_remaining_attempts > 0);
@@ -652,7 +652,10 @@ static uint8_t check_pin_hash(
 	// Authenticator decrypts pinHashEnc using decrypt(shared secret, pinHashEnc)
 	// and verifies against its internal stored LEFT(SHA-256(curPin), 16).
 	const size_t expected_pin_hash_length = sizeof(state->persistent.pin_hash);
-	size_t pin_hash_length = pin_hash_enc->size - pin_protocol->encryption_extra_length;
+	if (pin_hash_enc->size < pin_protocol->encryption_extra_length) {
+		return handle_invalid_pin(state, pin_protocol);
+	}
+	const size_t pin_hash_length = pin_hash_enc->size - pin_protocol->encryption_extra_length;
 	if (pin_hash_length != expected_pin_hash_length) {
 		return handle_invalid_pin(state, pin_protocol);
 	}
