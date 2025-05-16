@@ -690,16 +690,19 @@ static uint8_t check_pin_hash(
  *          CTAP2_ERR_PIN_POLICY_VIOLATION newPin too short
  */
 static uint8_t set_pin(
-	ctap_state_t *state,
-	ctap_pin_protocol_t *pin_protocol,
-	const ctap_string_t *new_pin_enc,
-	const uint8_t *shared_secret
+	ctap_state_t *const state,
+	ctap_pin_protocol_t *const pin_protocol,
+	const ctap_string_t *const new_pin_enc,
+	const uint8_t *const shared_secret
 ) {
 
 	// 6.5.5.5. Setting a New PIN:     5.7
 	// 6.5.5.6. Changing existing PIN: 5.10
 	//   If paddedNewPin is NOT 64 bytes long, it returns CTAP1_ERR_INVALID_PARAMETER
-	size_t padded_new_pin_length = new_pin_enc->size - pin_protocol->encryption_extra_length;
+	if (new_pin_enc->size < pin_protocol->encryption_extra_length) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+	const size_t padded_new_pin_length = new_pin_enc->size - pin_protocol->encryption_extra_length;
 	if (padded_new_pin_length != 64) {
 		return CTAP1_ERR_INVALID_PARAMETER;
 	}
