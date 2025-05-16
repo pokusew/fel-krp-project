@@ -60,19 +60,6 @@
 //    	CTAP status code
 //      n bytes of CBOR encoded data
 
-// newPinEnc pinUvAuthProtocol 1 = 64 bytes
-// newPinEnc pinUvAuthProtocol 2 = 80 bytes (16 + 64)
-#define CTAP_NEW_PIN_ENC_MAX_SIZE        80 // = max(64, 80)
-#define CTAP_NEW_PIN_ENC_MIN_SIZE        64 // = min(64, 80)
-// pinUvAuthParam pinUvAuthProtocol 1 = 16 bytes
-// pinUvAuthParam pinUvAuthProtocol 2 = 32 bytes
-#define CTAP_PIN_UV_AUTH_PARAM_MAX_SIZE  32 // = max(16, 32)
-#define CTAP_PIN_UV_AUTH_PARAM_MIN_SIZE  16 // = min(16, 32)
-// pinHashEnc pinUvAuthProtocol 1 = 16 bytes
-// pinHashEnc pinUvAuthProtocol 2 = 32 bytes (16 + 16)
-#define CTAP_PIN_HASH_ENC_MAX_SIZE       32 // = max(16, 32)
-#define CTAP_PIN_HASH_ENC_MIN_SIZE       16 // = min(16, 32)
-
 #define CTAP_SHA256_HASH_SIZE  32
 
 // Command
