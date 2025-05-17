@@ -12,6 +12,7 @@
     <mapping directory="$PROJECT_DIR$/crypto/micro-ecc" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/crypto/salty" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/crypto/tiny-AES-c" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/crypto/tinymt" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lib/tinycbor" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lib/tinycbor-legacy" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lib/tinyusb" vcs="Git" />

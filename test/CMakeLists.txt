@@ -53,6 +53,21 @@ target_include_directories(tinyaes
 		../crypto/tiny-AES-c
 )
 
+add_library(tinymt32 STATIC)
+target_sources(tinymt32
+		PRIVATE
+		../crypto/tinymt/tinymt/tinymt32.c
+		PUBLIC
+		../crypto/tinymt/tinymt/tinymt32.h
+)
+target_include_directories(tinymt32
+		PUBLIC
+		../crypto/tinymt/tinymt
+)
+add_executable(tinymt32_check)
+target_sources(tinymt32_check PRIVATE ../crypto/tinymt/tinymt/check32.c)
+target_link_libraries(tinymt32_check PRIVATE tinymt32)
+
 add_library(micro_ecc STATIC)
 target_sources(micro_ecc
 		PRIVATE
