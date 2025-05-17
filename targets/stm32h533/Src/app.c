@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include "tusb.h"
 #include "ctap_crypto_software.h"
+#include "app_hw_crypto.h"
 
 ctap_crypto_status_t hw_rng_generate_data(uint8_t *const buffer, const size_t length) {
 	HAL_StatusTypeDef status;
@@ -56,6 +57,8 @@ ctap_response_t app_ctap_response = {
 };
 ctap_software_crypto_context_t app_crypto_ctx;
 const ctap_crypto_t app_crypto = CTAP_SOFTWARE_CRYPTO_CONST_INIT(&app_crypto_ctx);
+app_hw_crypto_context_t app_hw_crypto_ctx;
+const ctap_crypto_t app_hw_crypto = APP_HW_CRYPTO_CONST_INIT(&app_hw_crypto_ctx);
 ctap_state_t app_ctap = CTAP_STATE_CONST_INIT(&app_crypto);
 
 static inline void app_hid_task(void) {

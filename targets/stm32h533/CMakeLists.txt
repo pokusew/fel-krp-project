@@ -104,6 +104,15 @@ target_link_libraries(ctap_crypto_software
 		PUBLIC tinyaes micro_ecc tinymt32 sha256
 )
 
+add_library(app_hw_crypto STATIC)
+target_sources(app_hw_crypto PUBLIC
+		Src/app_hw_crypto.c
+)
+target_include_directories(app_hw_crypto PUBLIC ../../core)
+target_link_libraries(app_hw_crypto
+		PUBLIC tinyaes micro_ecc tinymt32 sha256 stm32cubemx
+)
+
 add_library(core STATIC)
 target_sources(core PUBLIC
 		../../core/ctap.c
@@ -125,7 +134,7 @@ target_sources(core PUBLIC
 )
 target_include_directories(core PUBLIC ../../core Inc)
 target_link_libraries(core PUBLIC
-		tinycbor ctap_crypto_software hkdf hmac
+		tinycbor hkdf hmac
 )
 target_compile_definitions(core PUBLIC
 		LIONKEY_DEBUG_LEVEL=3
@@ -195,4 +204,6 @@ target_link_libraries(${PROJECT_NAME}
 		stm32cubemx
 		tinyusb
 		core
+		app_hw_crypto
+		ctap_crypto_software
 )
