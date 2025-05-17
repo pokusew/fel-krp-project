@@ -34,57 +34,13 @@ ctap_crypto_status_t app_hw_crypto_init(
 	return app_hw_crypto_hash_init(ctx);
 }
 
+// ####################  RNG  ####################
+
 static int micro_ecc_compatible_rng(void *ctx, uint8_t *dest, unsigned size) {
 	const ctap_crypto_t *const crypto = ctx;
 	ctap_crypto_status_t status = crypto->rng_generate_data(crypto, dest, size);
 	// translate the status to the uECC-compatible return value
 	return status == CTAP_CRYPTO_OK ? 1 : 0;
-}
-
-void HAL_CRYP_MspInit(CRYP_HandleTypeDef *hcryp) {
-	if (hcryp->Instance == AES) {
-		__HAL_RCC_AES_CLK_ENABLE();
-	}
-}
-
-void HAL_CRYP_MspDeInit(CRYP_HandleTypeDef *hcryp) {
-	if (hcryp->Instance == AES) {
-		__HAL_RCC_AES_CLK_DISABLE();
-	}
-}
-
-static ctap_crypto_status_t app_hw_crypto_aes_init(app_hw_crypto_context_t *const ctx) {
-
-	CRYP_HandleTypeDef *const hal_cryp = &ctx->hal_cryp;
-
-	hal_cryp->Instance = AES;
-	// Note that the swapping configuration only applies to the data (writing AES_DINR and reading AES_DOUT),
-	// but not to the IV and the key (AES_IVR0-3, AES_KEY0-7).
-	hal_cryp->Init.DataType = CRYP_BYTE_SWAP;
-	hal_cryp->Init.KeySize = CRYP_KEYSIZE_256B;
-	//
-	// hal_cryp->Init.pKey = (uint32_t *) NULL;
-	// hal_cryp->Init.pInitVect = (uint32_t *) NULL;
-	hal_cryp->Init.Algorithm = CRYP_AES_CBC;
-	hal_cryp->Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
-	hal_cryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_WORD;
-	// When KeyIVConfigSkip == CRYP_KEYIVCONFIG_ONCE, the IV and the key are initialized
-	// during first encryption/description call and hal_cryp->KeyIVConfig is set internally to 1U.
-	// We want to use custom functions for initializing the IV and key (to perform byte swapping
-	// without the need for extra copy). Therefore, we manually set the hal_cryp->KeyIVConfig to 1U.
-	// Note that this must be done AFTER the HAL_CRYP_Init() call
-	// (because HAL_CRYP_Init() sets hal_cryp->KeyIVConfig to 0U).
-	hal_cryp->Init.KeyIVConfigSkip = CRYP_KEYIVCONFIG_ONCE; // We hal_cryp->KeyIVConfig = 1U
-	hal_cryp->Init.KeyMode = CRYP_KEYMODE_NORMAL;
-	if (HAL_CRYP_Init(hal_cryp) != HAL_OK) {
-		return CTAP_CRYPTO_ERROR;
-	}
-	// This ensures that the IV and key initialization are NEVER performed by the HAL.
-	// We use custom functions that perform byte swapping efficiently.
-	hal_cryp->KeyIVConfig = 1U;
-
-	return CTAP_CRYPTO_OK;
-
 }
 
 void HAL_RNG_MspInit(RNG_HandleTypeDef *hrng) {
@@ -176,6 +132,8 @@ ctap_crypto_status_t app_hw_crypto_rng_generate_data(
 	return CTAP_CRYPTO_ERROR;
 }
 
+// ####################  ECC (ECDSA and ECDH)  ####################
+
 ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_compute_public_key(
 	const ctap_crypto_t *const crypto,
 	const uint8_t *const private_key,
@@ -231,6 +189,54 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_shared_secret(
 		return CTAP_CRYPTO_ERROR;
 	}
 	return CTAP_CRYPTO_OK;
+}
+
+// ####################  AES  ####################
+
+void HAL_CRYP_MspInit(CRYP_HandleTypeDef *hcryp) {
+	if (hcryp->Instance == AES) {
+		__HAL_RCC_AES_CLK_ENABLE();
+	}
+}
+
+void HAL_CRYP_MspDeInit(CRYP_HandleTypeDef *hcryp) {
+	if (hcryp->Instance == AES) {
+		__HAL_RCC_AES_CLK_DISABLE();
+	}
+}
+
+static ctap_crypto_status_t app_hw_crypto_aes_init(app_hw_crypto_context_t *const ctx) {
+
+	CRYP_HandleTypeDef *const hal_cryp = &ctx->hal_cryp;
+
+	hal_cryp->Instance = AES;
+	// Note that the swapping configuration only applies to the data (writing AES_DINR and reading AES_DOUT),
+	// but not to the IV and the key (AES_IVR0-3, AES_KEY0-7).
+	hal_cryp->Init.DataType = CRYP_BYTE_SWAP;
+	hal_cryp->Init.KeySize = CRYP_KEYSIZE_256B;
+	//
+	// hal_cryp->Init.pKey = (uint32_t *) NULL;
+	// hal_cryp->Init.pInitVect = (uint32_t *) NULL;
+	hal_cryp->Init.Algorithm = CRYP_AES_CBC;
+	hal_cryp->Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
+	hal_cryp->Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_WORD;
+	// When KeyIVConfigSkip == CRYP_KEYIVCONFIG_ONCE, the IV and the key are initialized
+	// during first encryption/description call and hal_cryp->KeyIVConfig is set internally to 1U.
+	// We want to use custom functions for initializing the IV and key (to perform byte swapping
+	// without the need for extra copy). Therefore, we manually set the hal_cryp->KeyIVConfig to 1U.
+	// Note that this must be done AFTER the HAL_CRYP_Init() call
+	// (because HAL_CRYP_Init() sets hal_cryp->KeyIVConfig to 0U).
+	hal_cryp->Init.KeyIVConfigSkip = CRYP_KEYIVCONFIG_ONCE; // We hal_cryp->KeyIVConfig = 1U
+	hal_cryp->Init.KeyMode = CRYP_KEYMODE_NORMAL;
+	if (HAL_CRYP_Init(hal_cryp) != HAL_OK) {
+		return CTAP_CRYPTO_ERROR;
+	}
+	// This ensures that the IV and key initialization are NEVER performed by the HAL.
+	// We use custom functions that perform byte swapping efficiently.
+	hal_cryp->KeyIVConfig = 1U;
+
+	return CTAP_CRYPTO_OK;
+
 }
 
 static void CRYP_AES_256_SetKey_Swap(CRYP_HandleTypeDef *hal_cryp, const uint32_t *key) {
@@ -367,6 +373,8 @@ ctap_crypto_status_t app_hw_crypto_aes_256_cbc_decrypt(
 	}
 	return CTAP_CRYPTO_OK;
 }
+
+// ####################  HASH  ####################
 
 void HAL_HASH_MspInit(HASH_HandleTypeDef *hhash) {
 	lion_unused(hhash);
