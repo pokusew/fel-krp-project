@@ -1,5 +1,4 @@
 #include "ctap.h"
-#include <uECC.h>
 
 static inline uint8_t verify_credential_management_params(
 	ctap_state_t *state,
@@ -192,6 +191,7 @@ static uint8_t credential_management_enumerate_rps_get_next_rp(ctap_state_t *con
 static uint8_t encode_credential_management_enumerate_credentials_response(
 	CborEncoder *encoder,
 	const ctap_credential *credential,
+	const uint8_t *credential_public_key,
 	const size_t num_credentials
 ) {
 
@@ -212,16 +212,7 @@ static uint8_t encode_credential_management_enumerate_credentials_response(
 	);
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_credentialManagement_res_publicKey));
-	uint8_t public_key[64];
-	if (uECC_compute_public_key(
-		credential->value->private_key,
-		public_key,
-		uECC_secp256r1()
-	) != 1) {
-		error_log("uECC_compute_public_key failed" nl);
-		return CTAP1_ERR_OTHER;
-	}
-	ctap_check(ctap_encode_public_key(&map, public_key));
+	ctap_check(ctap_encode_public_key(&map, credential_public_key));
 
 	if (num_credentials != 0) {
 		cbor_encoding_check(cbor_encode_uint(&map, CTAP_credentialManagement_res_totalCredentials));
@@ -297,9 +288,19 @@ static uint8_t credential_management_enumerate_credentials_begin(
 		return CTAP2_ERR_NO_CREDENTIALS;
 	}
 
+	const ctap_credential *credential = &enumerate_credentials_state->credentials[
+		enumerate_credentials_state->next_credential_idx
+	];
+	uint8_t credential_public_key[64];
+	ctap_crypto_check(state->crypto->ecc_secp256r1_compute_public_key(
+		state->crypto,
+		credential->value->private_key,
+		credential_public_key
+	));
 	ctap_check(encode_credential_management_enumerate_credentials_response(
 		encoder,
-		&enumerate_credentials_state->credentials[enumerate_credentials_state->next_credential_idx],
+		credential,
+		credential_public_key,
 		enumerate_credentials_state->num_credentials
 	));
 
@@ -343,9 +344,19 @@ static uint8_t credential_management_enumerate_credentials_get_next_credential(
 
 	uint8_t ret;
 
+	const ctap_credential *credential = &enumerate_credentials_state->credentials[
+		enumerate_credentials_state->next_credential_idx
+	];
+	uint8_t credential_public_key[64];
+	ctap_crypto_check(state->crypto->ecc_secp256r1_compute_public_key(
+		state->crypto,
+		credential->value->private_key,
+		credential_public_key
+	));
 	ctap_check(encode_credential_management_enumerate_credentials_response(
 		encoder,
-		&enumerate_credentials_state->credentials[enumerate_credentials_state->next_credential_idx],
+		credential,
+		credential_public_key,
 		0 // totalCredentials (0x09) is omitted for the authenticatorCredentialManagement/enumerateCredentialsGetNextCredential
 	));
 

@@ -2,6 +2,7 @@
 #define LIONKEY_CTAP_H
 
 #include "ctap_parse.h"
+#include "ctap_crypto.h"
 #include "ctap_asn1.h"
 #include "ctap_pin_protocol.h"
 #include "compiler.h"
@@ -48,20 +49,20 @@ typedef struct ctap_persistent_state {
 	uint8_t pin_hash[CTAP_PIN_HASH_SIZE];
 	uint8_t pin_total_remaining_attempts;
 
-	// number of stored client-side discoverable credentials
-	// aka resident credentials aka resident keys (RK)
-	uint16_t num_rk_stored;
-
-	// master keys data
-	uint8_t master_keys[KEY_SPACE_BYTES];
-
-	uint8_t _alignment1;
-
-	// this field must be WORD (32 bytes) aligned
-	uint32_t is_invalid;
-	// this field must be WORD (32 bytes) aligned
-	// note: in order for the data loss prevention logic to work, is_initialized must be the last field
-	uint32_t is_initialized;
+	// // number of stored client-side discoverable credentials
+	// // aka resident credentials aka resident keys (RK)
+	// uint16_t num_rk_stored;
+	//
+	// // master keys data
+	// uint8_t master_keys[KEY_SPACE_BYTES];
+	//
+	// uint8_t _alignment1;
+	//
+	// // this field must be WORD (32 bytes) aligned
+	// uint32_t is_invalid;
+	// // this field must be WORD (32 bytes) aligned
+	// // note: in order for the data loss prevention logic to work, is_initialized must be the last field
+	// uint32_t is_initialized;
 
 } ctap_persistent_state_t;
 
@@ -157,6 +158,8 @@ typedef struct ctap_stateful_command_state {
 
 typedef struct ctap_state {
 
+	const ctap_crypto_t *const crypto;
+
 	ctap_persistent_state_t persistent;
 
 	uint32_t current_time;
@@ -173,15 +176,16 @@ LION_ATTR_ALWAYS_INLINE static inline bool ctap_has_stateful_command_state(const
 	return state->stateful_command_state.active_cmd != CTAP_STATEFUL_CMD_NONE;
 }
 
-#define CTAP_PIN_PROTOCOLS_CONST_INIT \
+#define CTAP_PIN_PROTOCOLS_CONST_INIT(crypto_ptr) \
     { \
-        CTAP_PIN_PROTOCOL_V1_CONST_INIT, \
-        CTAP_PIN_PROTOCOL_V2_CONST_INIT, \
+        CTAP_PIN_PROTOCOL_V1_CONST_INIT(crypto_ptr), \
+        CTAP_PIN_PROTOCOL_V2_CONST_INIT(crypto_ptr), \
     }
 
-#define CTAP_STATE_CONST_INIT \
+#define CTAP_STATE_CONST_INIT(crypto_ptr) \
     { \
-        .pin_protocols = CTAP_PIN_PROTOCOLS_CONST_INIT, \
+        .crypto = (crypto_ptr), \
+        .pin_protocols = CTAP_PIN_PROTOCOLS_CONST_INIT(crypto_ptr), \
     }
 
 typedef enum ctap_user_presence_result {
@@ -279,7 +283,7 @@ bool ctap_pin_uv_auth_token_has_permissions(const ctap_state_t *state, uint32_t 
 
 void ctap_pin_uv_auth_token_stop_using(ctap_state_t *state);
 
-void ctap_compute_rp_id_hash(uint8_t *rp_id_hash, const CTAP_rpId *rp_id);
+void ctap_compute_rp_id_hash(const ctap_crypto_t *crypto, uint8_t *rp_id_hash, const CTAP_rpId *rp_id);
 
 size_t ctap_get_num_stored_credentials(void);
 

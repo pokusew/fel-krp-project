@@ -1,6 +1,4 @@
 #include "ctap.h"
-#include <uECC.h>
-#include <sha256.h>
 
 static inline bool is_option_present(const CTAP_mc_ga_options *options, const uint8_t option) {
 	return (options->present & option) == option;
@@ -46,11 +44,8 @@ static inline uint8_t verify_client_data_hash(
 	return CTAP2_OK;
 }
 
-void ctap_compute_rp_id_hash(uint8_t *rp_id_hash, const CTAP_rpId *rp_id) {
-	sha256_ctx_t sha256_ctx;
-	sha256_init(&sha256_ctx);
-	sha256_update(&sha256_ctx, rp_id->id.data, rp_id->id.size);
-	sha256_final(&sha256_ctx, rp_id_hash);
+void ctap_compute_rp_id_hash(const ctap_crypto_t *const crypto, uint8_t *rp_id_hash, const CTAP_rpId *rp_id) {
+	crypto->sha256_compute_digest(crypto, rp_id->id.data, rp_id->id.size, rp_id_hash);
 }
 
 static uint8_t create_attested_credential_data(
@@ -134,6 +129,7 @@ static uint8_t encode_authenticator_data_extensions(
 }
 
 static uint8_t compute_signature(
+	const ctap_crypto_t *const crypto,
 	const CTAP_authenticator_data *auth_data,
 	const size_t auth_data_size,
 	const uint8_t *client_data_hash,
@@ -144,23 +140,20 @@ static uint8_t compute_signature(
 
 	// message_hash = SHA256(authenticatorData || clientDataHash)
 	uint8_t message_hash[CTAP_SHA256_HASH_SIZE];
-	sha256_ctx_t sha256_ctx;
-	sha256_init(&sha256_ctx);
-	sha256_update(&sha256_ctx, (const uint8_t *) auth_data, auth_data_size);
-	sha256_update(&sha256_ctx, client_data_hash, 32);
-	sha256_final(&sha256_ctx, message_hash);
+	uint8_t sha256_ctx[crypto->sha256_context_size];
+	crypto->sha256_init(crypto, &sha256_ctx);
+	crypto->sha256_update(crypto, &sha256_ctx, (const uint8_t *) auth_data, auth_data_size);
+	crypto->sha256_update(crypto, &sha256_ctx, client_data_hash, 32);
+	crypto->sha256_final(crypto, &sha256_ctx, message_hash);
 
 	uint8_t signature[64];
-	if (uECC_sign(
+	ctap_crypto_check(crypto->ecc_secp256r1_sign(
+		crypto,
 		credential->private_key,
 		message_hash,
 		sizeof(message_hash),
-		signature,
-		uECC_secp256r1()
-	) != 1) {
-		error_log("uECC_sign failed" nl);
-		return CTAP1_ERR_OTHER;
-	}
+		signature
+	));
 
 	// WebAuthn 6.5.5. Signature Formats for Packed Attestation, FIDO U2F Attestation, and Assertion Signatures
 	// https://w3c.github.io/webauthn/#sctn-signature-attestation-types
@@ -177,6 +170,7 @@ static uint8_t compute_signature(
 }
 
 static uint8_t create_self_attestation_statement(
+	const ctap_crypto_t *const crypto,
 	CborEncoder *encoder,
 	const CTAP_authenticator_data *auth_data,
 	const size_t auth_data_size,
@@ -189,6 +183,7 @@ static uint8_t create_self_attestation_statement(
 	uint8_t asn1_der_sig[72];
 	size_t asn1_der_sig_size;
 	ctap_check(compute_signature(
+		crypto,
 		auth_data,
 		auth_data_size,
 		client_data_hash,
@@ -365,7 +360,7 @@ static uint8_t ensure_valid_pin_uv_auth_param(
 	// If the pinUvAuthToken does not have a permissions RP ID associated:
 	// Associate the request's rp.id parameter value with the pinUvAuthToken as its permissions RP ID.
 	if (!state->pin_uv_auth_token_state.rpId_set) {
-		ctap_compute_rp_id_hash(state->pin_uv_auth_token_state.rpId_hash, &params->rpId);
+		ctap_compute_rp_id_hash(state->crypto, state->pin_uv_auth_token_state.rpId_hash, &params->rpId);
 		state->pin_uv_auth_token_state.rpId_set = true;
 		debug_log(
 			"pinUvAuthToken did not have RP ID associated, setting to '%.*s' hash = ",
@@ -538,13 +533,15 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 	const bool pinUvAuthParam_present = ctap_param_is_present(params, CTAP_makeCredential_pinUvAuthParam);
 	ctap_pin_protocol_t *pin_protocol = NULL;
 
+	const ctap_crypto_t *const crypto = state->crypto;
+
 	// 6.1.2. authenticatorMakeCredential Algorithm
 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-makeCred-authnr-alg
 	// see also WebAuthn 6.3.2. The authenticatorMakeCredential Operation
 	// https://w3c.github.io/webauthn/#sctn-op-make-cred
 
 	// rpId_hash is needed throughout the whole algorithm, so we compute it right away.
-	ctap_compute_rp_id_hash(params->rpId.hash, &params->rpId);
+	ctap_compute_rp_id_hash(crypto, params->rpId.hash, &params->rpId);
 
 	// 1. + 2.
 	ctap_check(handle_pin_uv_auth_param_and_protocol(
@@ -679,8 +676,14 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 	//       Authenticator SHOULD generate CredRandomWithUV/CredRandomWithoutUV and associate
 	//       them with the credential, even if hmac-secret extension is NOT present
 	//       in authenticatorMakeCredential request.
-	ctap_generate_rng(credential.CredRandomWithUV, sizeof(credential.CredRandomWithUV));
-	ctap_generate_rng(credential.CredRandomWithoutUV, sizeof(credential.CredRandomWithoutUV));
+	ctap_crypto_check(crypto->rng_generate_data(
+		crypto,
+		credential.CredRandomWithUV, sizeof(credential.CredRandomWithUV)
+	));
+	ctap_crypto_check(crypto->rng_generate_data(
+		crypto,
+		credential.CredRandomWithoutUV, sizeof(credential.CredRandomWithoutUV))
+	);
 
 	// 15. If the extensions parameter is present:
 	if (ctap_param_is_present(params, CTAP_makeCredential_extensions)) {
@@ -723,17 +726,14 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 	//           could optionally create a discoverable credential.
 
 	credential.id[0] = 0x01u; // version
-	ctap_generate_rng(&credential.id[1], sizeof(credential.id) - 1);
-	ctap_generate_rng(credential.private_key, sizeof(credential.private_key));
+	ctap_crypto_check(crypto->rng_generate_data(crypto, &credential.id[1], sizeof(credential.id) - 1));
+	ctap_crypto_check(crypto->rng_generate_data(crypto, credential.private_key, sizeof(credential.private_key)));
 	uint8_t public_key[64];
-	if (uECC_compute_public_key(
+	ctap_crypto_check(crypto->ecc_secp256r1_compute_public_key(
+		crypto,
 		credential.private_key,
-		public_key,
-		uECC_secp256r1()
-	) != 1) {
-		error_log("uECC_compute_public_key failed" nl);
-		return CTAP1_ERR_OTHER;
-	}
+		public_key
+	));
 	ctap_check(ctap_store_credential(
 		&params->rpId,
 		&mc.user,
@@ -795,6 +795,7 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 	// attStmt (0x03)
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_makeCredential_res_attStmt));
 	ctap_check(create_self_attestation_statement(
+		crypto,
 		&map,
 		&auth_data,
 		auth_data_total_size,
@@ -809,6 +810,7 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 }
 
 static uint8_t generate_get_assertion_response(
+	const ctap_crypto_t *const crypto,
 	CborEncoder *encoder,
 	const ctap_credential *const credential,
 	const uint8_t *const auth_data_rp_id_hash,
@@ -823,14 +825,11 @@ static uint8_t generate_get_assertion_response(
 	//     using the structure specified in
 
 	uint8_t public_key[64];
-	if (uECC_compute_public_key(
+	ctap_crypto_check(crypto->ecc_secp256r1_compute_public_key(
+		crypto,
 		credential->value->private_key,
-		public_key,
-		uECC_secp256r1()
-	) != 1) {
-		error_log("uECC_compute_public_key failed" nl);
-		return CTAP1_ERR_OTHER;
-	}
+		public_key
+	));
 
 	CTAP_authenticator_data auth_data;
 	memcpy(auth_data.fixed_header.rpIdHash, auth_data_rp_id_hash, sizeof(auth_data.fixed_header.rpIdHash));
@@ -861,6 +860,7 @@ static uint8_t generate_get_assertion_response(
 	uint8_t asn1_der_sig[72];
 	size_t asn1_der_sig_size;
 	ctap_check(compute_signature(
+		crypto,
 		&auth_data,
 		auth_data_total_size,
 		client_data_hash_hash,
@@ -925,13 +925,15 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 	const bool pinUvAuthParam_present = ctap_param_is_present(params, CTAP_getAssertion_pinUvAuthParam);
 	ctap_pin_protocol_t *pin_protocol = NULL;
 
+	const ctap_crypto_t *const crypto = state->crypto;
+
 	// 6.2.2. authenticatorGetAssertion Algorithm
 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-getAssert-authnr-alg
 	// see also WebAuthn 6.3.3. The authenticatorGetAssertion Operation
 	// https://w3c.github.io/webauthn/#sctn-op-get-assertion
 
 	// rpId_hash is needed throughout the whole algorithm, so we compute it right away.
-	ctap_compute_rp_id_hash(params->rpId.hash, &params->rpId);
+	ctap_compute_rp_id_hash(crypto, params->rpId.hash, &params->rpId);
 
 	// 1. + 2.
 	ctap_check(handle_pin_uv_auth_param_and_protocol(
@@ -1085,6 +1087,7 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 
 	// 13. Sign the clientDataHash along with authData.
 	ctap_check(generate_get_assertion_response(
+		crypto,
 		encoder,
 		&ga_state->credentials[ga_state->next_credential_idx],
 		ga_state->auth_data_rp_id_hash,
@@ -1154,6 +1157,7 @@ uint8_t ctap_get_next_assertion(ctap_state_t *const state, CborValue *const it, 
 
 	// 6. Sign the clientDataHash along with authData. (also handles Step 5)
 	ctap_check(generate_get_assertion_response(
+		state->crypto,
 		encoder,
 		// 4. Select the credential indexed by credentialCounter.
 		&ga_state->credentials[ga_state->next_credential_idx],

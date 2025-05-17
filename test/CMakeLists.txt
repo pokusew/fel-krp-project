@@ -87,22 +87,31 @@ target_include_directories(micro_ecc
 		../crypto/micro-ecc
 )
 
+add_library(hash INTERFACE)
+target_include_directories(hash INTERFACE ../crypto/hash)
+
+add_library(hmac STATIC)
+target_sources(hmac PRIVATE ../crypto/hmac/hmac.c)
+target_include_directories(hmac INTERFACE  ../crypto/hmac)
+target_link_libraries(hmac PUBLIC hash)
+
+add_library(hkdf STATIC)
+target_sources(hkdf PRIVATE ../crypto/hkdf/hkdf.c)
+target_include_directories(hkdf INTERFACE ../crypto/hkdf)
+target_link_libraries(hkdf PUBLIC hash hmac)
+
 add_library(sha256 STATIC)
-target_sources(sha256
-		PRIVATE
-		../crypto/sha256/sha256.c
-		../crypto/sha256/hmac.c
-		../crypto/sha256/hkdf.c
-		INTERFACE
-		../crypto/sha256/sha256.h
-		../crypto/sha256/hmac.h
-		../crypto/sha256/hkdf.h
+target_sources(sha256 PRIVATE ../crypto/sha256/sha256.c)
+target_include_directories(sha256 INTERFACE ../crypto/sha256)
+target_link_libraries(sha256 PUBLIC hash)
+
+add_library(ctap_crypto_software STATIC)
+target_sources(ctap_crypto_software PUBLIC
+		../core/ctap_crypto_software.c
 )
-target_include_directories(sha256
-		INTERFACE
-		../crypto/sha256
-		PUBLIC
-		../crypto/hash
+target_include_directories(ctap_crypto_software PUBLIC ../core)
+target_link_libraries(ctap_crypto_software
+		PUBLIC tinyaes micro_ecc tinymt32 sha256
 )
 
 add_library(core STATIC)
@@ -123,15 +132,14 @@ target_sources(core PUBLIC
 		../core/ctap_string.c
 		../core/ctaphid.c
 		../core/utils.c
-		lionkey/consistent_prng.cpp
 		lionkey/time.c
 		lionkey/wait_for_user_presence.c
 		lionkey/keepalive.c
 		lionkey/ctap_test.c
 )
-target_include_directories(core PUBLIC ../core lionkey)
+target_include_directories(core PUBLIC ../core lionkey ../crypto/hash)
 target_link_libraries(core PUBLIC
-		tinycbor sha256 tinyaes micro_ecc
+		tinycbor ctap_crypto_software hkdf hmac
 )
 target_compile_definitions(core PUBLIC
 		LIONKEY_DEBUG_LEVEL=3
@@ -274,15 +282,16 @@ std_test(sha256 src/sha256_test.cpp)
 target_link_libraries(test_sha256 sha256 hex_utils gtest_custom_assertions)
 
 std_test(hmac_sha256 src/hmac_sha256_test.cpp)
-target_link_libraries(test_hmac_sha256 sha256 hex_utils gtest_custom_assertions)
+target_link_libraries(test_hmac_sha256 hmac sha256 hex_utils gtest_custom_assertions)
 
 std_test(hkdf_sha256 src/hkdf_sha256_test.cpp)
-target_link_libraries(test_hkdf_sha256 sha256 hex_utils gtest_custom_assertions)
+target_link_libraries(test_hkdf_sha256 hkdf sha256 hex_utils gtest_custom_assertions)
 
 core_test(ctap_parse_client_pin)
 core_test(ctap_parse_make_credential)
 core_test(ctap_parse_get_assertion)
 core_test(ctap_parse_credential_management)
+core_test(ctap_software_crypto)
 core_test(ctap_client_pin)
 core_test(ctap_make_credential)
 core_test(ctap_get_assertion)

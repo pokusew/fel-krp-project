@@ -4,7 +4,7 @@
 #include <algorithm>
 extern "C" {
 #include <ctap.h>
-#include <utils.h>
+#include <ctap_crypto_software.h>
 }
 namespace {
 
@@ -293,7 +293,9 @@ constexpr auto create_get_pin_token_v2(
 class CtapClientPinTest : public testing::Test {
 protected:
 	uint8_t ctap_response_buffer[CTAP_RESPONSE_BUFFER_SIZE]{};
-	ctap_state_t ctap = CTAP_STATE_CONST_INIT;
+	ctap_software_crypto_context_t crypto_ctx{};
+	const ctap_crypto_t crypto = CTAP_SOFTWARE_CRYPTO_CONST_INIT(&crypto_ctx);
+	ctap_state_t ctap = CTAP_STATE_CONST_INIT(&crypto);
 	ctap_response_t response{
 		.data_max_size = sizeof(ctap_response_buffer),
 		.data = ctap_response_buffer,
@@ -301,15 +303,8 @@ protected:
 	uint8_t status{};
 
 	CtapClientPinTest() {
-
-		// reset the consistent pseudo random number generator between tests
-		// This is needed because the generator is global and multiple test cases
-		// run sequentially (in one executable), each affecting the generator state.
-		// We plan to improve the API to remove the global state and switch to an instance-based (context) API.
-		ctap_rng_reset(0);
-
+		crypto.init(&crypto, 0);
 		ctap_init(&ctap);
-
 	}
 
 	template<size_t N>

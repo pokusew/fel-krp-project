@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "ctap_cbor.h"
+#include "ctap_crypto.h"
 
 #include "cose.h"
 #include "ctap_pin_uv_auth_token_state.h"
@@ -37,6 +38,8 @@ typedef struct ctap_pin_protocol {
 	const size_t version;
 	const size_t shared_secret_length;
 	const size_t encryption_extra_length;
+
+	const ctap_crypto_t *const crypto;
 
 	/**
 	 * Initializes the protocol for use.
@@ -152,6 +155,7 @@ typedef struct ctap_pin_protocol {
 	 * @see ctap_pin_protocol_v1_encrypt()
 	 * @see ctap_pin_protocol_v2_encrypt()
 	 *
+	 * @param [in] protocol the protocol
 	 * @param [in] shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
 	 *                           (32 bytes for v1, 64 bytes for v2)
 	 * @param [in] plaintext the plaintext
@@ -162,6 +166,7 @@ typedef struct ctap_pin_protocol {
 	 * @retval 1 on error
 	 */
 	int (*const encrypt)(
+		const struct ctap_pin_protocol *protocol,
 		const uint8_t *shared_secret,
 		const uint8_t *plaintext, const size_t plaintext_length,
 		uint8_t *ciphertext
@@ -175,6 +180,7 @@ typedef struct ctap_pin_protocol {
 	 * @see ctap_pin_protocol_v1_decrypt()
 	 * @see ctap_pin_protocol_v2_decrypt()
 	 *
+	 * @param [in] protocol the protocol
 	 * @param [in] shared_secret the shared secret, an array of `protocol.shared_secret_length` bytes
 	 *                           (32 bytes for v1, 64 bytes for v2)
 	 * @param [in] ciphertext the ciphertext
@@ -185,6 +191,7 @@ typedef struct ctap_pin_protocol {
 	 * @retval 1 on error
 	 */
 	int (*const decrypt)(
+		const struct ctap_pin_protocol *protocol,
 		const uint8_t *shared_secret,
 		const uint8_t *ciphertext, const size_t ciphertext_length,
 		uint8_t *plaintext
@@ -320,11 +327,12 @@ typedef struct ctap_pin_protocol {
 
 } ctap_pin_protocol_t;
 
-#define CTAP_PIN_PROTOCOL_V1_CONST_INIT \
+#define CTAP_PIN_PROTOCOL_V1_CONST_INIT(crypto_ptr) \
     { \
         .version = 1, \
         .shared_secret_length = 32, \
         .encryption_extra_length = 0, \
+        .crypto = (crypto_ptr), \
         .initialize = ctap_pin_protocol_initialize, \
         .regenerate = ctap_pin_protocol_regenerate, \
         .reset_pin_uv_auth_token = ctap_pin_protocol_reset_pin_uv_auth_token, \
@@ -340,11 +348,12 @@ typedef struct ctap_pin_protocol {
         .verify_final = ctap_pin_protocol_v1_verify_final, \
     }
 
-#define CTAP_PIN_PROTOCOL_V2_CONST_INIT \
+#define CTAP_PIN_PROTOCOL_V2_CONST_INIT(crypto_ptr) \
     { \
         .version = 2, \
         .shared_secret_length = 64, \
-        .encryption_extra_length = 16, \
+        .encryption_extra_length = CTAP_CRYPTO_AES_BLOCK_SIZE, \
+        .crypto = (crypto_ptr), \
         .initialize = ctap_pin_protocol_initialize, \
         .regenerate = ctap_pin_protocol_regenerate, \
         .reset_pin_uv_auth_token = ctap_pin_protocol_reset_pin_uv_auth_token, \
@@ -387,24 +396,28 @@ int ctap_pin_protocol_v2_kdf(
 );
 
 int ctap_pin_protocol_v1_encrypt(
+	const ctap_pin_protocol_t *protocol,
 	const uint8_t *shared_secret,
 	const uint8_t *plaintext, size_t plaintext_length,
 	uint8_t *ciphertext
 );
 
 int ctap_pin_protocol_v2_encrypt(
+	const ctap_pin_protocol_t *protocol,
 	const uint8_t *shared_secret,
 	const uint8_t *plaintext, size_t plaintext_length,
 	uint8_t *ciphertext
 );
 
 int ctap_pin_protocol_v1_decrypt(
+	const ctap_pin_protocol_t *protocol,
 	const uint8_t *shared_secret,
 	const uint8_t *ciphertext, size_t ciphertext_length,
 	uint8_t *plaintext
 );
 
 int ctap_pin_protocol_v2_decrypt(
+	const ctap_pin_protocol_t *protocol,
 	const uint8_t *shared_secret,
 	const uint8_t *ciphertext, size_t ciphertext_length,
 	uint8_t *plaintext

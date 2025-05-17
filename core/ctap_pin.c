@@ -1,6 +1,5 @@
 #include "ctap.h"
 #include "utils.h"
-#include <sha256.h>
 
 /**
  * Counts the number of Unicode code points in the given UTF-8 string
@@ -102,6 +101,7 @@ static uint8_t check_pin_hash(
 	}
 	uint8_t pin_hash[pin_hash_length];
 	if (pin_protocol->decrypt(
+		pin_protocol,
 		/* key */ shared_secret,
 		/* ciphertext */ pin_hash_enc->data, pin_hash_enc->size,
 		/* output: plaintext */ pin_hash
@@ -157,6 +157,7 @@ static uint8_t set_pin(
 	//   If an error results, it returns CTAP2_ERR_PIN_AUTH_INVALID.
 	uint8_t padded_new_pin[64];
 	if (pin_protocol->decrypt(
+		pin_protocol,
 		/* key */ shared_secret,
 		/* ciphertext */ new_pin_enc->data, new_pin_enc->size,
 		/* output: plaintext */ padded_new_pin
@@ -249,10 +250,8 @@ static uint8_t set_pin(
 	debug_log(green("new_pin = %s") nl, new_pin);
 
 	uint8_t new_pin_hash[CTAP_SHA256_HASH_SIZE];
-	sha256_ctx_t sha256_ctx;
-	sha256_init(&sha256_ctx);
-	sha256_update(&sha256_ctx, new_pin, new_pin_length);
-	sha256_final(&sha256_ctx, new_pin_hash);
+	const ctap_crypto_t *const crypto = state->crypto;
+	ctap_crypto_check(crypto->sha256_compute_digest(crypto, new_pin, new_pin_length, new_pin_hash));
 
 	// CurrentStoredPIN = LEFT(SHA-256(newPin), 16)
 	static_assert(
@@ -402,7 +401,7 @@ static uint8_t get_pin_token_using_pin_with_permissions(
 	ctap_pin_uv_auth_token_begin_using(state, false, permissions);
 	// If the rpId parameter is present, associate the permissions RP ID with the pinUvAuthToken.
 	if (rp_id != NULL) {
-		ctap_compute_rp_id_hash(state->pin_uv_auth_token_state.rpId_hash, rp_id);
+		ctap_compute_rp_id_hash(state->crypto, state->pin_uv_auth_token_state.rpId_hash, rp_id);
 		state->pin_uv_auth_token_state.rpId_set = true;
 		debug_log(
 			"pinUvAuthToken RP ID set to '%.*s' hash = ",
@@ -419,6 +418,7 @@ static uint8_t get_pin_token_using_pin_with_permissions(
 		+ pin_protocol->encryption_extra_length;
 	uint8_t encrypted_pin_uv_auth_token[encrypted_pin_uv_auth_token_length];
 	if (pin_protocol->encrypt(
+		pin_protocol,
 		shared_secret,
 		pin_protocol->pin_uv_auth_token, sizeof(pin_protocol->pin_uv_auth_token),
 		encrypted_pin_uv_auth_token

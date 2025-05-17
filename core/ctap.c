@@ -3,20 +3,20 @@
 #include "ctap.h"
 #include "utils.h"
 #include "ctap_parse.h"
-#include <uECC.h>
 
 static void ctap_init_persistent_state_tmp(ctap_persistent_state_t *state) {
 
 	debug_log("ctap_init_persistent_state_tmp" nl);
 
-	// set to 0xff instead of 0x00 to be easier on flash
-	memset(state, 0xff, sizeof(ctap_persistent_state_t));
-	// fresh RNG for key
-	ctap_generate_rng(state->master_keys, KEY_SPACE_BYTES);
-	debug_log("generated master_keys: ");
-	dump_hex(state->master_keys, KEY_SPACE_BYTES);
+	// // set to 0xff instead of 0x00 to be easier on flash
+	// memset(state, 0xff, sizeof(ctap_persistent_state_t));
+	// // fresh RNG for key
+	// ctap_generate_rng(state->master_keys, KEY_SPACE_BYTES);
+	// debug_log("generated master_keys: ");
+	// dump_hex(state->master_keys, KEY_SPACE_BYTES);
 
-	state->is_initialized = INITIALIZED_MARKER;
+	// state->is_initialized = INITIALIZED_MARKER;
+
 	state->pin_total_remaining_attempts = PIN_TOTAL_ATTEMPTS;
 
 	// The default pre-configured minimum PIN length is at least 4 Unicode code points
@@ -26,8 +26,9 @@ static void ctap_init_persistent_state_tmp(ctap_persistent_state_t *state) {
 	//     https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authnrClientPin-pin-composition
 	state->pin_min_code_point_length = 4;
 
-	state->is_pin_set = 0;
-	state->num_rk_stored = 0;
+	state->is_pin_set = false;
+
+	// state->num_rk_stored = 0;
 
 	ctap_reset_credentials_store();
 
@@ -38,7 +39,11 @@ void ctap_all_pin_protocols_initialize(ctap_state_t *state) {
 	for (size_t i = 0; i < num_pin_protocols; ++i) {
 		ctap_pin_protocol_t *pin_protocol = &state->pin_protocols[i];
 
+		assert(pin_protocol->version != 0);
 		assert(pin_protocol->shared_secret_length != 0);
+
+		assert(pin_protocol->crypto != NULL);
+
 		assert(pin_protocol->initialize != NULL);
 		assert(pin_protocol->regenerate != NULL);
 		assert(pin_protocol->reset_pin_uv_auth_token != NULL);
@@ -72,8 +77,6 @@ void ctap_all_pin_protocols_reset_pin_uv_auth_token(ctap_state_t *state) {
 void ctap_init(ctap_state_t *state) {
 
 	debug_log("ctap_init" nl);
-
-	uECC_set_rng((uECC_RNG_Function) ctap_generate_rng);
 
 	// TODO: Replace once proper persistence is implemented.
 	ctap_init_persistent_state_tmp(&state->persistent);

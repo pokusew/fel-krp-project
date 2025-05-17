@@ -77,21 +77,31 @@ target_include_directories(micro_ecc
 		../../crypto/micro-ecc
 )
 
-# https://github.com/B-Con/crypto-algorithms/blob/master/sha256.h
+add_library(hash INTERFACE)
+target_include_directories(hash INTERFACE ../../crypto/hash)
+
+add_library(hmac STATIC)
+target_sources(hmac PRIVATE ../../crypto/hmac/hmac.c)
+target_include_directories(hmac INTERFACE  ../../crypto/hmac)
+target_link_libraries(hmac PUBLIC hash)
+
+add_library(hkdf STATIC)
+target_sources(hkdf PRIVATE ../../crypto/hkdf/hkdf.c)
+target_include_directories(hkdf INTERFACE ../../crypto/hkdf)
+target_link_libraries(hkdf PUBLIC hash hmac)
+
 add_library(sha256 STATIC)
-target_sources(sha256
-		PRIVATE
-		../../crypto/sha256/sha256.c
-		../../crypto/sha256/hmac.c
-		../../crypto/sha256/hkdf.c
-		INTERFACE
-		../../crypto/sha256/sha256.h
-		../../crypto/sha256/hmac.h
-		../../crypto/sha256/hkdf.h
+target_sources(sha256 PRIVATE ../../crypto/sha256/sha256.c)
+target_include_directories(sha256 INTERFACE ../../crypto/sha256)
+target_link_libraries(sha256 PUBLIC hash)
+
+add_library(ctap_crypto_software STATIC)
+target_sources(ctap_crypto_software PUBLIC
+		../../core/ctap_crypto_software.c
 )
-target_include_directories(sha256
-		INTERFACE
-		../../crypto/sha256
+target_include_directories(ctap_crypto_software PUBLIC ../../core)
+target_link_libraries(ctap_crypto_software
+		PUBLIC tinyaes micro_ecc tinymt32 sha256
 )
 
 add_library(core STATIC)
@@ -115,7 +125,7 @@ target_sources(core PUBLIC
 )
 target_include_directories(core PUBLIC ../../core Inc)
 target_link_libraries(core PUBLIC
-		tinycbor sha256 tinyaes micro_ecc
+		tinycbor ctap_crypto_software hkdf hmac
 )
 target_compile_definitions(core PUBLIC
 		LIONKEY_DEBUG_LEVEL=3

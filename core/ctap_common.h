@@ -15,10 +15,6 @@
 
 #define CTAP_SHA256_HASH_SIZE  32
 
-void ctap_rng_reset(uint32_t seed);
-
-int ctap_generate_rng(uint8_t *buffer, size_t length);
-
 uint32_t ctap_get_current_time(void);
 
 #endif // LIONKEY_CTAP_COMMON_H

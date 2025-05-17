@@ -1,6 +1,6 @@
+#include "hkdf.h"
 #include <string.h>
 #include <assert.h>
-#include "hkdf.h"
 
 void hkdf_extract(
 	const hash_alg_t *const hash_alg,

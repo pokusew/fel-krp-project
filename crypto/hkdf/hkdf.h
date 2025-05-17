@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include "hmac.h"
+#include <hmac.h>
 
 /**
  * Derives an key (output keying material, OKM) from an input keying material (IKM)

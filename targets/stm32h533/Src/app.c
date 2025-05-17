@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include "tusb.h"
 #include <stdlib.h>
+#include "ctap_crypto_software.h"
 
 int ctap_generate_rng(uint8_t *buffer, size_t length) {
 	debug_log("ctap_generate_rng: %u bytes to %p" nl, length, buffer);
@@ -27,7 +28,9 @@ ctap_response_t app_ctap_response = {
 	.data_max_size = sizeof(app_ctaphid_cbor_response_buffer) - 1,
 	.data = &app_ctaphid_cbor_response_buffer[1]
 };
-ctap_state_t app_ctap = CTAP_STATE_CONST_INIT;
+ctap_software_crypto_context_t app_crypto_ctx;
+const ctap_crypto_t app_crypto = CTAP_SOFTWARE_CRYPTO_CONST_INIT(&app_crypto_ctx);
+ctap_state_t app_ctap = CTAP_STATE_CONST_INIT(&app_crypto);
 
 static inline void app_hid_task(void) {
 	tud_task(); // tinyusb device task
@@ -123,11 +126,12 @@ noreturn void app_run(void) {
 	uint32_t t1 = HAL_GetTick();
 
 	ctaphid_init(&app_ctaphid);
+	app_crypto.init(&app_crypto, 0);
 	ctap_init(&app_ctap);
 
 	uint32_t t2 = HAL_GetTick();
 
-	debug_log("ctap init done in %" PRId32 " ms" nl, t2 - t1);
+	info_log("init done in %" PRId32 " ms" nl, t2 - t1);
 
 	usb_init();
 
