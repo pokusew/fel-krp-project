@@ -15,10 +15,11 @@ size_t hmac_get_context_size(const hash_alg_t *hash_alg);
  *
  * @param [out] ctx the HMAC context, will be initialized by this function
  * @param [in] hash_alg the hashing algorithm to use
+ * @param [in,out] hash_ctx the hashing algorithm context
  * @param [in] key the key
  * @param [in] key_length the key length in bytes (arbitrary length allowed)
  */
-void hmac_init(void *ctx, const hash_alg_t *hash_alg, const uint8_t *key, size_t key_length);
+void hmac_init(void *ctx, const hash_alg_t *hash_alg, void *hash_ctx, const uint8_t *key, size_t key_length);
 
 /**
  * Updates the HMAC computation by processing the given data

@@ -4,20 +4,25 @@
 
 typedef struct hmac_ctx {
 	const hash_alg_t *hash_alg;
+	void *hash_ctx;
 } hmac_ctx_t;
 
 size_t hmac_get_context_size(const hash_alg_t *const hash_alg) {
-	return sizeof(hmac_ctx_t) + hash_alg->ctx_size + hash_alg->block_size;
+	return sizeof(hmac_ctx_t) + hash_alg->block_size;
 }
 
-void hmac_init(void *const ctx, const hash_alg_t *const hash_alg, const uint8_t *const key, const size_t key_length) {
+void hmac_init(
+	void *const ctx,
+	const hash_alg_t *const hash_alg, void *const hash_ctx,
+	const uint8_t *const key, const size_t key_length
+) {
 
 	hmac_ctx_t *const hmac_ctx = ctx;
 	hmac_ctx->hash_alg = hash_alg;
+	hmac_ctx->hash_ctx = hash_ctx;
 	const size_t hash_block_size = hash_alg->block_size;
 
-	void *hash_ctx = &((uint8_t *) (hmac_ctx + 1))[0];
-	uint8_t *i_o_key_pad = &((uint8_t *) (hmac_ctx + 1))[hash_alg->ctx_size];
+	uint8_t *i_o_key_pad = (uint8_t *) (hmac_ctx + 1);
 
 	// https://en.wikipedia.org/wiki/HMAC#Definition
 	// https://en.wikipedia.org/wiki/HMAC#Implementation
@@ -65,7 +70,7 @@ void hmac_update(void *const ctx, const uint8_t *const data, const size_t data_l
 
 	hmac_ctx_t *const hmac_ctx = ctx;
 	const hash_alg_t *const hash_alg = hmac_ctx->hash_alg;
-	void *hash_ctx = &((uint8_t *) (hmac_ctx + 1))[0];
+	void *hash_ctx = hmac_ctx->hash_ctx;
 
 	hash_alg->update(hash_ctx, data, data_length);
 
@@ -75,8 +80,8 @@ void hmac_final(void *const ctx, uint8_t *const hmac) {
 
 	hmac_ctx_t *const hmac_ctx = ctx;
 	const hash_alg_t *const hash_alg = hmac_ctx->hash_alg;
-	void *hash_ctx = &((uint8_t *) (hmac_ctx + 1))[0];
-	uint8_t *i_o_key_pad = &((uint8_t *) (hmac_ctx + 1))[hash_alg->ctx_size];
+	void *hash_ctx = hmac_ctx->hash_ctx;
+	uint8_t *i_o_key_pad = (uint8_t *) (hmac_ctx + 1);
 
 	// finish computing the inner_hash (use the output hmac buffer as a temporary storage)
 	// inner_hash = hash(i_key_pad || data... )

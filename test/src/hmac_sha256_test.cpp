@@ -54,14 +54,17 @@ TEST_P(HmacSha256Test, ComputesHmac) {
 
 	std::array<uint8_t, LIONKEY_SHA256_OUTPUT_SIZE> hmac{};
 
-	const hash_alg_t *hash_alg = &hash_alg_sha256;
+	const hash_alg_t *const sha256 = &hash_alg_sha256;
+	ASSERT_GT(sha256->ctx_size, 0);
 
-	const size_t hmac_sha256_ctx_size = hmac_get_context_size(hash_alg);
+	uint8_t sha256_ctx[sha256->ctx_size];
 
-	ASSERT_EQ(hmac_sha256_ctx_size, sizeof(hash_alg_t * ) + hash_alg->ctx_size + hash_alg->block_size);
+	const size_t hmac_sha256_ctx_size = hmac_get_context_size(sha256);
+
+	ASSERT_EQ(hmac_sha256_ctx_size, sizeof(hash_alg_t *) + sizeof(void *) + sha256->block_size);
 
 	uint8_t hmac_sha256_ctx[hmac_sha256_ctx_size];
-	hmac_init(hmac_sha256_ctx, hash_alg, key.data(), key.size());
+	hmac_init(hmac_sha256_ctx, sha256, sha256_ctx, key.data(), key.size());
 	hmac_update(hmac_sha256_ctx, input.data(), input.size());
 	hmac_final(hmac_sha256_ctx, hmac.data());
 

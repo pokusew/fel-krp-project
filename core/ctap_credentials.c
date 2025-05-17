@@ -140,8 +140,11 @@ static uint8_t compute_signature(
 
 	// message_hash = SHA256(authenticatorData || clientDataHash)
 	uint8_t message_hash[CTAP_SHA256_HASH_SIZE];
+
 	const hash_alg_t *const sha256 = crypto->sha256;
 	uint8_t sha256_ctx[sha256->ctx_size];
+	crypto->sha256_bind_ctx(crypto, sha256_ctx);
+
 	sha256->init(sha256_ctx);
 	sha256->update(sha256_ctx, (const uint8_t *) auth_data, auth_data_size);
 	sha256->update(sha256_ctx, client_data_hash, 32);

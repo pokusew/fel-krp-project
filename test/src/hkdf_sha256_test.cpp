@@ -69,15 +69,16 @@ TEST_P(HkdfSha256Test, ExtractProducesCorrectPrk) {
 
 	uint8_t prk[expected_prk.size()];
 
-	const hash_alg_t *hash_alg = &hash_alg_sha256;
+	const hash_alg_t *const sha256 = &hash_alg_sha256;
+	uint8_t sha256_ctx[sha256->ctx_size];
 
-	const size_t hmac_sha256_ctx_size = hmac_get_context_size(hash_alg);
-
+	const size_t hmac_sha256_ctx_size = hmac_get_context_size(sha256);
 	ASSERT_GT(hmac_sha256_ctx_size, 0);
 
 	uint8_t hmac_sha256_ctx[hmac_sha256_ctx_size];
 	hkdf_extract(
-		hash_alg,
+		sha256,
+		sha256_ctx,
 		hmac_sha256_ctx,
 		salt.data(), salt.size(),
 		ikm.data(), ikm.size(),
@@ -101,8 +102,12 @@ TEST_P(HkdfSha256Test, HkdfProducesCorrectOkm) {
 	// which is usually slower than just always allocating a slightly bigger array.
 	uint8_t okm[expected_okm.size() + 1];
 
+	const hash_alg_t *const sha256 = &hash_alg_sha256;
+	uint8_t sha256_ctx[sha256->ctx_size];
+
 	hkdf(
-		&hash_alg_sha256,
+		sha256,
+		sha256_ctx,
 		salt.data(), salt.size(),
 		ikm.data(), ikm.size(),
 		info.data(), info.size(),

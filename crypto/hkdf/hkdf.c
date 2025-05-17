@@ -4,6 +4,7 @@
 
 void hkdf_extract(
 	const hash_alg_t *const hash_alg,
+	void *const hash_ctx,
 	void *const hmac_ctx,
 	const uint8_t *const salt, const size_t salt_length,
 	const uint8_t *const ikm, const size_t ikm_length,
@@ -16,7 +17,7 @@ void hkdf_extract(
 	//   PRK = HMAC-Hash(salt, IKM)
 	// https://datatracker.ietf.org/doc/html/rfc5869#section-2.2
 
-	hmac_init(hmac_ctx, hash_alg, salt, salt_length);
+	hmac_init(hmac_ctx, hash_alg, hash_ctx, salt, salt_length);
 	hmac_update(hmac_ctx, ikm, ikm_length);
 	hmac_final(hmac_ctx, prk);
 
@@ -24,6 +25,7 @@ void hkdf_extract(
 
 void hkdf_expand(
 	const hash_alg_t *const hash_alg,
+	void *const hash_ctx,
 	void *const hmac_ctx,
 	const uint8_t *const prk,
 	const uint8_t *const info, const size_t info_length,
@@ -56,7 +58,7 @@ void hkdf_expand(
 	const uint8_t *const okm_end = okm + okm_length;
 	uint8_t i = 1;
 	while ((okm_pos + hash_output_size) <= okm_end) {
-		hmac_init(hmac_ctx, hash_alg, prk, hash_output_size);
+		hmac_init(hmac_ctx, hash_alg, hash_ctx, prk, hash_output_size);
 		hmac_update(hmac_ctx, okm_prev_pos, t_i_length);
 		hmac_update(hmac_ctx, info, info_length);
 		hmac_update(hmac_ctx, &i, 1);
@@ -68,7 +70,7 @@ void hkdf_expand(
 		i++;
 	}
 	if (okm_pos < okm_end) {
-		hmac_init(hmac_ctx, hash_alg, prk, hash_output_size);
+		hmac_init(hmac_ctx, hash_alg, hash_ctx, prk, hash_output_size);
 		hmac_update(hmac_ctx, okm_prev_pos, t_i_length);
 		hmac_update(hmac_ctx, info, info_length);
 		hmac_update(hmac_ctx, &i, 1);
@@ -86,6 +88,7 @@ void hkdf_expand(
 
 void hkdf(
 	const hash_alg_t *const hash_alg,
+	void *const hash_ctx,
 	const uint8_t *const salt, const size_t salt_length,
 	const uint8_t *const ikm, const size_t ikm_length,
 	const uint8_t *const info, const size_t info_length,
@@ -101,6 +104,7 @@ void hkdf(
 
 	hkdf_extract(
 		hash_alg,
+		hash_ctx,
 		hmac_ctx,
 		salt, salt_length,
 		ikm, ikm_length,
@@ -108,6 +112,7 @@ void hkdf(
 	);
 	hkdf_expand(
 		hash_alg,
+		hash_ctx,
 		hmac_ctx,
 		prk,
 		info, info_length,

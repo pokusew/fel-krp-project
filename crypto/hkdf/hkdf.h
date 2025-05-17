@@ -13,6 +13,7 @@
  * See RFC 5869, https://datatracker.ietf.org/doc/html/rfc5869, or https://en.wikipedia.org/wiki/HKDF.
  *
  * @param [in] hash_alg the hashing algorithm to use
+ * @param [in,out] hash_ctx the hashing algorithm context
  * @param [in] salt
  * @param [in] salt_length
  * @param [in] ikm input keying material
@@ -27,6 +28,7 @@
  */
 void hkdf(
 	const hash_alg_t *hash_alg,
+	void *hash_ctx,
 	const uint8_t *salt, size_t salt_length,
 	const uint8_t *ikm, size_t ikm_length,
 	const uint8_t *info, size_t info_length,
@@ -36,6 +38,7 @@ void hkdf(
 
 void hkdf_extract(
 	const hash_alg_t *hash_alg,
+	void *hash_ctx,
 	void *hmac_ctx,
 	const uint8_t *salt, size_t salt_length,
 	const uint8_t *ikm, size_t ikm_length,
@@ -44,6 +47,7 @@ void hkdf_extract(
 
 void hkdf_expand(
 	const hash_alg_t *hash_alg,
+	void *hash_ctx,
 	void *hmac_ctx,
 	const uint8_t *prk,
 	const uint8_t *info, size_t info_length,

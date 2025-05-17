@@ -171,11 +171,18 @@ int ctap_pin_protocol_v2_kdf(
 	uint8_t *shared_secret
 ) {
 	const ctap_crypto_t *const crypto = protocol->crypto;
+
+	const hash_alg_t *const sha256 = crypto->sha256;
+	uint8_t sha256_ctx[sha256->ctx_size];
+	crypto->sha256_bind_ctx(crypto, sha256_ctx);
+
 	uint8_t all_zero_salt[32];
 	memset(all_zero_salt, 0, sizeof(all_zero_salt));
+
 	const ctap_string_t info_hmac_key = ctap_str("CTAP2 HMAC key");
 	hkdf(
-		crypto->sha256,
+		sha256,
+		sha256_ctx,
 		all_zero_salt, sizeof(all_zero_salt),
 		ecdh_shared_point_z, 32,
 		info_hmac_key.data, info_hmac_key.size,
@@ -184,7 +191,8 @@ int ctap_pin_protocol_v2_kdf(
 	);
 	const ctap_string_t info_aes_key = ctap_str("CTAP2 AES key");
 	hkdf(
-		crypto->sha256,
+		sha256,
+		sha256_ctx,
 		all_zero_salt, sizeof(all_zero_salt),
 		ecdh_shared_point_z, 32,
 		info_aes_key.data, info_aes_key.size,
@@ -309,7 +317,29 @@ int ctap_pin_protocol_v2_decrypt(
 }
 
 size_t ctap_pin_protocol_verify_get_context_size(const ctap_pin_protocol_t *const protocol) {
-	return hmac_get_context_size(protocol->crypto->sha256);
+	const hash_alg_t *const sha256 = protocol->crypto->sha256;
+	return hmac_get_context_size(sha256) + sha256->ctx_size;
+}
+
+static inline uint8_t *hmac_ctx_from_verify_ctx(void *const verify_ctx) {
+	return &((uint8_t *) verify_ctx)[0];
+}
+
+static void ctap_pin_protocol_verify_init(
+	const ctap_pin_protocol_t *const protocol,
+	void *const verify_ctx,
+	const uint8_t *const hmac_key,
+	const size_t hmac_key_length
+) {
+	const ctap_crypto_t *const crypto = protocol->crypto;
+
+	uint8_t *const hmac_ctx = hmac_ctx_from_verify_ctx(verify_ctx);
+
+	const hash_alg_t *const sha256 = crypto->sha256;
+	uint8_t *const sha256_ctx = &((uint8_t *) verify_ctx)[hmac_get_context_size(sha256)];
+	crypto->sha256_bind_ctx(crypto, sha256_ctx);
+
+	hmac_init(hmac_ctx, sha256, sha256_ctx, hmac_key, hmac_key_length);
 }
 
 void ctap_pin_protocol_v1_verify_init_with_shared_secret(
@@ -324,7 +354,9 @@ void ctap_pin_protocol_v1_verify_init_with_shared_secret(
 	//   2. Compute HMAC-SHA-256 with the given key and message.
 	//      Return success if signature is 16 bytes and is equal to the first 16 bytes of the result,
 	//      otherwise return error (implemented in ctap_pin_protocol_v1_verify_final()).
-	hmac_init(verify_ctx, protocol->crypto->sha256, shared_secret, protocol->shared_secret_length);
+	const uint8_t *const hmac_key = shared_secret;
+	const size_t hmac_key_length = protocol->shared_secret_length;
+	ctap_pin_protocol_verify_init(protocol, verify_ctx, hmac_key, hmac_key_length);
 }
 
 void ctap_pin_protocol_v2_verify_init_with_shared_secret(
@@ -343,7 +375,7 @@ void ctap_pin_protocol_v2_verify_init_with_shared_secret(
 	assert(protocol->shared_secret_length == 64);
 	const uint8_t *const hmac_key = shared_secret;
 	const size_t hmac_key_length = 32;
-	hmac_init(verify_ctx, protocol->crypto->sha256, hmac_key, hmac_key_length);
+	ctap_pin_protocol_verify_init(protocol, verify_ctx, hmac_key, hmac_key_length);
 }
 
 int ctap_pin_protocol_verify_init_with_pin_uv_auth_token(
@@ -359,7 +391,12 @@ int ctap_pin_protocol_verify_init_with_pin_uv_auth_token(
 		return 1;
 	}
 	pin_uv_auth_token_state->usage_timer.last_use = ctap_get_current_time();
-	hmac_init(verify_ctx, protocol->crypto->sha256, protocol->pin_uv_auth_token, sizeof(protocol->pin_uv_auth_token));
+
+	const uint8_t *const hmac_key = protocol->pin_uv_auth_token;
+	const size_t hmac_key_length = sizeof(protocol->pin_uv_auth_token);
+
+	ctap_pin_protocol_verify_init(protocol, verify_ctx, hmac_key, hmac_key_length);
+
 	return 0;
 }
 
@@ -370,7 +407,7 @@ void ctap_pin_protocol_verify_update(
 	const uint8_t *const message_data, const size_t message_data_length
 ) {
 	lion_unused(protocol); // unused for now, might be needed if we switch to HW-based HMAC
-	hmac_update(verify_ctx, message_data, message_data_length);
+	hmac_update(hmac_ctx_from_verify_ctx(verify_ctx), message_data, message_data_length);
 }
 
 
@@ -386,7 +423,7 @@ int ctap_pin_protocol_v1_verify_final(
 	//      otherwise return error.
 	assert(protocol->crypto->sha256->output_size == 32);
 	uint8_t hmac[protocol->crypto->sha256->output_size];
-	hmac_final(verify_ctx, hmac);
+	hmac_final(hmac_ctx_from_verify_ctx(verify_ctx), hmac);
 	if (signature_length != 16 || memcmp(hmac, signature, 16) != 0) {
 		return 1;
 	}
@@ -405,7 +442,7 @@ int ctap_pin_protocol_v2_verify_final(
 	//      otherwise return error.
 	assert(protocol->crypto->sha256->output_size == 32);
 	uint8_t hmac[protocol->crypto->sha256->output_size];
-	hmac_final(verify_ctx, hmac);
+	hmac_final(hmac_ctx_from_verify_ctx(verify_ctx), hmac);
 	if (signature_length != sizeof(hmac) || memcmp(hmac, signature, sizeof(hmac)) != 0) {
 		return 1;
 	}
