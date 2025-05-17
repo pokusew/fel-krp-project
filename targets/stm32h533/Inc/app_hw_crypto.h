@@ -2,11 +2,13 @@
 #define LIONKEY_STM32H33_APP_HW_CRYPTO_H
 
 #include "ctap_crypto.h"
+#include "stm32h5xx_hal.h"
 #include <sha256.h>
 #include <tinymt32.h>
 
 typedef struct app_hw_crypto_context {
 	tinymt32_t tinymt32_ctx;
+	CRYP_HandleTypeDef hal_cryp;
 } app_hw_crypto_context_t;
 
 #define APP_HW_CRYPTO_CONST_INIT(context_ptr) \

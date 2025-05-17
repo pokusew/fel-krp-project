@@ -44,9 +44,6 @@
 
 COM_InitTypeDef BspCOMInit;
 __IO uint32_t BspButtonState = BUTTON_RELEASED;
-CRYP_HandleTypeDef hcryp;
-uint32_t pKeyAES[8] = {0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000};
-uint32_t pInitVectAES[4] = {0x00000000, 0x00000000, 0x00000000, 0x00000000};
 
 RNG_HandleTypeDef hrng;
 
@@ -60,8 +57,6 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 
 static void MX_RNG_Init(void);
-
-static void MX_AES_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -113,7 +108,6 @@ int main(void) {
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
 	MX_RNG_Init();
-	MX_AES_Init();
 	/* USER CODE BEGIN 2 */
 
 	/* USER CODE END 2 */
@@ -196,39 +190,6 @@ void SystemClock_Config(void) {
 	/** Configure the programming delay
 	*/
 	__HAL_FLASH_SET_PROGRAM_DELAY(FLASH_PROGRAMMING_DELAY_2);
-}
-
-/**
-  * @brief AES Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_AES_Init(void) {
-
-	/* USER CODE BEGIN AES_Init 0 */
-
-	/* USER CODE END AES_Init 0 */
-
-	/* USER CODE BEGIN AES_Init 1 */
-
-	/* USER CODE END AES_Init 1 */
-	hcryp.Instance = AES;
-	hcryp.Init.DataType = CRYP_NO_SWAP;
-	hcryp.Init.KeySize = CRYP_KEYSIZE_256B;
-	hcryp.Init.pKey = (uint32_t *) pKeyAES;
-	hcryp.Init.pInitVect = (uint32_t *) pInitVectAES;
-	hcryp.Init.Algorithm = CRYP_AES_CBC;
-	hcryp.Init.DataWidthUnit = CRYP_DATAWIDTHUNIT_BYTE;
-	hcryp.Init.HeaderWidthUnit = CRYP_HEADERWIDTHUNIT_WORD;
-	hcryp.Init.KeyIVConfigSkip = CRYP_KEYIVCONFIG_ALWAYS;
-	hcryp.Init.KeyMode = CRYP_KEYMODE_NORMAL;
-	if (HAL_CRYP_Init(&hcryp) != HAL_OK) {
-		Error_Handler();
-	}
-	/* USER CODE BEGIN AES_Init 2 */
-
-	/* USER CODE END AES_Init 2 */
-
 }
 
 /**

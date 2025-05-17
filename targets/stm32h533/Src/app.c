@@ -181,6 +181,108 @@ static void app_test_rng_hw(void) {
 	info_log("done in %" PRIu32 " ms" nl, t2 - t1);
 }
 
+static void app_test_aes(void) {
+
+	info_log(cyan("app_test_rng_hw") nl);
+
+	app_crypto.rng_init(&app_crypto, 0);
+
+	uint8_t random_iv[CTAP_CRYPTO_AES_BLOCK_SIZE];
+	app_crypto.rng_generate_data(&app_crypto, random_iv, sizeof(random_iv));
+	debug_log("iv: ");
+	dump_hex(random_iv, sizeof(random_iv));
+
+	uint8_t random_key[CTAP_CRYPTO_AES_256_KEY_SIZE];
+	app_crypto.rng_generate_data(&app_crypto, random_key, sizeof(random_key));
+	debug_log("key: ");
+	dump_hex(random_key, sizeof(random_key));
+
+	const size_t test_size = CTAP_CRYPTO_AES_BLOCK_SIZE * 3;
+	uint8_t random_plaintext[test_size];
+	app_crypto.rng_generate_data(&app_crypto, random_plaintext, test_size);
+	debug_log("plaintext: ");
+	dump_hex(random_plaintext, test_size);
+
+	uint8_t data_sw[test_size];
+	memcpy(data_sw, random_plaintext, test_size);
+
+	uint8_t data_hw[test_size];
+	memcpy(data_hw, random_plaintext, test_size);
+
+	uint32_t t1;
+	uint32_t t2;
+	ctap_crypto_status_t status;
+
+	t1 = HAL_GetTick();
+	status = app_crypto.aes_256_cbc_encrypt(
+		&app_crypto,
+		random_iv, random_key, data_sw, test_size
+	);
+	t2 = HAL_GetTick();
+	if (status == CTAP_CRYPTO_OK) {
+		info_log("sw encrypt ok" nl);
+	} else {
+		error_log(red("error while sw encrypt") nl);
+	}
+	info_log("sw done in %" PRIu32 " ms" nl, t2 - t1);
+	dump_hex(data_sw, test_size);
+
+	t1 = HAL_GetTick();
+	status = app_hw_crypto.aes_256_cbc_encrypt(
+		&app_hw_crypto,
+		random_iv, random_key, data_hw, test_size
+	);
+	t2 = HAL_GetTick();
+	if (status == CTAP_CRYPTO_OK) {
+		info_log("hw encrypt ok" nl);
+	} else {
+		error_log(red("error while hw encrypt") nl);
+	}
+	info_log("hw done in %" PRIu32 " ms" nl, t2 - t1);
+	dump_hex(data_hw, test_size);
+
+	if (memcmp(data_sw, data_hw, test_size) != 0) {
+		error_log(red("ciphertexts mismatch") nl);
+	} else {
+		debug_log(green("ciphertexts equal") nl);
+	}
+
+	t1 = HAL_GetTick();
+	status = app_crypto.aes_256_cbc_decrypt(
+		&app_crypto,
+		random_iv, random_key, data_sw, test_size
+	);
+	t2 = HAL_GetTick();
+	if (status == CTAP_CRYPTO_OK) {
+		info_log("sw decrypt ok" nl);
+	} else {
+		error_log(red("error while sw decrypt") nl);
+	}
+	info_log("sw done in %" PRIu32 " ms" nl, t2 - t1);
+	dump_hex(data_sw, test_size);
+
+	t1 = HAL_GetTick();
+	status = app_hw_crypto.aes_256_cbc_decrypt(
+		&app_hw_crypto,
+		random_iv, random_key, data_hw, test_size
+	);
+	t2 = HAL_GetTick();
+	if (status == CTAP_CRYPTO_OK) {
+		info_log("hw decrypt ok" nl);
+	} else {
+		error_log(red("error while hw decrypt") nl);
+	}
+	info_log("hw done in %" PRIu32 " ms" nl, t2 - t1);
+	dump_hex(data_hw, test_size);
+
+	if (memcmp(data_sw, data_hw, test_size) != 0) {
+		error_log(red("plaintexts mismatch") nl);
+	} else {
+		debug_log(green("plaintexts equal") nl);
+	}
+
+}
+
 noreturn void app_run(void) {
 
 	info_log(nl nl cyan("app_run") nl);
@@ -190,7 +292,12 @@ noreturn void app_run(void) {
 	uint32_t t1 = HAL_GetTick();
 
 	ctaphid_init(&app_ctaphid);
-	app_crypto.init(&app_crypto, 0);
+	if (app_crypto.init(&app_crypto, 0) != CTAP_CRYPTO_OK) {
+		Error_Handler();
+	}
+	if (app_hw_crypto.init(&app_hw_crypto, 0) != CTAP_CRYPTO_OK) {
+		Error_Handler();
+	}
 	ctap_init(&app_ctap);
 
 	uint32_t t2 = HAL_GetTick();
@@ -220,6 +327,10 @@ noreturn void app_run(void) {
 
 				app_test_rng_tinymt();
 				app_test_rng_hw();
+
+			} else if (debug_uart_rx == 'e') {
+
+				app_test_aes();
 
 			} else if (debug_uart_rx == 's') {
 
