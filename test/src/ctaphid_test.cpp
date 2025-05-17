@@ -654,11 +654,16 @@ TEST(CtaphidCreateCtaphidInitResponsePacket, BasicChecks) {
 	const uint32_t test_transport_cid = CTAPHID_BROADCAST_CID;
 	const uint32_t test_response_cid = 11259375;
 	constexpr auto test_nonce = hex::bytes<"a1b2c3d4e5f6a7b8">();
+	const uint8_t capabilities = CTAPHID_CAPABILITY_WINK | CTAPHID_CAPABILITY_CBOR | CTAPHID_CAPABILITY_NMSG;
 	ctaphid_create_ctaphid_init_response_packet(
 		&packet,
 		test_nonce.data(),
 		test_transport_cid,
-		test_response_cid
+		test_response_cid,
+		1,
+		2,
+		3,
+		capabilities
 	);
 	static_assert(sizeof(packet.pkt.init.payload) >= sizeof(ctaphid_init_response_payload_t));
 	EXPECT_EQ(packet.pkt.init.cmd, CTAPHID_INIT);
@@ -666,6 +671,10 @@ TEST(CtaphidCreateCtaphidInitResponsePacket, BasicChecks) {
 	auto payload = reinterpret_cast<ctaphid_init_response_payload_t *const>(&packet.pkt.init.payload);
 	EXPECT_SAME_BYTES_S(test_nonce.size(), payload->nonce, test_nonce.data());
 	EXPECT_EQ(payload->protocol_version, CTAPHID_PROTOCOL_VERSION);
+	EXPECT_EQ(payload->version_major, 1);
+	EXPECT_EQ(payload->version_minor, 2);
+	EXPECT_EQ(payload->version_build, 3);
+	EXPECT_EQ(payload->capabilities, capabilities);
 	EXPECT_SAME_BYTES_S(
 		sizeof(packet.pkt.init.payload) - sizeof(ctaphid_init_response_payload_t),
 		&packet.pkt.init.payload[sizeof(ctaphid_init_response_payload_t)],

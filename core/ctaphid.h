@@ -219,7 +219,11 @@ void ctaphid_create_ctaphid_init_response_packet(
 	ctaphid_packet_t *packet,
 	const uint8_t *nonce,
 	uint32_t transport_cid,
-	uint32_t response_cid
+	uint32_t response_cid,
+	uint8_t version_major,
+	uint8_t version_minor,
+	uint8_t version_build,
+	uint8_t capabilities
 );
 
 typedef void (*ctap_packet_handler_t)(const ctaphid_packet_t *packet, void *ctx);

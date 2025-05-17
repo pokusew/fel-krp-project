@@ -44,6 +44,11 @@ ctap_crypto_status_t hw_rng_generate_data(uint8_t *const buffer, const size_t le
 // Green  main loop running
 
 ctaphid_state_t app_ctaphid;
+static const uint8_t app_ctaphid_capabilities =
+	CTAPHID_CAPABILITY_WINK | CTAPHID_CAPABILITY_CBOR | CTAPHID_CAPABILITY_NMSG;
+static const uint8_t app_ctaphid_version_major = 1;
+static const uint8_t app_ctaphid_version_minor = 1;
+static const uint8_t app_ctaphid_version_build = 0;
 static uint8_t app_ctaphid_cbor_response_buffer[1 + 4096];
 ctap_response_t app_ctap_response = {
 	.data_max_size = sizeof(app_ctaphid_cbor_response_buffer) - 1,
@@ -392,7 +397,11 @@ void app_handle_incoming_hid_packet(const ctaphid_packet_t *packet) {
 				&res,
 				packet->pkt.init.payload,
 				CTAPHID_BROADCAST_CID,
-				app_ctaphid.highest_allocated_cid
+				app_ctaphid.highest_allocated_cid,
+				app_ctaphid_version_major,
+				app_ctaphid_version_minor,
+				app_ctaphid_version_build,
+				app_ctaphid_capabilities
 			);
 			app_hid_report_send_queue_add(&res);
 			break;
@@ -410,7 +419,11 @@ void app_handle_incoming_hid_packet(const ctaphid_packet_t *packet) {
 				&res,
 				packet->pkt.init.payload,
 				packet->cid,
-				app_ctaphid.highest_allocated_cid
+				app_ctaphid.highest_allocated_cid,
+				app_ctaphid_version_major,
+				app_ctaphid_version_minor,
+				app_ctaphid_version_build,
+				app_ctaphid_capabilities
 			);
 			app_hid_report_send_queue_add(&res);
 			break;

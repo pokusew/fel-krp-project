@@ -2,7 +2,6 @@
 #include "utils.h"
 #include <string.h>
 #include <stdbool.h>
-#include "lionkey_config.h"
 
 /**
  * Allocates a channel ID for a new channel
@@ -50,7 +49,11 @@ void ctaphid_create_ctaphid_init_response_packet(
 	ctaphid_packet_t *packet,
 	const uint8_t *nonce,
 	uint32_t transport_cid,
-	uint32_t response_cid
+	uint32_t response_cid,
+	uint8_t version_major,
+	uint8_t version_minor,
+	uint8_t version_build,
+	uint8_t capabilities
 ) {
 	ctaphid_create_init_packet(
 		packet,
@@ -62,10 +65,10 @@ void ctaphid_create_ctaphid_init_response_packet(
 	memcpy(init_res->nonce, nonce, sizeof(init_res->nonce));
 	init_res->cid = response_cid;
 	init_res->protocol_version = CTAPHID_PROTOCOL_VERSION;
-	init_res->version_major = LIONKEY_CONFIG_CTAPHID_INIT_VERSION_MAJOR;
-	init_res->version_minor = LIONKEY_CONFIG_CTAPHID_INIT_VERSION_MINOR;
-	init_res->version_build = LIONKEY_CONFIG_CTAPHID_INIT_VERSION_BUILD;
-	init_res->capabilities = LIONKEY_CONFIG_CTAPHID_CAPABILITY;
+	init_res->version_major = version_major;
+	init_res->version_minor = version_minor;
+	init_res->version_build = version_build;
+	init_res->capabilities = capabilities;
 }
 
 void ctaphid_message_to_packets(
