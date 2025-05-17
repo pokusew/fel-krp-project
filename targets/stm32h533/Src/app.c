@@ -4,25 +4,7 @@
 #include "utils.h"
 #include <stdbool.h>
 #include "tusb.h"
-#include <stdlib.h>
 #include "ctap_crypto_software.h"
-
-void std_rng_generate_data(uint8_t *const buffer, const size_t length) {
-	static_assert(sizeof(int) == sizeof(uint32_t), "sizeof(int) == sizeof(uint32_t)");
-	uint32_t *word = (uint32_t *const) buffer;
-	size_t i = 0;
-	for (size_t next_length = 4; next_length <= length; i += 4, next_length += 4, ++word) {
-		*word = rand();
-	}
-	if (i < length) {
-		assert((length - i) < 4);
-		uint32_t last_word = rand();
-		uint8_t *last_word_bytes = (uint8_t *) &last_word;
-		for (; i < length; ++i, ++last_word_bytes) {
-			buffer[i] = *last_word_bytes;
-		}
-	}
-}
 
 ctap_crypto_status_t hw_rng_generate_data(uint8_t *const buffer, const size_t length) {
 	HAL_StatusTypeDef status;
@@ -174,17 +156,6 @@ static void app_test_rng_tinymt(void) {
 	info_log("done in %" PRIu32 " ms" nl, t2 - t1);
 }
 
-static void app_test_rng_std(void) {
-	info_log(cyan("app_test_rng_std") nl);
-	uint8_t random_test_buffer[1024];
-	const uint32_t t1 = HAL_GetTick();
-	std_rng_generate_data(random_test_buffer, sizeof(random_test_buffer));
-	const uint32_t t2 = HAL_GetTick();
-	info_log("generated" nl);
-	dump_hex(random_test_buffer, sizeof(random_test_buffer));
-	info_log("done in %" PRIu32 " ms" nl, t2 - t1);
-}
-
 static void app_test_rng_hw(void) {
 	info_log(cyan("app_test_rng_hw") nl);
 	uint8_t random_test_buffer[1024];
@@ -240,7 +211,6 @@ noreturn void app_run(void) {
 			} else if (debug_uart_rx == 'r') {
 
 				app_test_rng_tinymt();
-				app_test_rng_std();
 				app_test_rng_hw();
 
 			} else if (debug_uart_rx == 's') {
