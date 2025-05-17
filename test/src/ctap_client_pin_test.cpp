@@ -356,8 +356,8 @@ TEST_F(CtapClientPinTest, GetKeyAgreementV1) {
 		//         1: 2,
 		//         3: -25_0,
 		//         -1: 1,
-		//         -2: h'2fec0a433af4ff216b7996d7304614be3ff2238e9d4b0b63337ea0fcac6967d0',
-		//         -3: h'6d78c07b4cabd8b82f03870a74f23f5a2a655d17703df812dabab1a5f273acfa',
+		//         -2: h'78b110adb2f168a39a5fa453c71e86a64ed95b909b87d9ccb0e635ae3ed1517b',
+		//         -3: h'1d1b7cf464db2b5df507e4848873a35ea18882336e0e7fe6524e18b573215fc3',
 		//     },
 		// }
 		"a1"
@@ -367,9 +367,9 @@ TEST_F(CtapClientPinTest, GetKeyAgreementV1) {
 		"03 38 18"
 		"20 01"
 		"21 58 20"
-		"2fec0a433af4ff216b7996d7304614be3ff2238e9d4b0b63337ea0fcac6967d0"
+		"78b110adb2f168a39a5fa453c71e86a64ed95b909b87d9ccb0e635ae3ed1517b"
 		"22 58 20"
-		"6d78c07b4cabd8b82f03870a74f23f5a2a655d17703df812dabab1a5f273acfa"
+		"1d1b7cf464db2b5df507e4848873a35ea18882336e0e7fe6524e18b573215fc3"
 	>();
 	ASSERT_EQ(response.length, expected_response.size());
 	EXPECT_SAME_BYTES_S(response.length, response.data, expected_response.data());
@@ -384,11 +384,11 @@ TEST_F(CtapClientPinTest, SetPinV1To1234) {
 		test_platform_public_key_x,
 		test_platform_public_key_y,
 		hex::bytes<
-			"6fcb98a4f15a272ad14c2a04db36c744b712cf3159e1d008cdcf97808b64996f"
-			"d4d8693bc4585281f1c165085c44bfe8e9b79db3dd83c89553514924ee6bf27a"
+			"a8adf691fc0931227817b435a7bcf1f192b4198799416c1cfff993e46182aaca"
+			"dc4b21517bcbe58cecbb606a8df1cedf40cb7c79c86bc8f3142502175643450f"
 		>(),
 		hex::bytes<
-			"dd2b83def33954d24a7487621cf30c1e"
+			"ca787d2f472d341660b372a629551dd2"
 		>()
 	);
 
@@ -409,11 +409,11 @@ TEST_F(CtapClientPinTest, SetPinV1OneCodePoint) {
 		test_platform_public_key_x,
 		test_platform_public_key_y,
 		hex::bytes<
-			"9e4be6a1088b1d160011490dcd2ea2d072308d7667b2cebda21579ac60803625"
-			"bbba940068e8b364000cd609d4b6ebefd3e770c2153bbd46f29530087b911b7a"
+			"75383a449341501c2ed265df58b621313b3c2bb27214ed29a4230134e897bc69"
+			"d7279faeb4523e64ace8e26e3dfac44b7e8006a8440fcf2ca9c021dea9edb2eb"
 		>(),
 		hex::bytes<
-			"35cca44689668d8a617d24ac69012676"
+			"ece228e289a402804c3b2b32a463d0fc"
 		>()
 	);
 
@@ -436,11 +436,11 @@ TEST_F(CtapClientPinTest, SetPinV1Emoji) {
 		test_platform_public_key_x,
 		test_platform_public_key_y,
 		hex::bytes<
-			"e6072ff51fb7bbd3ea0246081d3ca565764d7209b1d388351ed55471b62b926b"
-			"0bb6ec51090b6d883d4c85ae8696fedf8049007841d49e44ae7bc4c2f6efa7a6"
+			"8dac262c8ba2e95da56fce3b37ff9b62b9894681efe41b3a1ac292b15568fdff"
+			"61b0f3e94212af7e636d042c2c249c35a0a68e812730329e6c2f84f9c77ceb91"
 		>(),
 		hex::bytes<
-			"7f3b1214527119edc0d16b75917b94a6"
+			"f8266ece1557b82fa8154f4d34b0478a"
 		>()
 	);
 
@@ -464,11 +464,11 @@ TEST_F(CtapClientPinTest, ChangePinV1From1234ToABCD) {
 		test_platform_public_key_x,
 		test_platform_public_key_y,
 		hex::bytes<
-			"6fcb98a4f15a272ad14c2a04db36c744b712cf3159e1d008cdcf97808b64996f"
-			"d4d8693bc4585281f1c165085c44bfe8e9b79db3dd83c89553514924ee6bf27a"
+			"a8adf691fc0931227817b435a7bcf1f192b4198799416c1cfff993e46182aaca"
+			"dc4b21517bcbe58cecbb606a8df1cedf40cb7c79c86bc8f3142502175643450f"
 		>(),
 		hex::bytes<
-			"dd2b83def33954d24a7487621cf30c1e"
+			"ca787d2f472d341660b372a629551dd2"
 		>()
 	);
 	auto pin_ABCD = hex::bytes<"41424344">();
@@ -479,14 +479,14 @@ TEST_F(CtapClientPinTest, ChangePinV1From1234ToABCD) {
 		test_platform_public_key_x,
 		test_platform_public_key_y,
 		hex::bytes<
-			"d5709a66faf48f8da0adde8556d3ce5f"
+			"f8bb2954bb38ded5e78cc7de04600f74"
 		>(),
 		hex::bytes<
-			"6a2e11cb04bac6dd09a8131f95f17d4aa75c9e64feca4f32ba0ae5f855bf30d2"
-			"c4348372342718c4344ad1500ec8e373808c045ed67bdd445cd40c10003c9ee1"
+			"081b4773243c506f9abaeb546a615e81b78b8a118f3424bc1bec3e6a31353809"
+			"d870b95420474fe2150fb81ddd5d4090feea180f1f13c7973ed75349e79fbf1a"
 		>(),
 		hex::bytes<
-			"87c6d23b57eb602a9db5ef5e9dfd2a9d"
+			"6d0321cafeacb682a9ea0e1089e70c3e"
 		>()
 	);
 
@@ -513,18 +513,18 @@ TEST_F(CtapClientPinTest, GetPinTokenV1) {
 		test_platform_public_key_x,
 		test_platform_public_key_y,
 		hex::bytes<
-			"6fcb98a4f15a272ad14c2a04db36c744b712cf3159e1d008cdcf97808b64996f"
-			"d4d8693bc4585281f1c165085c44bfe8e9b79db3dd83c89553514924ee6bf27a"
+			"a8adf691fc0931227817b435a7bcf1f192b4198799416c1cfff993e46182aaca"
+			"dc4b21517bcbe58cecbb606a8df1cedf40cb7c79c86bc8f3142502175643450f"
 		>(),
 		hex::bytes<
-			"dd2b83def33954d24a7487621cf30c1e"
+			"ca787d2f472d341660b372a629551dd2"
 		>()
 	);
 	auto params_get_pin_token = create_get_pin_token_v1(
 		test_platform_public_key_x,
 		test_platform_public_key_y,
 		hex::bytes<
-			"d5709a66faf48f8da0adde8556d3ce5f"
+			"f8bb2954bb38ded5e78cc7de04600f74"
 		>()
 	);
 
@@ -544,7 +544,7 @@ TEST_F(CtapClientPinTest, GetPinTokenV1) {
 	auto expected_response = hex::bytes<
 		"a1"
 		"  02 5820"
-		"     843101d90842f76114967a04b815dd5a5f216a857c7935d1601014f1ddb3f45b"
+		"     cffbc58ed2c03954d25bb93d3d612ad58af8825444fbe69af8284e306bf6afcb"
 	>();
 	ASSERT_EQ(response.length, expected_response.size());
 	EXPECT_SAME_BYTES_S(response.length, response.data, expected_response.data());
@@ -585,8 +585,8 @@ TEST_F(CtapClientPinTest, GetKeyAgreementV2) {
 		//         1: 2,
 		//         3: -25_0,
 		//         -1: 1,
-		//         -2: h'ada80bf2155208a482007a76b77100f37a0b78a1f5aaf7a20193fa4630bb8490',
-		//         -3: h'f0143340ed13ba4e5546728599a02ce3f170b40eb9dfd8d23454fd98192feee3',
+		//         -2: h'f09d2dcc4d511c5a3fb5b5810301e34aae76a1d372e2595e6f2843258525d24f',
+		//         -3: h'dbb6ce2d43ccded46901977184a23bc66a6c5adf27c522c389e71c09e4c05281',
 		//     },
 		// }
 		"a1"
@@ -596,9 +596,9 @@ TEST_F(CtapClientPinTest, GetKeyAgreementV2) {
 		"03 38 18"
 		"20 01"
 		"21 58 20"
-		"ada80bf2155208a482007a76b77100f37a0b78a1f5aaf7a20193fa4630bb8490"
+		"f09d2dcc4d511c5a3fb5b5810301e34aae76a1d372e2595e6f2843258525d24f"
 		"22 58 20"
-		"f0143340ed13ba4e5546728599a02ce3f170b40eb9dfd8d23454fd98192feee3"
+		"dbb6ce2d43ccded46901977184a23bc66a6c5adf27c522c389e71c09e4c05281"
 	>();
 	ASSERT_EQ(response.length, expected_response.size());
 	EXPECT_SAME_BYTES_S(response.length, response.data, expected_response.data());
@@ -613,12 +613,12 @@ TEST_F(CtapClientPinTest, SetPinV2To1234) {
 		test_platform_public_key_x,
 		test_platform_public_key_y,
 		hex::bytes<
-			"4626cf7346caca5b40799ca5cbf78b05cf9f54851de519db01cb5c473b506a19"
-			"9c0cdf66e8c035913659921be351c7f316fabb5ade601fc2d1c9d287df736c88"
-			"d848006a55fb1185e09a847323d8e1a1"
+			"40fda15406e29bef471e92be92a84e6d7bf445644b8c199060334e628c04c1f9"
+			"a44df3d52e2c448fe46825ae833ae3a8dc60d30db85b273bb63fb79a370c9f39"
+			"7803a1079a6f305a75f5601b06e74f32"
 		>(),
 		hex::bytes<
-			"4bb742287a11f80748a26f39242cef6d2cf9f5ba205968c0a6f1afb26be7c071"
+			"bc8852f6c9b62e9b9d01f648184eea19b73847c0ed4d68cbfe47b3196b475a40"
 		>()
 	);
 
@@ -640,12 +640,12 @@ TEST_F(CtapClientPinTest, SetPinV2OneCodePoint) {
 		test_platform_public_key_x,
 		test_platform_public_key_y,
 		hex::bytes<
-			"bca644b0eb9fe7592de8a9c920baa72192a6b7b9760a5c83c01c461f29bb372f"
-			"7630c545b0b34e8a7b49ef56e3f2fece2868b9d64dcf933fd37b408ac9e70fe6"
-			"b991f49980e183f86f7c62cbdbfa2118"
+			"a5fa76974a1744f2e03cbfd1b2f01ac58dbac559abc667c7605f1b0771818c9e"
+			"67a1cf4c29dbc4d24115e009a1a938eb1fc3a65007229920fdce4ecc148c19d35"
+			"caa90c4dfc5da465a6ccb0bf9d06447"
 		>(),
 		hex::bytes<
-			"203844bca95258e5f93c037a8e2557459eb42a9f6a49fa0727f8b27d647b7d0d"
+			"6fb5638f9e3b2ffa24d9b2df69ecf6732af8395b644121989be092b08b6f485f"
 		>()
 	);
 
@@ -668,12 +668,12 @@ TEST_F(CtapClientPinTest, SetPinV2Emoji) {
 		test_platform_public_key_x,
 		test_platform_public_key_y,
 		hex::bytes<
-			"5a422d461b334320a34bc67dc82243ac7da263b2f77dd738a77ab9e01226140a"
-			"0f453fa7a551a0b51616401528e70ad52af2e9185efc59129e5d08416ada0e9f"
-			"30c7597d0420febc7b0b77a74df71da6"
+			"792c78af74cec227d2ff6650723c5cd878638012f970747ae590e7e2b8cec704"
+			"6abbd12946d6d26f752394d85927797b8a05baaf40e01c7d0eee062bdb0273e1"
+			"869250ffa7920c3c8b8579bcf79147cc"
 		>(),
 		hex::bytes<
-			"3a312652abe1d87438a015db15ae3ac4021556c673c016fde36566b62e5b222b"
+			"f4967b126a3d3c70ed095e90b3f7b1827be7fd7dc4ab2a25b936553528d9d60a"
 		>()
 	);
 
@@ -697,12 +697,12 @@ TEST_F(CtapClientPinTest, ChangePinV2From1234ToABCD) {
 		test_platform_public_key_x,
 		test_platform_public_key_y,
 		hex::bytes<
-			"4626cf7346caca5b40799ca5cbf78b05cf9f54851de519db01cb5c473b506a19"
-			"9c0cdf66e8c035913659921be351c7f316fabb5ade601fc2d1c9d287df736c88"
-			"d848006a55fb1185e09a847323d8e1a1"
+			"40fda15406e29bef471e92be92a84e6d7bf445644b8c199060334e628c04c1f9"
+			"a44df3d52e2c448fe46825ae833ae3a8dc60d30db85b273bb63fb79a370c9f39"
+			"7803a1079a6f305a75f5601b06e74f32"
 		>(),
 		hex::bytes<
-			"4bb742287a11f80748a26f39242cef6d2cf9f5ba205968c0a6f1afb26be7c071"
+			"bc8852f6c9b62e9b9d01f648184eea19b73847c0ed4d68cbfe47b3196b475a40"
 		>()
 	);
 	auto pin_ABCD = hex::bytes<"41424344">();
@@ -713,15 +713,15 @@ TEST_F(CtapClientPinTest, ChangePinV2From1234ToABCD) {
 		test_platform_public_key_x,
 		test_platform_public_key_y,
 		hex::bytes<
-			"cc1334272aff0595ccb47418d32a0554104419dfa8a72580cb61fe5f69250908"
+			"f4f843d6fbacfb12bf4bdef2eee61e024ff33b769a4a45164dbea894438186b4"
 		>(),
 		hex::bytes<
-			"059d39f545995d01117192bd078d9a320dfe7890442928b6157a1a3528b75de8"
-			"fa0a20b4a144fdeac4c21d3defb8e237848727ca2de73a0283af4a8dc31edcd6"
-			"f68c8cd1e7ec408a0bac106fe1b8e2fb"
+			"bb8c9ca38226db5b057e43e20c9260ae6938dfc5e7436aca34cab95656532d8b"
+			"975eab415a6cd9e7fc6e0a21933415134821d76f4bc2b6b9ef3985d7c3c64503"
+			"6cbe80a8de28c07695377d3f0e359c06"
 		>(),
 		hex::bytes<
-			"f8dba90ec042ec61d02bd33fad7fb37598993a1487f203fad89c3e1ebd0c13fc"
+			"385184ddfbbb0924c399bf05bd72776418c1f2f6e4dff1c37744827e073cc65c"
 		>()
 	);
 
@@ -748,19 +748,19 @@ TEST_F(CtapClientPinTest, GetPinTokenV2) {
 		test_platform_public_key_x,
 		test_platform_public_key_y,
 		hex::bytes<
-			"4626cf7346caca5b40799ca5cbf78b05cf9f54851de519db01cb5c473b506a19"
-			"9c0cdf66e8c035913659921be351c7f316fabb5ade601fc2d1c9d287df736c88"
-			"d848006a55fb1185e09a847323d8e1a1"
+			"40fda15406e29bef471e92be92a84e6d7bf445644b8c199060334e628c04c1f9"
+			"a44df3d52e2c448fe46825ae833ae3a8dc60d30db85b273bb63fb79a370c9f39"
+			"7803a1079a6f305a75f5601b06e74f32"
 		>(),
 		hex::bytes<
-			"4bb742287a11f80748a26f39242cef6d2cf9f5ba205968c0a6f1afb26be7c071"
+			"bc8852f6c9b62e9b9d01f648184eea19b73847c0ed4d68cbfe47b3196b475a40"
 		>()
 	);
 	auto params_get_pin_token = create_get_pin_token_v2(
 		test_platform_public_key_x,
 		test_platform_public_key_y,
 		hex::bytes<
-			"cc1334272aff0595ccb47418d32a0554104419dfa8a72580cb61fe5f69250908"
+			"f4f843d6fbacfb12bf4bdef2eee61e024ff33b769a4a45164dbea894438186b4"
 		>()
 	);
 
@@ -780,7 +780,7 @@ TEST_F(CtapClientPinTest, GetPinTokenV2) {
 	auto expected_response = hex::bytes<
 		"a1"
 		"  02 5830"
-		"     517874b740cbdca41920aa0ed61c14d28ab4488f1b13fbfc77242053b93ddc406eab39f9bd2ac29570f9268810fea592"
+		"     44bc108893186e7a75facc9be3e4931e3cbe9888f7e91b08c799fb375292777aca8fc7cf0a0623eae56bfd2c304c4d7f"
 	>();
 	ASSERT_EQ(response.length, expected_response.size());
 	EXPECT_SAME_BYTES_S(response.length, response.data, expected_response.data());

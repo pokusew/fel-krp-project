@@ -39,21 +39,21 @@ function processPin(pin: string, name = 'pin'): ProcessedPin {
 
 const TEST_AUTHENTICATOR_PUBLIC_KEY_V1 = createPinUvAuthProtocolEcdhCoseKey({
 	x: Buffer.from(
-		'2fec0a433af4ff216b7996d7304614be3ff2238e9d4b0b63337ea0fcac6967d0',
+		'78b110adb2f168a39a5fa453c71e86a64ed95b909b87d9ccb0e635ae3ed1517b',
 		'hex',
 	),
 	y: Buffer.from(
-		'6d78c07b4cabd8b82f03870a74f23f5a2a655d17703df812dabab1a5f273acfa',
+		'1d1b7cf464db2b5df507e4848873a35ea18882336e0e7fe6524e18b573215fc3',
 		'hex',
 	),
 });
 const TEST_AUTHENTICATOR_PUBLIC_KEY_V2 = createPinUvAuthProtocolEcdhCoseKey({
 	x: Buffer.from(
-		'ada80bf2155208a482007a76b77100f37a0b78a1f5aaf7a20193fa4630bb8490',
+		'f09d2dcc4d511c5a3fb5b5810301e34aae76a1d372e2595e6f2843258525d24f',
 		'hex',
 	),
 	y: Buffer.from(
-		'f0143340ed13ba4e5546728599a02ce3f170b40eb9dfd8d23454fd98192feee3',
+		'dbb6ce2d43ccded46901977184a23bc66a6c5adf27c522c389e71c09e4c05281',
 		'hex',
 	),
 });
