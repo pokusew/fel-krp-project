@@ -7,6 +7,7 @@
 #include <hash.h>
 
 #define CTAP_CRYPTO_AES_BLOCK_SIZE 16
+#define CTAP_CRYPTO_AES_256_KEY_SIZE 32
 
 typedef enum ctap_crypto_status {
 	CTAP_CRYPTO_OK = 0,

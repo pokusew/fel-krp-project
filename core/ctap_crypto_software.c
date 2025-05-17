@@ -10,6 +10,7 @@ static_assert(TINYAES_AES_BLOCKLEN == CTAP_CRYPTO_AES_BLOCK_SIZE, "TINYAES_AES_B
 static_assert(TINYAES_ENABLE_AES256 == 1, "unexpected TINYAES_ENABLE_AES256 value for AES-256-CBC");
 static_assert(TINYAES_ENABLE_CBC == 1, "unexpected TINYAES_ENABLE_CBC value for AES-256-CBC");
 static_assert(TINYAES_AES_KEYLEN == 32, "unexpected TINYAES_AES_KEYLEN value for AES-256-CBC");
+static_assert(TINYAES_AES_KEYLEN == CTAP_CRYPTO_AES_256_KEY_SIZE, "TINYAES_AES_KEYLEN == CTAP_CRYPTO_AES_256_KEY_SIZE");
 
 // Mersenne Twister Home Page
 // https://www.math.sci.hiroshima-u.ac.jp/m-mat/MT/emt.html
