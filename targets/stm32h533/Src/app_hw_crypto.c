@@ -3,26 +3,9 @@
 #include "compiler.h"
 #include "utils.h"
 
-#include "aes.h"
 #include <uECC.h>
 #include <assert.h>
 #include <string.h>
-
-// verify that TinyAES is compiled with AES-256-CBC support
-static_assert(TINYAES_AES_BLOCKLEN == CTAP_CRYPTO_AES_BLOCK_SIZE, "TINYAES_AES_BLOCKLEN == CTAP_CRYPTO_AES_BLOCK_SIZE");
-static_assert(TINYAES_ENABLE_AES256 == 1, "unexpected TINYAES_ENABLE_AES256 value for AES-256-CBC");
-static_assert(TINYAES_ENABLE_CBC == 1, "unexpected TINYAES_ENABLE_CBC value for AES-256-CBC");
-static_assert(TINYAES_AES_KEYLEN == 32, "unexpected TINYAES_AES_KEYLEN value for AES-256-CBC");
-
-// Mersenne Twister Home Page
-// https://www.math.sci.hiroshima-u.ac.jp/m-mat/MT/emt.html
-// Tiny Mersenne Twister (TinyMT):
-// https://www.math.sci.hiroshima-u.ac.jp/m-mat/MT/TINYMT/index.html
-// See also:
-//   https://stackoverflow.com/questions/922358/consistent-pseudo-random-numbers-across-platforms
-//   https://stackoverflow.com/questions/34903356/c11-random-number-distributions-are-not-consistent-across-platforms-what-al
-//   -> Based on those discussions, the C++11 mt19937 should deliver consistent results across all platforms.
-//      Note that if for some reason it stopped working, we would notice in our CI.
 
 static ctap_crypto_status_t app_hw_crypto_aes_init(app_hw_crypto_context_t *ctx);
 
@@ -104,38 +87,80 @@ static ctap_crypto_status_t app_hw_crypto_aes_init(app_hw_crypto_context_t *cons
 
 }
 
+void HAL_RNG_MspInit(RNG_HandleTypeDef *hrng) {
+	RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+	if (hrng->Instance == RNG) {
+		PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RNG;
+		PeriphClkInitStruct.RngClockSelection = RCC_RNGCLKSOURCE_PLL1Q;
+		if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) {
+			Error_Handler();
+		}
+		__HAL_RCC_RNG_CLK_ENABLE();
+
+	}
+}
+
+void HAL_RNG_MspDeInit(RNG_HandleTypeDef *hrng) {
+	if (hrng->Instance == RNG) {
+		__HAL_RCC_RNG_CLK_DISABLE();
+	}
+}
+
 ctap_crypto_status_t app_hw_crypto_rng_init(
 	const ctap_crypto_t *const crypto,
 	uint32_t seed
 ) {
+	// seed not applicable, we use True Random Number Generator (the RNG peripheral)
+	// to generate all random data directly
+	lion_unused(seed);
+
 	app_hw_crypto_context_t *const ctx = crypto->context;
-	tinymt32_init(&ctx->tinymt32_ctx, seed);
+	RNG_HandleTypeDef *const hal_rng = &ctx->hal_rng;
+
+	hal_rng->Instance = RNG;
+	hal_rng->Init.ClockErrorDetection = RNG_CED_ENABLE;
+	if (HAL_RNG_Init(hal_rng) != HAL_OK) {
+		Error_Handler();
+	}
+
 	return CTAP_CRYPTO_OK;
 }
 
 ctap_crypto_status_t app_hw_crypto_rng_generate_data(
 	const ctap_crypto_t *const crypto,
-	uint8_t *const buffer,
-	const size_t length
+	uint8_t *const buffer, const size_t length
 ) {
 	app_hw_crypto_context_t *const ctx = crypto->context;
-	tinymt32_t *const tinymt32_ctx = &ctx->tinymt32_ctx;
+	RNG_HandleTypeDef *const hal_rng = &ctx->hal_rng;
+
+	HAL_StatusTypeDef status;
 	uint32_t *word = (uint32_t *const) buffer;
 	size_t i = 0;
 	for (size_t next_length = 4; next_length <= length; i += 4, next_length += 4, ++word) {
-		// We use lion_htole32() here to get consistent results independent of the target endianness.
-		// When the target is little-endian (most targets are), the lion_htole32() macro does nothing.
-		*word = lion_htole32(tinymt32_generate_uint32(tinymt32_ctx));
+		status = HAL_RNG_GenerateRandomNumber(hal_rng, word);
+		if (status != HAL_OK) {
+			goto error;
+		}
 	}
 	if (i < length) {
 		assert((length - i) < 4);
-		uint32_t last_word = lion_htole32(tinymt32_generate_uint32(tinymt32_ctx));
+		uint32_t last_word;
+		status = HAL_RNG_GenerateRandomNumber(hal_rng, word);
+		if (status != HAL_OK) {
+			goto error;
+		}
 		uint8_t *last_word_bytes = (uint8_t *) &last_word;
 		for (; i < length; ++i, ++last_word_bytes) {
 			buffer[i] = *last_word_bytes;
 		}
 	}
 	return CTAP_CRYPTO_OK;
+	error:
+	error_log(
+		red("HAL_RNG_GenerateRandomNumber error: status = %d, ErrorCode = %" PRIx32) nl,
+		status, hal_rng->ErrorCode
+	);
+	return CTAP_CRYPTO_ERROR;
 }
 
 ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_compute_public_key(

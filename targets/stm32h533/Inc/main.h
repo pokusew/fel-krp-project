@@ -42,8 +42,6 @@ extern "C" {
 
 extern __IO uint32_t BspButtonState;
 
-extern RNG_HandleTypeDef hrng;
-
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/

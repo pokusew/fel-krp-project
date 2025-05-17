@@ -3,10 +3,9 @@
 
 #include "ctap_crypto.h"
 #include "stm32h5xx_hal.h"
-#include <tinymt32.h>
 
 typedef struct app_hw_crypto_context {
-	tinymt32_t tinymt32_ctx;
+	RNG_HandleTypeDef hal_rng;
 	CRYP_HandleTypeDef hal_cryp;
 	HASH_HandleTypeDef hal_hash;
 } app_hw_crypto_context_t;

@@ -45,8 +45,6 @@
 COM_InitTypeDef BspCOMInit;
 __IO uint32_t BspButtonState = BUTTON_RELEASED;
 
-RNG_HandleTypeDef hrng;
-
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -55,8 +53,6 @@ RNG_HandleTypeDef hrng;
 void SystemClock_Config(void);
 
 static void MX_GPIO_Init(void);
-
-static void MX_RNG_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -107,7 +103,6 @@ int main(void) {
 
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
-	MX_RNG_Init();
 	/* USER CODE BEGIN 2 */
 
 	/* USER CODE END 2 */
@@ -190,31 +185,6 @@ void SystemClock_Config(void) {
 	/** Configure the programming delay
 	*/
 	__HAL_FLASH_SET_PROGRAM_DELAY(FLASH_PROGRAMMING_DELAY_2);
-}
-
-/**
-  * @brief RNG Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_RNG_Init(void) {
-
-	/* USER CODE BEGIN RNG_Init 0 */
-
-	/* USER CODE END RNG_Init 0 */
-
-	/* USER CODE BEGIN RNG_Init 1 */
-
-	/* USER CODE END RNG_Init 1 */
-	hrng.Instance = RNG;
-	hrng.Init.ClockErrorDetection = RNG_CED_ENABLE;
-	if (HAL_RNG_Init(&hrng) != HAL_OK) {
-		Error_Handler();
-	}
-	/* USER CODE BEGIN RNG_Init 2 */
-
-	/* USER CODE END RNG_Init 2 */
-
 }
 
 /**

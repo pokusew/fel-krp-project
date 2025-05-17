@@ -110,7 +110,7 @@ target_sources(app_hw_crypto PUBLIC
 )
 target_include_directories(app_hw_crypto PUBLIC ../../core)
 target_link_libraries(app_hw_crypto
-		PUBLIC tinyaes micro_ecc tinymt32 sha256 stm32cubemx
+		PUBLIC hash micro_ecc stm32cubemx
 )
 
 add_library(core STATIC)

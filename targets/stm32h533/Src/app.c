@@ -7,37 +7,6 @@
 #include "ctap_crypto_software.h"
 #include "app_hw_crypto.h"
 
-ctap_crypto_status_t hw_rng_generate_data(uint8_t *const buffer, const size_t length) {
-	HAL_StatusTypeDef status;
-	uint32_t *word = (uint32_t *const) buffer;
-	size_t i = 0;
-	for (size_t next_length = 4; next_length <= length; i += 4, next_length += 4, ++word) {
-		status = HAL_RNG_GenerateRandomNumber(&hrng, word);
-		if (status != HAL_OK) {
-			goto error;
-		}
-	}
-	if (i < length) {
-		assert((length - i) < 4);
-		uint32_t last_word;
-		status = HAL_RNG_GenerateRandomNumber(&hrng, word);
-		if (status != HAL_OK) {
-			goto error;
-		}
-		uint8_t *last_word_bytes = (uint8_t *) &last_word;
-		for (; i < length; ++i, ++last_word_bytes) {
-			buffer[i] = *last_word_bytes;
-		}
-	}
-	return CTAP_CRYPTO_OK;
-	error:
-	error_log(
-		red("HAL_RNG_GenerateRandomNumber error: status = %d, ErrorCode = %" PRIx32) nl,
-		status, hrng.ErrorCode
-	);
-	return CTAP_CRYPTO_ERROR;
-}
-
 // supported using UART debug chars:
 // l - toggle the Blue LED
 
@@ -168,7 +137,8 @@ static void app_test_rng_hw(void) {
 	info_log(cyan("app_test_rng_hw") nl);
 	uint8_t random_test_buffer[1024];
 	const uint32_t t1 = HAL_GetTick();
-	const ctap_crypto_status_t status = hw_rng_generate_data(
+	const ctap_crypto_status_t status = app_hw_crypto_rng_generate_data(
+		&app_hw_crypto,
 		random_test_buffer, sizeof(random_test_buffer)
 	);
 	const uint32_t t2 = HAL_GetTick();
