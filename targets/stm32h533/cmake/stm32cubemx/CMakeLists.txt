@@ -35,6 +35,7 @@ set(MX_Application_Src
 set(STM32_Drivers_Src
     ${MX_Root_Dir}/Src/system_stm32h5xx.c
     ${MX_Root_Dir}/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_cortex.c
+    ${MX_Root_Dir}/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_hash.c
     ${MX_Root_Dir}/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_cryp.c
     ${MX_Root_Dir}/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_cryp_ex.c
     ${MX_Root_Dir}/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_rcc.c

@@ -1,4 +1,5 @@
 #include "app_hw_crypto.h"
+#include "main.h"
 #include "compiler.h"
 #include "utils.h"
 
@@ -22,6 +23,33 @@ static_assert(TINYAES_AES_KEYLEN == 32, "unexpected TINYAES_AES_KEYLEN value for
 //   https://stackoverflow.com/questions/34903356/c11-random-number-distributions-are-not-consistent-across-platforms-what-al
 //   -> Based on those discussions, the C++11 mt19937 should deliver consistent results across all platforms.
 //      Note that if for some reason it stopped working, we would notice in our CI.
+
+static ctap_crypto_status_t app_hw_crypto_aes_init(app_hw_crypto_context_t *ctx);
+
+static ctap_crypto_status_t app_hw_crypto_hash_init(app_hw_crypto_context_t *ctx);
+
+ctap_crypto_status_t app_hw_crypto_init(
+	const ctap_crypto_t *const crypto,
+	uint32_t seed
+) {
+	app_hw_crypto_context_t *const ctx = crypto->context;
+
+	memset(ctx, 0, sizeof(app_hw_crypto_context_t));
+
+	ctap_crypto_status_t status;
+
+	status = crypto->rng_init(crypto, seed);
+	if (status != CTAP_CRYPTO_OK) {
+		return status;
+	}
+
+	status = app_hw_crypto_aes_init(ctx);
+	if (status != CTAP_CRYPTO_OK) {
+		return status;
+	}
+
+	return app_hw_crypto_hash_init(ctx);
+}
 
 static int micro_ecc_compatible_rng(void *ctx, uint8_t *dest, unsigned size) {
 	const ctap_crypto_t *const crypto = ctx;
@@ -74,24 +102,6 @@ static ctap_crypto_status_t app_hw_crypto_aes_init(app_hw_crypto_context_t *cons
 
 	return CTAP_CRYPTO_OK;
 
-}
-
-ctap_crypto_status_t app_hw_crypto_init(
-	const ctap_crypto_t *const crypto,
-	uint32_t seed
-) {
-	app_hw_crypto_context_t *const ctx = crypto->context;
-
-	memset(ctx, 0, sizeof(app_hw_crypto_context_t));
-
-	ctap_crypto_status_t status;
-
-	status = crypto->rng_init(crypto, seed);
-	if (status != CTAP_CRYPTO_OK) {
-		return status;
-	}
-
-	return app_hw_crypto_aes_init(ctx);
 }
 
 ctap_crypto_status_t app_hw_crypto_rng_init(
@@ -320,33 +330,83 @@ ctap_crypto_status_t app_hw_crypto_aes_256_cbc_decrypt(
 	return CTAP_CRYPTO_OK;
 }
 
-ctap_crypto_status_t app_hw_crypto_sha256_init(
-	const ctap_crypto_t *const crypto,
-	void *ctx
+void HAL_HASH_MspInit(HASH_HandleTypeDef *hhash) {
+	lion_unused(hhash);
+	__HAL_RCC_HASH_CLK_ENABLE();
+}
+
+void HAL_HASH_MspDeInit(HASH_HandleTypeDef *hhash) {
+	lion_unused(hhash);
+	__HAL_RCC_HASH_CLK_DISABLE();
+}
+
+static ctap_crypto_status_t app_hw_crypto_hash_init(app_hw_crypto_context_t *const ctx) {
+
+	HASH_HandleTypeDef *const hal_hash = &ctx->hal_hash;
+
+	hal_hash->Instance = HASH;
+	hal_hash->Init.DataType = HASH_BYTE_SWAP;
+	hal_hash->Init.Algorithm = HASH_ALGOSELECTION_SHA256;
+	if (HAL_HASH_Init(hal_hash) != HAL_OK) {
+		return CTAP_CRYPTO_ERROR;
+	}
+
+	return CTAP_CRYPTO_OK;
+
+}
+
+ctap_crypto_status_t app_hw_crypto_sha256_bind_ctx(
+	const ctap_crypto_t *crypto,
+	void *sha256_ctx
 ) {
-	lion_unused(crypto);
-	sha256_init(ctx);
+	*((app_hw_crypto_context_t **) sha256_ctx) = crypto->context;
+	// memcpy(sha256_ctx, &crypto->context, sizeof(app_hw_crypto_context_t *));
 	return CTAP_CRYPTO_OK;
 }
 
-ctap_crypto_status_t app_hw_crypto_sha256_update(
-	const ctap_crypto_t *const crypto,
+void app_hw_crypto_sha256_init(
+	void *ctx
+) {
+	lion_unused(ctx);
+}
+
+void app_hw_crypto_sha256_update(
 	void *ctx,
 	const uint8_t *data, size_t data_length
 ) {
-	lion_unused(crypto);
-	sha256_update(ctx, data, data_length);
-	return CTAP_CRYPTO_OK;
+	HASH_HandleTypeDef *const hal_hash = &(*((app_hw_crypto_context_t **) ctx))->hal_hash;
+	HAL_StatusTypeDef status = HAL_HASH_Accumulate(
+		hal_hash,
+		data, data_length,
+		HAL_MAX_DELAY
+	);
+	if (status != HAL_OK) {
+		error_log(
+			red("HAL_HASH_Accumulate error: status = %d, ErrorCode = %" PRIx32) nl,
+			status, hal_hash->ErrorCode
+		);
+		Error_Handler();
+	}
 }
 
-ctap_crypto_status_t app_hw_crypto_sha256_final(
-	const ctap_crypto_t *const crypto,
+void app_hw_crypto_sha256_final(
 	void *ctx,
 	uint8_t *hash
 ) {
-	lion_unused(crypto);
-	sha256_final(ctx, hash);
-	return CTAP_CRYPTO_OK;
+	HASH_HandleTypeDef *const hal_hash = &(*((app_hw_crypto_context_t **) ctx))->hal_hash;
+	HAL_StatusTypeDef status = HAL_HASH_AccumulateLast(
+		hal_hash,
+		NULL, 0,
+		hash,
+		HAL_MAX_DELAY
+	);
+	if (status != HAL_OK) {
+		error_log(
+			red("HAL_HASH_AccumulateLast error: status = %d, ErrorCode = %" PRIx32) nl,
+			status, hal_hash->ErrorCode
+		);
+		Error_Handler();
+	}
 }
 
 ctap_crypto_status_t app_hw_crypto_sha256_compute_digest(
@@ -354,10 +414,29 @@ ctap_crypto_status_t app_hw_crypto_sha256_compute_digest(
 	const uint8_t *data, size_t data_length,
 	uint8_t *hash
 ) {
-	lion_unused(crypto);
-	sha256_ctx_t ctx;
-	sha256_init(&ctx);
-	sha256_update(&ctx, data, data_length);
-	sha256_final(&ctx, hash);
+	app_hw_crypto_context_t *const ctx = crypto->context;
+	HASH_HandleTypeDef *const hal_hash = &ctx->hal_hash;
+	HAL_StatusTypeDef status = HAL_HASH_Start(
+		hal_hash,
+		data, data_length,
+		hash,
+		HAL_MAX_DELAY
+	);
+	if (status != HAL_OK) {
+		error_log(
+			red("HAL_HASH_Start error: status = %d, ErrorCode = %" PRIx32) nl,
+			status, hal_hash->ErrorCode
+		);
+		return CTAP_CRYPTO_ERROR;
+	}
 	return CTAP_CRYPTO_OK;
 }
+
+const hash_alg_t hash_alg_hw_sha256 = {
+	.ctx_size = sizeof(app_hw_crypto_context_t *),
+	.output_size = 32,
+	.block_size = 64,
+	.init = app_hw_crypto_sha256_init,
+	.update = app_hw_crypto_sha256_update,
+	.final = app_hw_crypto_sha256_final,
+};

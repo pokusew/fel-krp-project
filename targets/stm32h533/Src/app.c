@@ -283,6 +283,184 @@ static void app_test_aes(void) {
 
 }
 
+static void app_test_hash_zero(void) {
+
+	info_log(cyan("app_test_hash_zero") nl);
+
+	app_crypto.rng_init(&app_crypto, 0);
+
+	uint8_t data[1]; // zero-length variable-length arrays are not allowed
+
+	assert(app_crypto.sha256->output_size == app_hw_crypto.sha256->output_size);
+	uint8_t hash_sw[app_crypto.sha256->output_size];
+	uint8_t hash_hw[app_hw_crypto.sha256->output_size];
+
+	uint32_t t1;
+	uint32_t t2;
+	ctap_crypto_status_t status;
+
+	t1 = HAL_GetTick();
+	status = app_crypto.sha256_compute_digest(
+		&app_crypto,
+		data, 0,
+		hash_sw
+	);
+	t2 = HAL_GetTick();
+	if (status == CTAP_CRYPTO_OK) {
+		info_log("sw sha256_compute_digest ok" nl);
+	} else {
+		error_log(red("error while sw sha256_compute_digest") nl);
+	}
+	info_log("sw done in %" PRIu32 " ms" nl, t2 - t1);
+	dump_hex(hash_sw, sizeof(hash_sw));
+
+	t1 = HAL_GetTick();
+	status = app_hw_crypto.sha256_compute_digest(
+		&app_hw_crypto,
+		data, 0,
+		hash_hw
+	);
+	t2 = HAL_GetTick();
+	if (status == CTAP_CRYPTO_OK) {
+		info_log("hw sha256_compute_digest ok" nl);
+	} else {
+		error_log(red("error while hw sha256_compute_digest") nl);
+	}
+	info_log("hw done in %" PRIu32 " ms" nl, t2 - t1);
+	dump_hex(hash_hw, sizeof(hash_hw));
+
+	if (memcmp(hash_sw, hash_hw, sizeof(hash_sw)) != 0) {
+		error_log(red("hashes mismatch") nl);
+	} else {
+		debug_log(green("hashes equal") nl);
+	}
+
+}
+
+static void app_test_hash_big(void) {
+
+	info_log(cyan("app_test_hash_big") nl);
+
+	app_crypto.rng_init(&app_crypto, 0);
+
+	uint8_t data[333];
+	app_crypto.rng_generate_data(&app_crypto, data, sizeof(data));
+	debug_log("data: ");
+	dump_hex(data, sizeof(data));
+
+
+	assert(app_crypto.sha256->output_size == app_hw_crypto.sha256->output_size);
+	uint8_t hash_sw[app_crypto.sha256->output_size];
+	uint8_t hash_hw[app_hw_crypto.sha256->output_size];
+
+	uint32_t t1;
+	uint32_t t2;
+	ctap_crypto_status_t status;
+
+	t1 = HAL_GetTick();
+	status = app_crypto.sha256_compute_digest(
+		&app_crypto,
+		data, sizeof(data),
+		hash_sw
+	);
+	t2 = HAL_GetTick();
+	if (status == CTAP_CRYPTO_OK) {
+		info_log("sw sha256_compute_digest ok" nl);
+	} else {
+		error_log(red("error while sw sha256_compute_digest") nl);
+	}
+	info_log("sw done in %" PRIu32 " ms" nl, t2 - t1);
+	dump_hex(hash_sw, sizeof(hash_sw));
+
+	t1 = HAL_GetTick();
+	status = app_hw_crypto.sha256_compute_digest(
+		&app_hw_crypto,
+		data, sizeof(data),
+		hash_hw
+	);
+	t2 = HAL_GetTick();
+	if (status == CTAP_CRYPTO_OK) {
+		info_log("hw sha256_compute_digest ok" nl);
+	} else {
+		error_log(red("error while hw sha256_compute_digest") nl);
+	}
+	info_log("hw done in %" PRIu32 " ms" nl, t2 - t1);
+	dump_hex(hash_hw, sizeof(hash_hw));
+
+	if (memcmp(hash_sw, hash_hw, sizeof(hash_sw)) != 0) {
+		error_log(red("hashes mismatch") nl);
+	} else {
+		debug_log(green("hashes equal") nl);
+	}
+
+}
+
+static void app_test_hash_big_two_parts(void) {
+
+	info_log(cyan("app_test_hash_big") nl);
+
+	app_crypto.rng_init(&app_crypto, 0);
+
+	uint8_t data1[49];
+	app_crypto.rng_generate_data(&app_crypto, data1, sizeof(data1));
+	debug_log("data1: ");
+	dump_hex(data1, sizeof(data1));
+	uint8_t data2[87];
+	app_crypto.rng_generate_data(&app_crypto, data2, sizeof(data2));
+	debug_log("data2: ");
+	dump_hex(data2, sizeof(data2));
+
+
+	assert(app_crypto.sha256->output_size == app_hw_crypto.sha256->output_size);
+	uint8_t hash_sw[app_crypto.sha256->output_size];
+	uint8_t hash_hw[app_hw_crypto.sha256->output_size];
+
+	uint32_t t1;
+	uint32_t t2;
+	ctap_crypto_status_t status;
+
+	t1 = HAL_GetTick();
+	const hash_alg_t *const sw_sha256 = app_crypto.sha256;
+	uint8_t sw_sha256_ctx[sw_sha256->ctx_size];
+	app_crypto.sha256_bind_ctx(&app_crypto, sw_sha256_ctx);
+	sw_sha256->init(sw_sha256_ctx);
+	sw_sha256->update(sw_sha256_ctx, data1, sizeof(data1));
+	sw_sha256->update(sw_sha256_ctx, data2, sizeof(data2));
+	sw_sha256->final(sw_sha256_ctx, hash_sw);
+	t2 = HAL_GetTick();
+	// if (status == CTAP_CRYPTO_OK) {
+	// 	info_log("sw sha256_compute_digest ok" nl);
+	// } else {
+	// 	error_log(red("error while sw sha256_compute_digest") nl);
+	// }
+	info_log("sw done in %" PRIu32 " ms, sizeof(sw_sha256_ctx) = %" PRIsz nl, t2 - t1, sizeof(sw_sha256_ctx));
+	dump_hex(hash_sw, sizeof(hash_sw));
+
+	t1 = HAL_GetTick();
+	const hash_alg_t *const hw_sha256 = app_hw_crypto.sha256;
+	uint8_t hw_sha256_ctx[hw_sha256->ctx_size];
+	app_hw_crypto.sha256_bind_ctx(&app_hw_crypto, hw_sha256_ctx);
+	hw_sha256->init(hw_sha256_ctx);
+	hw_sha256->update(hw_sha256_ctx, data1, sizeof(data1));
+	hw_sha256->update(hw_sha256_ctx, data2, sizeof(data2));
+	hw_sha256->final(hw_sha256_ctx, hash_hw);
+	t2 = HAL_GetTick();
+	// if (status == CTAP_CRYPTO_OK) {
+	// 	info_log("hw sha256_compute_digest ok" nl);
+	// } else {
+	// 	error_log(red("error while hw sha256_compute_digest") nl);
+	// }
+	info_log("hw done in %" PRIu32 " ms, sizeof(hw_sha256_ctx) = %" PRIsz nl, t2 - t1, sizeof(hw_sha256_ctx));
+	dump_hex(hash_hw, sizeof(hash_hw));
+
+	if (memcmp(hash_sw, hash_hw, sizeof(hash_sw)) != 0) {
+		error_log(red("hashes mismatch") nl);
+	} else {
+		debug_log(green("hashes equal") nl);
+	}
+
+}
+
 noreturn void app_run(void) {
 
 	info_log(nl nl cyan("app_run") nl);
@@ -331,6 +509,12 @@ noreturn void app_run(void) {
 			} else if (debug_uart_rx == 'e') {
 
 				app_test_aes();
+
+			} else if (debug_uart_rx == 'h') {
+
+				app_test_hash_zero();
+				app_test_hash_big();
+				app_test_hash_big_two_parts();
 
 			} else if (debug_uart_rx == 's') {
 

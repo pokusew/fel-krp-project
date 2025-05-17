@@ -3,12 +3,12 @@
 
 #include "ctap_crypto.h"
 #include "stm32h5xx_hal.h"
-#include <sha256.h>
 #include <tinymt32.h>
 
 typedef struct app_hw_crypto_context {
 	tinymt32_t tinymt32_ctx;
 	CRYP_HandleTypeDef hal_cryp;
+	HASH_HandleTypeDef hal_hash;
 } app_hw_crypto_context_t;
 
 #define APP_HW_CRYPTO_CONST_INIT(context_ptr) \
@@ -22,12 +22,9 @@ typedef struct app_hw_crypto_context {
         .ecc_secp256r1_shared_secret = app_hw_crypto_ecc_secp256r1_shared_secret, \
         .aes_256_cbc_encrypt = app_hw_crypto_aes_256_cbc_encrypt, \
         .aes_256_cbc_decrypt = app_hw_crypto_aes_256_cbc_decrypt, \
-        .sha256_context_size = sizeof(sha256_ctx_t), \
-        .sha256_init = app_hw_crypto_sha256_init, \
-        .sha256_update = app_hw_crypto_sha256_update, \
-        .sha256_final = app_hw_crypto_sha256_final, \
+        .sha256_bind_ctx = app_hw_crypto_sha256_bind_ctx, \
         .sha256_compute_digest = app_hw_crypto_sha256_compute_digest, \
-        .sha256 = &hash_alg_sha256, \
+        .sha256 = &hash_alg_hw_sha256, \
     }
 
 ctap_crypto_status_t app_hw_crypto_init(
@@ -83,21 +80,9 @@ ctap_crypto_status_t app_hw_crypto_aes_256_cbc_decrypt(
 	size_t data_length
 );
 
-ctap_crypto_status_t app_hw_crypto_sha256_init(
+ctap_crypto_status_t app_hw_crypto_sha256_bind_ctx(
 	const ctap_crypto_t *crypto,
-	void *ctx
-);
-
-ctap_crypto_status_t app_hw_crypto_sha256_update(
-	const ctap_crypto_t *crypto,
-	void *ctx,
-	const uint8_t *data, size_t data_length
-);
-
-ctap_crypto_status_t app_hw_crypto_sha256_final(
-	const ctap_crypto_t *crypto,
-	void *ctx,
-	uint8_t *hash
+	void *sha256_ctx
 );
 
 ctap_crypto_status_t app_hw_crypto_sha256_compute_digest(
