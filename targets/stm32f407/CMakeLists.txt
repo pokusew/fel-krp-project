@@ -70,6 +70,7 @@ include_directories(
 		../../crypto/cifra/src
 		../../crypto/cifra/src/ext
 		../../crypto/salty/c-api
+		../../crypto/hash
 		../../crypto/sha256
 		../../crypto/micro-ecc
 )

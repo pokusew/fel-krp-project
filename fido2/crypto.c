@@ -166,7 +166,6 @@ void crypto_sha256_hmac_final(uint8_t *key, uint32_t klen, uint8_t *hmac) {
 
 
 void crypto_ecc256_init(void) {
-	uECC_set_rng((uECC_RNG_Function) ctap_generate_rng);
 	_es256_curve = uECC_secp256r1();
 }
 
@@ -177,7 +176,15 @@ void crypto_ecc256_load_attestation_key(void) {
 }
 
 void crypto_ecc256_sign(uint8_t *data, int len, uint8_t *sig) {
-	if (uECC_sign(_signing_key, data, len, sig, _es256_curve) == 0) {
+	if (uECC_sign(
+		_signing_key,
+		data,
+		len,
+		sig,
+		_es256_curve,
+		(uECC_RNG_Function) ctap_generate_rng,
+		NULL
+	) == 0) {
 		printf2(TAG_ERR, "error, uECC failed" nl);
 		exit(1);
 	}
@@ -216,7 +223,15 @@ void crypto_ecdsa_sign(uint8_t *data, int len, uint8_t *sig, int MBEDTLS_ECP_ID)
 			exit(1);
 	}
 
-	if (uECC_sign(_signing_key, data, len, sig, curve) == 0) {
+	if (uECC_sign(
+		_signing_key,
+		data,
+		len,
+		sig,
+		curve,
+		(uECC_RNG_Function) ctap_generate_rng,
+		NULL
+	) == 0) {
 		printf2(TAG_ERR, "error, uECC failed" nl);
 		exit(1);
 	}
@@ -248,13 +263,13 @@ void crypto_ecc256_derive_public_key(uint8_t *data, int len, uint8_t *x, uint8_t
 	generate_private_key(data, len, NULL, 0, privkey);
 
 	memset(pubkey, 0, sizeof(pubkey));
-	uECC_compute_public_key(privkey, pubkey, _es256_curve);
+	uECC_compute_public_key(privkey, pubkey, _es256_curve, (uECC_RNG_Function) ctap_generate_rng, NULL);
 	memmove(x, pubkey, 32);
 	memmove(y, pubkey + 32, 32);
 }
 
 void crypto_ecc256_compute_public_key(uint8_t *privkey, uint8_t *pubkey) {
-	uECC_compute_public_key(privkey, pubkey, _es256_curve);
+	uECC_compute_public_key(privkey, pubkey, _es256_curve, (uECC_RNG_Function) ctap_generate_rng, NULL);
 }
 
 
@@ -265,14 +280,27 @@ void crypto_load_external_key(uint8_t *key, int len) {
 
 
 void crypto_ecc256_make_key_pair(uint8_t *pubkey, uint8_t *privkey) {
-	if (uECC_make_key(pubkey, privkey, _es256_curve) != 1) {
+	if (uECC_make_key(
+		pubkey,
+		privkey,
+		_es256_curve,
+		(uECC_RNG_Function) ctap_generate_rng,
+		NULL
+	) != 1) {
 		printf2(TAG_ERR, "Error, uECC_make_key failed" nl);
 		exit(1);
 	}
 }
 
 void crypto_ecc256_shared_secret(const uint8_t *pubkey, const uint8_t *privkey, uint8_t *shared_secret) {
-	if (uECC_shared_secret(pubkey, privkey, shared_secret, _es256_curve) != 1) {
+	if (uECC_shared_secret(
+		pubkey,
+		privkey,
+		shared_secret,
+		_es256_curve,
+		(uECC_RNG_Function) ctap_generate_rng,
+		NULL
+	) != 1) {
 		printf2(TAG_ERR, "Error, uECC_shared_secret failed" nl);
 		exit(1);
 	}
