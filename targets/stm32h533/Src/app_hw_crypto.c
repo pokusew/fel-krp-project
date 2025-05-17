@@ -401,12 +401,20 @@ static ctap_crypto_status_t app_hw_crypto_hash_init(app_hw_crypto_context_t *con
 
 }
 
+typedef struct app_hw_crypto_sha256_ctx {
+	HASH_HandleTypeDef *hal_hash;
+	// HAL_HASH_Accumulate() requires all parts to be of a length that is a multiple of 4
+	size_t num_extra_bytes;
+	uint8_t extra_bytes[4];
+} app_hw_crypto_sha256_ctx_t;
+
 ctap_crypto_status_t app_hw_crypto_sha256_bind_ctx(
 	const ctap_crypto_t *crypto,
 	void *sha256_ctx
 ) {
-	*((app_hw_crypto_context_t **) sha256_ctx) = crypto->context;
-	// memcpy(sha256_ctx, &crypto->context, sizeof(app_hw_crypto_context_t *));
+	app_hw_crypto_sha256_ctx_t *ctx = sha256_ctx;
+	ctx->hal_hash = &((app_hw_crypto_context_t *) crypto->context)->hal_hash;
+	ctx->num_extra_bytes = 0;
 	return CTAP_CRYPTO_OK;
 }
 
@@ -417,13 +425,55 @@ void app_hw_crypto_sha256_init(
 }
 
 void app_hw_crypto_sha256_update(
-	void *ctx,
+	void *sha256_ctx,
 	const uint8_t *data, size_t data_length
 ) {
-	HASH_HandleTypeDef *const hal_hash = &(*((app_hw_crypto_context_t **) ctx))->hal_hash;
+	if (data_length == 0) {
+		return;
+	}
+
+	app_hw_crypto_sha256_ctx_t *ctx = sha256_ctx;
+	HASH_HandleTypeDef *const hal_hash = ctx->hal_hash;
+
+	if (ctx->num_extra_bytes > 0) {
+		const size_t needed_to_4 = 4 - ctx->num_extra_bytes;
+		if (needed_to_4 > 0) {
+			const size_t use_from_data = min(needed_to_4, data_length);
+			memcpy(&ctx->extra_bytes[ctx->num_extra_bytes], data, use_from_data);
+			ctx->num_extra_bytes += use_from_data;
+			data_length -= use_from_data;
+			data += use_from_data;
+		}
+		if (ctx->num_extra_bytes != 4) {
+			assert(data_length == 0);
+			return;
+		}
+		HAL_StatusTypeDef status = HAL_HASH_Accumulate(
+			hal_hash,
+			ctx->extra_bytes, 4,
+			HAL_MAX_DELAY
+		);
+		if (status != HAL_OK) {
+			error_log(
+				red("HAL_HASH_Accumulate error: status = %d, ErrorCode = %" PRIx32) nl,
+				status, hal_hash->ErrorCode
+			);
+			Error_Handler();
+		}
+		ctx->num_extra_bytes = 0;
+	}
+
+	size_t num_extra_bytes = data_length % 4;
+	if (num_extra_bytes > 0) {
+		assert(num_extra_bytes <= 3);
+		assert(ctx->num_extra_bytes == 0);
+		memcpy(ctx->extra_bytes, &data[data_length - num_extra_bytes], num_extra_bytes);
+		ctx->num_extra_bytes = num_extra_bytes;
+	}
+
 	HAL_StatusTypeDef status = HAL_HASH_Accumulate(
 		hal_hash,
-		data, data_length,
+		data, data_length - num_extra_bytes,
 		HAL_MAX_DELAY
 	);
 	if (status != HAL_OK) {
@@ -436,13 +486,14 @@ void app_hw_crypto_sha256_update(
 }
 
 void app_hw_crypto_sha256_final(
-	void *ctx,
+	void *sha256_ctx,
 	uint8_t *hash
 ) {
-	HASH_HandleTypeDef *const hal_hash = &(*((app_hw_crypto_context_t **) ctx))->hal_hash;
+	app_hw_crypto_sha256_ctx_t *ctx = sha256_ctx;
+	HASH_HandleTypeDef *const hal_hash = ctx->hal_hash;
 	HAL_StatusTypeDef status = HAL_HASH_AccumulateLast(
 		hal_hash,
-		NULL, 0,
+		ctx->extra_bytes, ctx->num_extra_bytes,
 		hash,
 		HAL_MAX_DELAY
 	);
@@ -453,6 +504,7 @@ void app_hw_crypto_sha256_final(
 		);
 		Error_Handler();
 	}
+	ctx->num_extra_bytes = 0;
 }
 
 ctap_crypto_status_t app_hw_crypto_sha256_compute_digest(
@@ -479,7 +531,7 @@ ctap_crypto_status_t app_hw_crypto_sha256_compute_digest(
 }
 
 const hash_alg_t hash_alg_hw_sha256 = {
-	.ctx_size = sizeof(app_hw_crypto_context_t *),
+	.ctx_size = sizeof(app_hw_crypto_sha256_ctx_t),
 	.output_size = 32,
 	.block_size = 64,
 	.init = app_hw_crypto_sha256_init,
