@@ -5,7 +5,6 @@
  * Modified by Martin Endler for the LionKey project.
  */
 
-#include <stdlib.h>
 #include <string.h>
 #include "sha256.h"
 
