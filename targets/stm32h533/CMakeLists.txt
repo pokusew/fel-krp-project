@@ -93,6 +93,8 @@ target_sources(core PUBLIC
 		../../core/ctap_get_info.c
 		../../core/ctap_parse.c
 		../../core/ctap_pin.c
+		../../core/ctap_pin_protocol.c
+		../../core/ctap_pin_uv_auth_token.c
 		../../core/ctap_reset.c
 		../../core/ctap_selection.c
 		../../core/ctap_string.c

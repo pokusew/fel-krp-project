@@ -47,6 +47,7 @@ void ctap_all_pin_protocols_initialize(ctap_state_t *state) {
 		assert(pin_protocol->kdf != NULL);
 		assert(pin_protocol->encrypt != NULL);
 		assert(pin_protocol->decrypt != NULL);
+		assert(pin_protocol->verify_get_context_size != NULL);
 		assert(pin_protocol->verify_init_with_shared_secret != NULL);
 		assert(pin_protocol->verify_init_with_pin_uv_auth_token != NULL);
 		assert(pin_protocol->verify_update != NULL);

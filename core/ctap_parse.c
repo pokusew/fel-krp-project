@@ -1,5 +1,4 @@
 #include "ctap_parse.h"
-#include <cbor.h>
 
 // TODO: test
 static inline CborError ctap_cbor_value_get_uint8(const CborValue *value, uint8_t *result) {

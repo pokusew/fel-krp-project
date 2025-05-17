@@ -6,7 +6,7 @@ static inline uint8_t verify_credential_management_params(
 	const CTAP_credentialManagement *params,
 	ctap_pin_protocol_t *pin_protocol
 ) {
-	hmac_sha256_ctx_t verify_ctx;
+	uint8_t verify_ctx[pin_protocol->verify_get_context_size(pin_protocol)];
 	if (pin_protocol->verify_init_with_pin_uv_auth_token(
 		pin_protocol,
 		&verify_ctx,

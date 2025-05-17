@@ -1,5 +1,6 @@
 #include "ctap.h"
 #include <uECC.h>
+#include <sha256.h>
 
 static inline bool is_option_present(const CTAP_mc_ga_options *options, const uint8_t option) {
 	return (options->present & option) == option;
@@ -22,7 +23,7 @@ static inline uint8_t verify_client_data_hash(
 	const CTAP_mc_ga_common *params,
 	ctap_pin_protocol_t *pin_protocol
 ) {
-	hmac_sha256_ctx_t verify_ctx;
+	uint8_t verify_ctx[pin_protocol->verify_get_context_size(pin_protocol)];
 	if (pin_protocol->verify_init_with_pin_uv_auth_token(
 		pin_protocol,
 		&verify_ctx,

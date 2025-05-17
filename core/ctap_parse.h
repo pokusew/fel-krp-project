@@ -5,50 +5,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include <cbor.h>
-
-#include "ctap_errors.h"
+#include "ctap_common.h"
+#include "ctap_cbor.h"
 #include "ctap_string.h"
 #include "cose.h"
 #include "compiler.h"
 #include "utils.h"
-
-#define ctap_check(expr)                                                   \
-	if ((ret = (expr)) != CTAP2_OK) {                                      \
-		debug_log(                                                         \
-			red("ctap_check: 0x%02" wPRIx8 " (%" wPRIu8 ") at %s:%d") nl,  \
-			ret, ret, __FILE__, __LINE__                                   \
-		);                                                                 \
-		return ret;                                                        \
-	}                                                                      \
-	((void) 0)
-
-#define lionkey_cbor_error_log(err, line, filename) \
-	debug_log(red("CborError: 0x%x (%d) (%s) at %s:%d") nl, err, err, cbor_error_string(err), filename, line)
-
-#define ctap_cbor_ensure_type(result)                          \
-	if (!(result)) {                                           \
-		debug_log(                                             \
-			red("CTAP2_ERR_CBOR_UNEXPECTED_TYPE at %s:%d") nl, \
-			__FILE__, __LINE__                                 \
-		);                                                     \
-		return CTAP2_ERR_CBOR_UNEXPECTED_TYPE;                 \
-	}                                                          \
-	((void) 0)
-
-#define cbor_decoding_check(r)                           \
-    if ((err = (r)) != CborNoError) {                    \
-        lionkey_cbor_error_log(err, __LINE__, __FILE__); \
-        return CTAP2_ERR_INVALID_CBOR;                   \
-    }                                                    \
-    ((void) 0)
-
-#define cbor_encoding_check(r)                           \
-    if ((err = (r)) != CborNoError) {                    \
-        lionkey_cbor_error_log(err, __LINE__, __FILE__); \
-        return CTAP1_ERR_OTHER;                          \
-    }                                                    \
-    ((void) 0)
 
 // request (message)
 // CTAPHID_CBOR
@@ -59,8 +21,6 @@
 // CTAPHID_CBOR
 //    	CTAP status code
 //      n bytes of CBOR encoded data
-
-#define CTAP_SHA256_HASH_SIZE  32
 
 // Command
 // code (one byte)
