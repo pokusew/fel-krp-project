@@ -20,10 +20,7 @@ typedef struct ctap_software_crypto_context {
         .ecc_secp256r1_shared_secret = ctap_software_crypto_ecc_secp256r1_shared_secret, \
         .aes_256_cbc_encrypt = ctap_software_crypto_aes_256_cbc_encrypt, \
         .aes_256_cbc_decrypt = ctap_software_crypto_aes_256_cbc_decrypt, \
-        .sha256_context_size = sizeof(sha256_ctx_t), \
-        .sha256_init = ctap_software_crypto_sha256_init, \
-        .sha256_update = ctap_software_crypto_sha256_update, \
-        .sha256_final = ctap_software_crypto_sha256_final, \
+        .sha256_bind_ctx = ctap_software_crypto_sha256_bind_ctx, \
         .sha256_compute_digest = ctap_software_crypto_sha256_compute_digest, \
         .sha256 = &hash_alg_sha256, \
     }
@@ -81,21 +78,9 @@ ctap_crypto_status_t ctap_software_crypto_aes_256_cbc_decrypt(
 	size_t data_length
 );
 
-ctap_crypto_status_t ctap_software_crypto_sha256_init(
+ctap_crypto_status_t ctap_software_crypto_sha256_bind_ctx(
 	const ctap_crypto_t *crypto,
-	void *ctx
-);
-
-ctap_crypto_status_t ctap_software_crypto_sha256_update(
-	const ctap_crypto_t *crypto,
-	void *ctx,
-	const uint8_t *data, size_t data_length
-);
-
-ctap_crypto_status_t ctap_software_crypto_sha256_final(
-	const ctap_crypto_t *crypto,
-	void *ctx,
-	uint8_t *hash
+	void *hash_ctx
 );
 
 ctap_crypto_status_t ctap_software_crypto_sha256_compute_digest(
@@ -103,5 +88,7 @@ ctap_crypto_status_t ctap_software_crypto_sha256_compute_digest(
 	const uint8_t *data, size_t data_length,
 	uint8_t *hash
 );
+
+extern const hash_alg_t hash_alg_hw_sha256;
 
 #endif // LIONKEY_CTAP_CRYPTO_SOFTWARE

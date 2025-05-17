@@ -110,34 +110,9 @@ typedef struct ctap_crypto {
 		const size_t data_length
 	);
 
-	/**
-	 * The number of bytes needed to hold the SHA-256 context
-	 *
-	 * The caller can use this to allocate the context on the stack:
-	 * ```
-	 * uint8_t sha256_ctx[crypto->sha256_get_context_size];
-	 * ```
-	 *
-	 * The value is always greater than 0 so that the variable-length array allocation
-	 * can be used (C standard does not allow variable-length arrays with zero length).
-	 */
-	const size_t sha256_context_size;
-
-	ctap_crypto_status_t (*sha256_init)(
+	ctap_crypto_status_t (*sha256_bind_ctx)(
 		const struct ctap_crypto *crypto,
-		void *ctx
-	);
-
-	ctap_crypto_status_t (*sha256_update)(
-		const struct ctap_crypto *crypto,
-		void *ctx,
-		const uint8_t *data, size_t data_length
-	);
-
-	ctap_crypto_status_t (*sha256_final)(
-		const struct ctap_crypto *crypto,
-		void *ctx,
-		uint8_t *hash
+		void *sha256_ctx
 	);
 
 	ctap_crypto_status_t (*sha256_compute_digest)(

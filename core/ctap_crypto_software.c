@@ -155,32 +155,12 @@ ctap_crypto_status_t ctap_software_crypto_aes_256_cbc_decrypt(
 	return CTAP_CRYPTO_OK;
 }
 
-ctap_crypto_status_t ctap_software_crypto_sha256_init(
-	const ctap_crypto_t *const crypto,
-	void *ctx
+ctap_crypto_status_t ctap_software_crypto_sha256_bind_ctx(
+	const ctap_crypto_t *crypto,
+	void *hash_ctx
 ) {
 	lion_unused(crypto);
-	sha256_init(ctx);
-	return CTAP_CRYPTO_OK;
-}
-
-ctap_crypto_status_t ctap_software_crypto_sha256_update(
-	const ctap_crypto_t *const crypto,
-	void *ctx,
-	const uint8_t *data, size_t data_length
-) {
-	lion_unused(crypto);
-	sha256_update(ctx, data, data_length);
-	return CTAP_CRYPTO_OK;
-}
-
-ctap_crypto_status_t ctap_software_crypto_sha256_final(
-	const ctap_crypto_t *const crypto,
-	void *ctx,
-	uint8_t *hash
-) {
-	lion_unused(crypto);
-	sha256_final(ctx, hash);
+	lion_unused(hash_ctx);
 	return CTAP_CRYPTO_OK;
 }
 
@@ -194,5 +174,11 @@ ctap_crypto_status_t ctap_software_crypto_sha256_compute_digest(
 	sha256_init(&ctx);
 	sha256_update(&ctx, data, data_length);
 	sha256_final(&ctx, hash);
+	// equivalently (but with the dereferencing overhead)
+	// const hash_alg_t *const sha256 = crypto->sha256;
+	// uint8_t ctx[sha256->ctx_size];
+	// sha256->init(ctx);
+	// sha256->update(ctx, data, data_length);
+	// sha256->final(ctx, hash);
 	return CTAP_CRYPTO_OK;
 }
