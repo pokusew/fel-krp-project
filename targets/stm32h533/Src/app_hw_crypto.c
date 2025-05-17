@@ -134,32 +134,45 @@ ctap_crypto_status_t app_hw_crypto_rng_generate_data(
 	RNG_HandleTypeDef *const hal_rng = &ctx->hal_rng;
 
 	HAL_StatusTypeDef status;
-	uint32_t *word = (uint32_t *const) buffer;
+	uint32_t word;
+	uint8_t *const word_bytes = (uint8_t *) &word;
+
 	size_t i = 0;
+
+	// full 32-bit words
 	for (size_t next_length = 4; next_length <= length; i += 4, next_length += 4, ++word) {
-		status = HAL_RNG_GenerateRandomNumber(hal_rng, word);
+		// We use lion_htole32() here to get consistent results independent of the target endianness.
+		// When the target is little-endian (most targets are), the lion_htole32() macro does nothing.
+		status = HAL_RNG_GenerateRandomNumber(hal_rng, &word);
 		if (status != HAL_OK) {
 			goto error;
 		}
+		buffer[i + 0] = word_bytes[0];
+		buffer[i + 1] = word_bytes[1];
+		buffer[i + 2] = word_bytes[2];
+		buffer[i + 3] = word_bytes[3];
 	}
+
+	// remaining bytes (less than one 32-bit word, i.e., less than 4 bytes)
 	if (i < length) {
 		assert((length - i) < 4);
-		uint32_t last_word;
-		status = HAL_RNG_GenerateRandomNumber(hal_rng, word);
+		status = HAL_RNG_GenerateRandomNumber(hal_rng, &word);
 		if (status != HAL_OK) {
 			goto error;
 		}
-		uint8_t *last_word_bytes = (uint8_t *) &last_word;
-		for (; i < length; ++i, ++last_word_bytes) {
-			buffer[i] = *last_word_bytes;
+		for (size_t j = 0; i < length; ++i, ++j) {
+			buffer[i] = word_bytes[j];
 		}
 	}
+
 	return CTAP_CRYPTO_OK;
+
 	error:
 	error_log(
 		red("HAL_RNG_GenerateRandomNumber error: status = %d, ErrorCode = %" PRIx32) nl,
 		status, hal_rng->ErrorCode
 	);
+
 	return CTAP_CRYPTO_ERROR;
 }
 
