@@ -72,7 +72,6 @@ target_include_directories(micro_ecc
 		../crypto/micro-ecc
 )
 
-# https://github.com/B-Con/crypto-algorithms/blob/master/sha256.h
 add_library(sha256 STATIC)
 target_sources(sha256
 		PRIVATE
@@ -87,6 +86,8 @@ target_sources(sha256
 target_include_directories(sha256
 		INTERFACE
 		../crypto/sha256
+		PUBLIC
+		../crypto/hash
 )
 
 add_library(core STATIC)

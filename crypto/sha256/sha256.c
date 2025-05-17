@@ -141,3 +141,12 @@ void sha256_final(sha256_ctx_t *const ctx, uint8_t *const hash) {
 		hash[i + 28] = (ctx->state[7] >> (24 - i * 8)) & 0x000000ff;
 	}
 }
+
+const hash_alg_t hash_alg_sha256 = {
+	.ctx_size = sizeof(sha256_ctx_t),
+	.output_size = LIONKEY_SHA256_OUTPUT_SIZE,
+	.block_size = LIONKEY_SHA256_BLOCK_SIZE,
+	.init = (void (*)(void *)) sha256_init,
+	.update = (void (*)(void *, const uint8_t *, size_t)) sha256_update,
+	.final = (void (*)(void *, uint8_t *)) sha256_final,
+};

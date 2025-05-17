@@ -6,6 +6,7 @@
 #include <vector>
 extern "C" {
 #include <hmac.h>
+#include <sha256.h>
 }
 namespace {
 
@@ -53,10 +54,16 @@ TEST_P(HmacSha256Test, ComputesHmac) {
 
 	std::array<uint8_t, LIONKEY_SHA256_OUTPUT_SIZE> hmac{};
 
-	hmac_sha256_ctx_t ctx; // NOLINT(*-pro-type-member-init)
-	hmac_sha256_init(&ctx, key.data(), key.size());
-	hmac_sha256_update(&ctx, input.data(), input.size());
-	hmac_sha256_final(&ctx, hmac.data());
+	const hash_alg_t *hash_alg = &hash_alg_sha256;
+
+	const size_t hmac_sha256_ctx_size = hmac_get_context_size(hash_alg);
+
+	ASSERT_EQ(hmac_sha256_ctx_size, sizeof(hash_alg_t * ) + hash_alg->ctx_size + hash_alg->block_size);
+
+	uint8_t hmac_sha256_ctx[hmac_sha256_ctx_size];
+	hmac_init(hmac_sha256_ctx, hash_alg, key.data(), key.size());
+	hmac_update(hmac_sha256_ctx, input.data(), input.size());
+	hmac_final(hmac_sha256_ctx, hmac.data());
 
 	EXPECT_SAME_BYTES_S(LIONKEY_SHA256_OUTPUT_SIZE, hmac.data(), expected_hmac.data());
 

@@ -6,6 +6,7 @@
 #include <vector>
 extern "C" {
 #include <hkdf.h>
+#include <sha256.h>
 }
 namespace {
 
@@ -68,9 +69,16 @@ TEST_P(HkdfSha256Test, ExtractProducesCorrectPrk) {
 
 	uint8_t prk[expected_prk.size()];
 
-	hmac_sha256_ctx_t hmac_sha256_ctx; // NOLINT(*-pro-type-member-init)
-	hkdf_sha256_extract(
-		&hmac_sha256_ctx,
+	const hash_alg_t *hash_alg = &hash_alg_sha256;
+
+	const size_t hmac_sha256_ctx_size = hmac_get_context_size(hash_alg);
+
+	ASSERT_GT(hmac_sha256_ctx_size, 0);
+
+	uint8_t hmac_sha256_ctx[hmac_sha256_ctx_size];
+	hkdf_extract(
+		hash_alg,
+		hmac_sha256_ctx,
 		salt.data(), salt.size(),
 		ikm.data(), ikm.size(),
 		prk
@@ -93,7 +101,8 @@ TEST_P(HkdfSha256Test, HkdfProducesCorrectOkm) {
 	// which is usually slower than just always allocating a slightly bigger array.
 	uint8_t okm[expected_okm.size() + 1];
 
-	hkdf_sha256(
+	hkdf(
+		&hash_alg_sha256,
 		salt.data(), salt.size(),
 		ikm.data(), ikm.size(),
 		info.data(), info.size(),
