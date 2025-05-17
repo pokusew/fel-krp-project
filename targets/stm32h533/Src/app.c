@@ -7,13 +7,52 @@
 #include <stdlib.h>
 #include "ctap_crypto_software.h"
 
-int ctap_generate_rng(uint8_t *buffer, size_t length) {
-	debug_log("ctap_generate_rng: %u bytes to %p" nl, length, buffer);
-	for (size_t i = 0; i < length; i++) {
-		// TODO: replace stdlib rand() with the STM32H533 RAND peripheral
-		buffer[i] = (uint8_t) rand();
+void std_rng_generate_data(uint8_t *const buffer, const size_t length) {
+	static_assert(sizeof(int) == sizeof(uint32_t), "sizeof(int) == sizeof(uint32_t)");
+	uint32_t *word = (uint32_t *const) buffer;
+	size_t i = 0;
+	for (size_t next_length = 4; next_length <= length; i += 4, next_length += 4, ++word) {
+		*word = rand();
 	}
-	return 1; // 1 = no error (to be compatible with uECC)
+	if (i < length) {
+		assert((length - i) < 4);
+		uint32_t last_word = rand();
+		uint8_t *last_word_bytes = (uint8_t *) &last_word;
+		for (; i < length; ++i, ++last_word_bytes) {
+			buffer[i] = *last_word_bytes;
+		}
+	}
+}
+
+ctap_crypto_status_t hw_rng_generate_data(uint8_t *const buffer, const size_t length) {
+	HAL_StatusTypeDef status;
+	uint32_t *word = (uint32_t *const) buffer;
+	size_t i = 0;
+	for (size_t next_length = 4; next_length <= length; i += 4, next_length += 4, ++word) {
+		status = HAL_RNG_GenerateRandomNumber(&hrng, word);
+		if (status != HAL_OK) {
+			goto error;
+		}
+	}
+	if (i < length) {
+		assert((length - i) < 4);
+		uint32_t last_word;
+		status = HAL_RNG_GenerateRandomNumber(&hrng, word);
+		if (status != HAL_OK) {
+			goto error;
+		}
+		uint8_t *last_word_bytes = (uint8_t *) &last_word;
+		for (; i < length; ++i, ++last_word_bytes) {
+			buffer[i] = *last_word_bytes;
+		}
+	}
+	return CTAP_CRYPTO_OK;
+	error:
+	error_log(
+		red("HAL_RNG_GenerateRandomNumber error: status = %d, ErrorCode = %" PRIx32) nl,
+		status, hrng.ErrorCode
+	);
+	return CTAP_CRYPTO_ERROR;
 }
 
 // supported using UART debug chars:
@@ -117,6 +156,52 @@ static void handle_packet_using_send_or_queue_ctaphid_packet(const ctaphid_packe
 	app_hid_report_send_queue_add(packet);
 }
 
+static void app_test_rng_tinymt(void) {
+	info_log(cyan("app_test_rng_tinymt") nl);
+	uint8_t random_test_buffer[1024];
+	const uint32_t t1 = HAL_GetTick();
+	const ctap_crypto_status_t status = app_crypto.rng_generate_data(
+		&app_crypto,
+		random_test_buffer, sizeof(random_test_buffer)
+	);
+	const uint32_t t2 = HAL_GetTick();
+	if (status == CTAP_CRYPTO_OK) {
+		info_log("generated" nl);
+	} else {
+		error_log("error while generating" nl);
+	}
+	dump_hex(random_test_buffer, sizeof(random_test_buffer));
+	info_log("done in %" PRIu32 " ms" nl, t2 - t1);
+}
+
+static void app_test_rng_std(void) {
+	info_log(cyan("app_test_rng_std") nl);
+	uint8_t random_test_buffer[1024];
+	const uint32_t t1 = HAL_GetTick();
+	std_rng_generate_data(random_test_buffer, sizeof(random_test_buffer));
+	const uint32_t t2 = HAL_GetTick();
+	info_log("generated" nl);
+	dump_hex(random_test_buffer, sizeof(random_test_buffer));
+	info_log("done in %" PRIu32 " ms" nl, t2 - t1);
+}
+
+static void app_test_rng_hw(void) {
+	info_log(cyan("app_test_rng_hw") nl);
+	uint8_t random_test_buffer[1024];
+	const uint32_t t1 = HAL_GetTick();
+	const ctap_crypto_status_t status = hw_rng_generate_data(
+		random_test_buffer, sizeof(random_test_buffer)
+	);
+	const uint32_t t2 = HAL_GetTick();
+	if (status == CTAP_CRYPTO_OK) {
+		info_log("generated" nl);
+	} else {
+		error_log("error while generating" nl);
+	}
+	dump_hex(random_test_buffer, sizeof(random_test_buffer));
+	info_log("done in %" PRIu32 " ms" nl, t2 - t1);
+}
+
 noreturn void app_run(void) {
 
 	info_log(nl nl cyan("app_run") nl);
@@ -149,16 +234,24 @@ noreturn void app_run(void) {
 			debug_log("debug_uart_rx = %c" nl, debug_uart_rx);
 
 			if (debug_uart_rx == 'l') {
-				BSP_LED_Toggle(LED_GREEN);
-			}
 
-			if (debug_uart_rx == 's') {
+				BSP_LED_Toggle(LED_GREEN);
+
+			} else if (debug_uart_rx == 'r') {
+
+				app_test_rng_tinymt();
+				app_test_rng_std();
+				app_test_rng_hw();
+
+			} else if (debug_uart_rx == 's') {
+
 				memset(&res, 0, sizeof(res));
 				res.pkt.init.cmd = CTAPHID_PING;
 				res.pkt.init.bcnt = lion_htons(1);
 				res.pkt.init.payload[0] = 'A';
 				bool result = tud_hid_report(0, &res, sizeof(res));
 				debug_log("send report result = %d" nl, result);
+
 			}
 
 		}
