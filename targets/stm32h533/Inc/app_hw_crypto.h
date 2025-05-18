@@ -6,6 +6,7 @@
 
 typedef struct app_hw_crypto_context {
 	RNG_HandleTypeDef hal_rng;
+	PKA_HandleTypeDef hal_pka;
 	CRYP_HandleTypeDef hal_cryp;
 	HASH_HandleTypeDef hal_hash;
 } app_hw_crypto_context_t;

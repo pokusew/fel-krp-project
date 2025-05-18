@@ -7,6 +7,8 @@
 #include <assert.h>
 #include <string.h>
 
+static ctap_crypto_status_t app_hw_crypto_pka_init(app_hw_crypto_context_t *ctx);
+
 static ctap_crypto_status_t app_hw_crypto_aes_init(app_hw_crypto_context_t *ctx);
 
 static ctap_crypto_status_t app_hw_crypto_hash_init(app_hw_crypto_context_t *ctx);
@@ -22,6 +24,11 @@ ctap_crypto_status_t app_hw_crypto_init(
 	ctap_crypto_status_t status;
 
 	status = crypto->rng_init(crypto, seed);
+	if (status != CTAP_CRYPTO_OK) {
+		return status;
+	}
+
+	status = app_hw_crypto_pka_init(ctx);
 	if (status != CTAP_CRYPTO_OK) {
 		return status;
 	}
@@ -133,6 +140,27 @@ ctap_crypto_status_t app_hw_crypto_rng_generate_data(
 }
 
 // ####################  ECC (ECDSA and ECDH)  ####################
+
+void HAL_PKA_MspInit(PKA_HandleTypeDef *hpka) {
+	if (hpka->Instance == PKA) {
+		__HAL_RCC_PKA_CLK_ENABLE();
+	}
+}
+
+void HAL_PKA_MspDeInit(PKA_HandleTypeDef *hpka) {
+	if (hpka->Instance == PKA) {
+		__HAL_RCC_PKA_CLK_DISABLE();
+	}
+}
+
+ctap_crypto_status_t app_hw_crypto_pka_init(app_hw_crypto_context_t *ctx) {
+	PKA_HandleTypeDef *const hal_pka = &ctx->hal_pka;
+	hal_pka->Instance = PKA;
+	if (HAL_PKA_Init(hal_pka) != HAL_OK) {
+		return CTAP_CRYPTO_ERROR;
+	}
+	return CTAP_CRYPTO_OK;
+}
 
 ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_compute_public_key(
 	const ctap_crypto_t *const crypto,
