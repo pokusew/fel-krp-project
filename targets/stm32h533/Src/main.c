@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "app.h"
+#include "stm32h5xx_ll_icache.h"
 
 /* USER CODE END Includes */
 
@@ -53,6 +54,8 @@ __IO uint32_t BspButtonState = BUTTON_RELEASED;
 void SystemClock_Config(void);
 
 static void MX_GPIO_Init(void);
+
+static void MX_ICACHE_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -103,6 +106,7 @@ int main(void) {
 
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
+	MX_ICACHE_Init();
 	/* USER CODE BEGIN 2 */
 
 	/* USER CODE END 2 */
@@ -185,6 +189,30 @@ void SystemClock_Config(void) {
 	/** Configure the programming delay
 	*/
 	__HAL_FLASH_SET_PROGRAM_DELAY(FLASH_PROGRAMMING_DELAY_2);
+}
+
+/**
+  * @brief ICACHE Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ICACHE_Init(void) {
+
+	/* USER CODE BEGIN ICACHE_Init 0 */
+
+	/* USER CODE END ICACHE_Init 0 */
+
+	/* USER CODE BEGIN ICACHE_Init 1 */
+
+	/* USER CODE END ICACHE_Init 1 */
+
+	// Enable instruction cache (default 2-ways set associative cache)
+	LL_ICACHE_Enable();
+
+	/* USER CODE BEGIN ICACHE_Init 2 */
+
+	/* USER CODE END ICACHE_Init 2 */
+
 }
 
 /**
