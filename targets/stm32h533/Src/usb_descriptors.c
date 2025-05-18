@@ -109,7 +109,7 @@ enum string_descriptor_index {
 static const char *string_desc_arr[] = {
 	(const char[]) {0x09, 0x04}, // 0: is supported language is English (0x0409)
 	"Martin Endler",            // 1: Manufacturer
-	"Martin FIDO2 Key",         // 2: Product
+	"LionKey",                  // 2: Product
 	NULL,                       // 3: Serials will use unique ID if possible
 };
 
