@@ -192,6 +192,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 		Src/usb_descriptors.c
 		Src/usb.c
 		Src/app.c
+		Src/app_test.c
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

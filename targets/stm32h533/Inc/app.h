@@ -5,6 +5,9 @@
 #include "ctaphid.h"
 #include "ctap.h"
 
+extern const ctap_crypto_t app_sw_crypto;
+extern const ctap_crypto_t app_hw_crypto;
+
 extern ctaphid_state_t app_ctaphid;
 extern ctap_state_t app_ctap;
 
