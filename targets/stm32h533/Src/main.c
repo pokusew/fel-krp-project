@@ -206,8 +206,21 @@ static void MX_ICACHE_Init(void) {
 
 	/* USER CODE END ICACHE_Init 1 */
 
+	// Before enabling ICACHE we have to solve the following:
+	//  1. Reading the 96-bit device UID from the flash memory (0x08FFF800) (the read-only area)
+	//     causes a HardFault when ICACHE is enabled.
+	//     See How to avoid a HardFault when ICACHE is enabled on the STM32H5 series (configure MPU)
+	//       https://community.st.com/t5/stm32-mcus/how-to-avoid-a-hardfault-when-icache-is-enabled-on-the-stm32h5/ta-p/630085
+	//       (or a related discussion here https://community.st.com/t5/stm32-mcus-products/stm32h563-hard-fault-when-trying-to-read-uid/td-p/584571)
+	//     RM0481 7.3.2 FLASH signals, Main AHB interface
+	//       By default, all the AHB memory range is cacheable.
+	//       For regions where caching is not practical (OTP, RO, data area),
+	//       MPU must be used to disable local cacheability.
+	//  2. Configure MPU to avoid caching the persistent authenticator data stored on the flash memory
+	//     (discoverable credentials, global signature counter, pin, master key, etc.).
+
 	// Enable instruction cache (default 2-ways set associative cache)
-	LL_ICACHE_Enable();
+	// LL_ICACHE_Enable();
 
 	/* USER CODE BEGIN ICACHE_Init 2 */
 
