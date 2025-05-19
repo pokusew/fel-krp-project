@@ -155,6 +155,12 @@ ctap_crypto_status_t ctap_software_crypto_ecc_secp256r1_shared_secret(
 	const uint8_t *const private_key,
 	uint8_t *const secret
 ) {
+	if (uECC_valid_public_key(
+		public_key,
+		uECC_secp256r1()
+	) != 1) {
+		return CTAP_CRYPTO_ERROR;
+	}
 	if (uECC_shared_secret(
 		public_key,
 		private_key,
