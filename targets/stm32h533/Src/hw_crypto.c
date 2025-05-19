@@ -45,13 +45,6 @@ ctap_crypto_status_t stm32h533_crypto_init(
 
 // ####################  RNG  ####################
 
-static int micro_ecc_compatible_rng(void *ctx, uint8_t *dest, unsigned size) {
-	const ctap_crypto_t *const crypto = ctx;
-	ctap_crypto_status_t status = crypto->rng_generate_data(crypto, dest, size);
-	// translate the status to the uECC-compatible return value
-	return status == CTAP_CRYPTO_OK ? 1 : 0;
-}
-
 void HAL_RNG_MspInit(RNG_HandleTypeDef *hrng) {
 	RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
 	if (hrng->Instance == RNG) {
