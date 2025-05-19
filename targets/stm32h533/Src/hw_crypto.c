@@ -9,38 +9,44 @@
 #include <string.h>
 #include <stdbool.h>
 
-static ctap_crypto_status_t stm32h533_crypto_pka_init(stm32h533_crypto_context_t *ctx);
+static ctap_crypto_status_t stm32h533_crypto_init_rng_peripheral(stm32h533_crypto_context_t *ctx);
 
-static ctap_crypto_status_t stm32h533_crypto_aes_init(stm32h533_crypto_context_t *ctx);
+static ctap_crypto_status_t stm32h533_crypto_init_pka_peripheral(stm32h533_crypto_context_t *ctx);
 
-static ctap_crypto_status_t stm32h533_crypto_hash_init(stm32h533_crypto_context_t *ctx);
+static ctap_crypto_status_t stm32h533_crypto_init_cryp_peripheral(stm32h533_crypto_context_t *ctx);
+
+static ctap_crypto_status_t stm32h533_crypto_init_hash_peripheral(stm32h533_crypto_context_t *ctx);
 
 ctap_crypto_status_t stm32h533_crypto_init(
 	const ctap_crypto_t *const crypto,
 	uint32_t seed
 ) {
+	// we use True Random Number Generator (the RNG peripheral) to generate all random data directly
+	// no seed can be set or reset
+	lion_unused(seed);
+
 	stm32h533_crypto_context_t *const ctx = crypto->context;
 
 	memset(ctx, 0, sizeof(stm32h533_crypto_context_t));
 
 	ctap_crypto_status_t status;
 
-	status = crypto->rng_init(crypto, seed);
+	status = stm32h533_crypto_init_rng_peripheral(ctx);
 	if (status != CTAP_CRYPTO_OK) {
 		return status;
 	}
 
-	status = stm32h533_crypto_pka_init(ctx);
+	status = stm32h533_crypto_init_pka_peripheral(ctx);
 	if (status != CTAP_CRYPTO_OK) {
 		return status;
 	}
 
-	status = stm32h533_crypto_aes_init(ctx);
+	status = stm32h533_crypto_init_cryp_peripheral(ctx);
 	if (status != CTAP_CRYPTO_OK) {
 		return status;
 	}
 
-	return stm32h533_crypto_hash_init(ctx);
+	return stm32h533_crypto_init_hash_peripheral(ctx);
 }
 
 // ####################  RNG  ####################
@@ -54,7 +60,6 @@ void HAL_RNG_MspInit(RNG_HandleTypeDef *hrng) {
 			Error_Handler();
 		}
 		__HAL_RCC_RNG_CLK_ENABLE();
-
 	}
 }
 
@@ -64,23 +69,24 @@ void HAL_RNG_MspDeInit(RNG_HandleTypeDef *hrng) {
 	}
 }
 
+static ctap_crypto_status_t stm32h533_crypto_init_rng_peripheral(stm32h533_crypto_context_t *ctx) {
+	RNG_HandleTypeDef *const hal_rng = &ctx->hal_rng;
+	hal_rng->Instance = RNG;
+	hal_rng->Init.ClockErrorDetection = RNG_CED_ENABLE;
+	if (HAL_RNG_Init(hal_rng) != HAL_OK) {
+		return CTAP_CRYPTO_ERROR;
+	}
+	return CTAP_CRYPTO_OK;
+}
+
 ctap_crypto_status_t stm32h533_crypto_rng_init(
 	const ctap_crypto_t *const crypto,
 	uint32_t seed
 ) {
-	// seed not applicable, we use True Random Number Generator (the RNG peripheral)
-	// to generate all random data directly
 	lion_unused(seed);
-
-	stm32h533_crypto_context_t *const ctx = crypto->context;
-	RNG_HandleTypeDef *const hal_rng = &ctx->hal_rng;
-
-	hal_rng->Instance = RNG;
-	hal_rng->Init.ClockErrorDetection = RNG_CED_ENABLE;
-	if (HAL_RNG_Init(hal_rng) != HAL_OK) {
-		Error_Handler();
-	}
-
+	lion_unused(crypto);
+	// we use True Random Number Generator (the RNG peripheral) to generate all random data directly
+	// no seed can be set or reset
 	return CTAP_CRYPTO_OK;
 }
 
@@ -150,7 +156,7 @@ void HAL_PKA_MspDeInit(PKA_HandleTypeDef *hpka) {
 	}
 }
 
-ctap_crypto_status_t stm32h533_crypto_pka_init(stm32h533_crypto_context_t *ctx) {
+ctap_crypto_status_t stm32h533_crypto_init_pka_peripheral(stm32h533_crypto_context_t *ctx) {
 	PKA_HandleTypeDef *const hal_pka = &ctx->hal_pka;
 	hal_pka->Instance = PKA;
 	if (HAL_PKA_Init(hal_pka) != HAL_OK) {
@@ -549,7 +555,7 @@ void HAL_CRYP_MspDeInit(CRYP_HandleTypeDef *hcryp) {
 	}
 }
 
-static ctap_crypto_status_t stm32h533_crypto_aes_init(stm32h533_crypto_context_t *const ctx) {
+static ctap_crypto_status_t stm32h533_crypto_init_cryp_peripheral(stm32h533_crypto_context_t *ctx) {
 
 	CRYP_HandleTypeDef *const hal_cryp = &ctx->hal_cryp;
 
@@ -730,19 +736,15 @@ void HAL_HASH_MspDeInit(HASH_HandleTypeDef *hhash) {
 	__HAL_RCC_HASH_CLK_DISABLE();
 }
 
-static ctap_crypto_status_t stm32h533_crypto_hash_init(stm32h533_crypto_context_t *const ctx) {
-
+static ctap_crypto_status_t stm32h533_crypto_init_hash_peripheral(stm32h533_crypto_context_t *ctx) {
 	HASH_HandleTypeDef *const hal_hash = &ctx->hal_hash;
-
 	hal_hash->Instance = HASH;
 	hal_hash->Init.DataType = HASH_BYTE_SWAP;
 	hal_hash->Init.Algorithm = HASH_ALGOSELECTION_SHA256;
 	if (HAL_HASH_Init(hal_hash) != HAL_OK) {
 		return CTAP_CRYPTO_ERROR;
 	}
-
 	return CTAP_CRYPTO_OK;
-
 }
 
 typedef struct stm32h533_crypto_sha256_ctx {
