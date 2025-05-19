@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include "tusb.h"
 #include "ctap_crypto_software.h"
-#include "app_hw_crypto.h"
+#include "hw_crypto.h"
 #include <uECC.h>
 
 // supported using UART debug chars:

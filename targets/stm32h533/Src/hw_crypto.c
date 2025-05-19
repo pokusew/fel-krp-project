@@ -1,5 +1,5 @@
-#include "app_hw_crypto.h"
-#include "app_hw_crypto_curves.h"
+#include "hw_crypto.h"
+#include "hw_crypto_curves.h"
 #include "main.h"
 #include "compiler.h"
 #include "utils.h"
