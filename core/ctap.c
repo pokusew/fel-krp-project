@@ -8,15 +8,6 @@ static void ctap_init_persistent_state_tmp(ctap_persistent_state_t *state) {
 
 	debug_log("ctap_init_persistent_state_tmp" nl);
 
-	// // set to 0xff instead of 0x00 to be easier on flash
-	// memset(state, 0xff, sizeof(ctap_persistent_state_t));
-	// // fresh RNG for key
-	// ctap_generate_rng(state->master_keys, KEY_SPACE_BYTES);
-	// debug_log("generated master_keys: ");
-	// dump_hex(state->master_keys, KEY_SPACE_BYTES);
-
-	// state->is_initialized = INITIALIZED_MARKER;
-
 	state->pin_total_remaining_attempts = CTAP_PIN_TOTAL_ATTEMPTS;
 
 	// The default pre-configured minimum PIN length is at least 4 Unicode code points
@@ -27,8 +18,6 @@ static void ctap_init_persistent_state_tmp(ctap_persistent_state_t *state) {
 	state->pin_min_code_point_length = 4;
 
 	state->is_pin_set = false;
-
-	// state->num_rk_stored = 0;
 
 	ctap_reset_credentials_store();
 

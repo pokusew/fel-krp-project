@@ -29,12 +29,7 @@ typedef enum LION_ATTR_PACKED ctap_command {
 } ctap_command_t;
 static_assert(sizeof(ctap_command_t) == sizeof(uint8_t), "invalid sizeof(ctaphid_command_t)");
 
-#define KEY_SPACE_BYTES     128
 #define CTAP_PIN_HASH_SIZE  16
-
-#define EMPTY_MARKER        0xFFFFFFFF
-#define INITIALIZED_MARKER  0xA5A5A5A5
-#define INVALID_MARKER      0xDDDDDDDD
 
 // 6.5.2.2. PIN-Entry and User Verification Retries Counters
 //   * Authenticators MUST allow no more than 8 retries but MAY set a lower maximum.
@@ -67,21 +62,6 @@ typedef struct ctap_persistent_state {
 	uint8_t pin_code_point_length;
 	uint8_t pin_hash[CTAP_PIN_HASH_SIZE];
 	uint8_t pin_total_remaining_attempts;
-
-	// // number of stored client-side discoverable credentials
-	// // aka resident credentials aka resident keys (RK)
-	// uint16_t num_rk_stored;
-	//
-	// // master keys data
-	// uint8_t master_keys[KEY_SPACE_BYTES];
-	//
-	// uint8_t _alignment1;
-	//
-	// // this field must be WORD (32 bytes) aligned
-	// uint32_t is_invalid;
-	// // this field must be WORD (32 bytes) aligned
-	// // note: in order for the data loss prevention logic to work, is_initialized must be the last field
-	// uint32_t is_initialized;
 
 } ctap_persistent_state_t;
 
