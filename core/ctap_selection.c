@@ -33,4 +33,9 @@ uint8_t ctap_selection(ctap_state_t *const state, CborValue *const it, CborEncod
 			return CTAP2_OK;
 	}
 
+	// This return should never be reached because the switch statement
+	// covers all of the ctap_user_presence_result enum values.
+	// We add it here to avoid compiler wantings.
+	return CTAP2_ERR_OPERATION_DENIED;
+
 }
