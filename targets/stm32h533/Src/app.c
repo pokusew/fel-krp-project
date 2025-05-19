@@ -78,7 +78,7 @@ void ctap_send_keepalive_if_needed(ctap_keepalive_status_t current_status) {
 
 ctap_user_presence_result_t ctap_wait_for_user_presence(void) {
 
-	debug_log(yellow("waiting for user presence (press the ") cyan("BLUE") yellow(" button) ...") nl);
+	info_log(yellow("waiting for user presence (press the ") cyan("BLUE") yellow(" button) ...") nl);
 	ctap_send_keepalive_if_needed(CTAP_STATUS_UPNEEDED);
 
 	const uint32_t timeout_ms = 30 * 1000; // 30 seconds
@@ -91,17 +91,17 @@ ctap_user_presence_result_t ctap_wait_for_user_presence(void) {
 	while (true) {
 		app_hid_task();
 		if (app_ctaphid.buffer.cancel) {
-			debug_log(yellow("ctap_wait_for_user_presence: ") red("got CANCEL via CTAPHID") nl);
+			info_log(yellow("ctap_wait_for_user_presence: ") red("got CANCEL via CTAPHID") nl);
 			return CTAP_UP_RESULT_CANCEL;
 		}
 		uint32_t elapsed_ms = HAL_GetTick() - start_timestamp;
 		if (elapsed_ms > timeout_ms) {
-			debug_log(yellow("ctap_wait_for_user_presence: ") red("TIMEOUT") nl);
+			info_log(yellow("ctap_wait_for_user_presence: ") red("TIMEOUT") nl);
 			return CTAP_UP_RESULT_TIMEOUT;
 		}
 		if (BspButtonState == BUTTON_PRESSED) {
 			BspButtonState = BUTTON_RELEASED;
-			debug_log(yellow("ctap_wait_for_user_presence: ") green("ALLOW") nl);
+			info_log(yellow("ctap_wait_for_user_presence: ") green("ALLOW") nl);
 			return CTAP_UP_RESULT_ALLOW;
 		}
 		ctap_send_keepalive_if_needed(CTAP_STATUS_UPNEEDED);

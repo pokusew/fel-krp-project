@@ -81,7 +81,7 @@ void usb_init(void) {
 	};
 	tusb_rhport_init(0, &dev_init);
 
-	debug_log("usb ready" nl);
+	info_log("usb initialized" nl);
 
 }
 
@@ -89,27 +89,48 @@ void usb_init(void) {
 // Device callbacks
 //------------------------------------------------------------
 
+// Expected USB-status related callback order (as currently observed):
+// a) When powered on (power via ST-LINK)
+//    while USB cable disconnected, then later USB connected to the host:
+//    1. usb initialized
+//    2. (USB connected to the host)
+//    3. usb device mounted (tud_mount_cb)
+// b) When powered on (power via ST-LINK)
+//    while USB cable is connected to the host:
+//    1. usb initialized
+//    2. usb device mounted (tud_mount_cb)
+// c) When USB cable is disconnected during runtime and later reconnected again:
+//    1. usb initialized
+//    2. (USB connected to the host)
+//    3. usb device mounted (tud_mount_cb)
+//    4. (USB cable is disconnected)
+//    5. usb bus is suspended (tud_suspend_cb)
+//    6. (USB connected to the host)
+//    7. usb bus is resumed (tud_resume_cb)
+//    8. usb device mounted (tud_mount_cb)
+//    Note: Currently, it seems that tud_umount_cb is never invoked.
+
 // Invoked when device is mounted
 void tud_mount_cb(void) {
-	debug_log("tud_mount_cb" nl);
+	info_log(green("usb device mounted") nl);
 }
 
 // Invoked when device is unmounted
 void tud_umount_cb(void) {
-	debug_log("tud_umount_cb" nl);
+	info_log(yellow("usb device unmounted") nl);
 }
 
 // Invoked when usb bus is suspended
 // remote_wakeup_en : if host allow us to perform remote wakeup
 // Within 7ms, device must draw an average of current less than 2.5 mA from bus
 void tud_suspend_cb(bool remote_wakeup_en) {
-	debug_log("tud_suspend_cb" nl);
+	info_log(yellow("usb bus is suspended") nl);
 	UNUSED(remote_wakeup_en);
 }
 
 // Invoked when usb bus is resumed
 void tud_resume_cb(void) {
-	debug_log("tud_resume_cb" nl);
+	info_log("usb bus is resumed" nl);
 }
 
 //--------------------------------------------------------------------+
