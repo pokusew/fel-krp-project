@@ -1105,7 +1105,7 @@ typedef struct
 #endif /* DCMI */
 
 #if defined(AES)
-#define __HAL_RCC_AES_CLK_DISABLE()            CLEAR_BIT(RCC->AHB2ENR, RCC_AHB2ENR_AESEN);
+#define __HAL_RCC_AES_CLK_DISABLE()            CLEAR_BIT(RCC->AHB2ENR, RCC_AHB2ENR_AESEN)
 #endif /* AES */
 
 #if defined(HASH)
