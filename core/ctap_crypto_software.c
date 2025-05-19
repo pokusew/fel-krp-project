@@ -98,13 +98,43 @@ ctap_crypto_status_t ctap_software_crypto_ecc_secp256r1_compute_public_key(
 	return CTAP_CRYPTO_OK;
 }
 
+// uECC does not include this declaration in its header file
+// because this function is not part of the public API (it is intended for testing only)
+// (the functions is not declared as static, so it is possible to use with explicit declaration)
+int uECC_sign_with_k(
+	const uint8_t *private_key,
+	const uint8_t *message_hash,
+	unsigned hash_size,
+	const uint8_t *k,
+	uint8_t *signature,
+	uECC_Curve curve,
+	uECC_RNG_Function g_rng_function,
+	void *g_rng_function_ctx
+);
+
 ctap_crypto_status_t ctap_software_crypto_ecc_secp256r1_sign(
 	const ctap_crypto_t *const crypto,
 	const uint8_t *const private_key,
 	const uint8_t *const message_hash,
 	const size_t message_hash_size,
-	uint8_t *const signature
+	uint8_t *const signature,
+	const uint8_t *const optional_fixed_k
 ) {
+	if (optional_fixed_k != NULL) {
+		if (uECC_sign_with_k(
+			private_key,
+			message_hash,
+			message_hash_size,
+			optional_fixed_k,
+			signature,
+			uECC_secp256r1(),
+			micro_ecc_compatible_rng,
+			(void *) crypto
+		) != 1) {
+			return CTAP_CRYPTO_ERROR;
+		}
+		return CTAP_CRYPTO_OK;
+	}
 	if (uECC_sign(
 		private_key,
 		message_hash,

@@ -156,7 +156,8 @@ static uint8_t compute_signature(
 		credential->private_key,
 		message_hash,
 		sizeof(message_hash),
-		signature
+		signature,
+		NULL
 	));
 
 	// WebAuthn 6.5.5. Signature Formats for Packed Attestation, FIDO U2F Attestation, and Assertion Signatures

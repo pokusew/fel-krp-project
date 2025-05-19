@@ -52,7 +52,8 @@ ctap_crypto_status_t ctap_software_crypto_ecc_secp256r1_sign(
 	const uint8_t *private_key,
 	const uint8_t *message_hash,
 	size_t message_hash_size,
-	uint8_t *signature
+	uint8_t *signature,
+	const uint8_t *optional_fixed_k
 );
 
 ctap_crypto_status_t ctap_software_crypto_ecc_secp256r1_shared_secret(

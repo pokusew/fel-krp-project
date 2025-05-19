@@ -187,7 +187,8 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_sign(
 	const uint8_t *const private_key,
 	const uint8_t *const message_hash,
 	const size_t message_hash_size,
-	uint8_t *const signature
+	uint8_t *const signature,
+	const uint8_t *const optional_fixed_k
 ) {
 	uint32_t t1 = HAL_GetTick();
 	if (uECC_sign(
