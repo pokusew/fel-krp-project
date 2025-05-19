@@ -32,11 +32,26 @@ static_assert(sizeof(ctap_command_t) == sizeof(uint8_t), "invalid sizeof(ctaphid
 #define INITIALIZED_MARKER  0xA5A5A5A5
 #define INVALID_MARKER      0xDDDDDDDD
 
-#define PIN_TOTAL_ATTEMPTS     8
-#define PIN_PER_BOOT_ATTEMPTS  3
+// 6.5.2.2. PIN-Entry and User Verification Retries Counters
+//   * Authenticators MUST allow no more than 8 retries but MAY set a lower maximum.
+//   * Each correct PIN entry resets the pinRetries and the uvRetries counters back
+//     to their maximum values unless the PIN is already disabled.
+//   * Each incorrect PIN entry decrements the pinRetries by 1.
+//   * Once the pinRetries counter reaches 0, both ClientPin as well as built-in user verification.
+//     are disabled and can only be enabled if authenticator is reset
+//     (during reset, all data from the persistent memory are wiped).
+#define CTAP_PIN_TOTAL_ATTEMPTS     8
+// 6.5.5.6. Changing existing PIN
+// 6.5.5.7.1. Getting pinUvAuthToken using getPinToken (superseded)
+// 6.5.5.7.2. Getting pinUvAuthToken using getPinUvAuthTokenUsingPinWithPermissions (ClientPIN)
+//   If the authenticator sees 3 consecutive mismatches, it returns CTAP2_ERR_PIN_AUTH_BLOCKED,
+//   indicating that power cycling is needed for further operations.
+//   This is done so that malware running on the platform should not be able to block
+//   the device without user interaction.
+#define CTAP_PIN_PER_BOOT_ATTEMPTS  3
 static_assert(
-	PIN_PER_BOOT_ATTEMPTS < PIN_TOTAL_ATTEMPTS,
-	"PIN_TOTAL_ATTEMPTS must be greater than or equal to PIN_PER_BOOT_ATTEMPTS"
+	CTAP_PIN_PER_BOOT_ATTEMPTS < CTAP_PIN_TOTAL_ATTEMPTS,
+	"CTAP_PIN_PER_BOOT_ATTEMPTS must be greater than or equal to CTAP_PIN_PER_BOOT_ATTEMPTS"
 );
 
 typedef struct ctap_persistent_state {

@@ -286,8 +286,8 @@ constexpr auto create_get_pin_token_v2(
 
 #define EXPECT_PIN_SET_SUCCESSFULLY() \
 	EXPECT_EQ(ctap.persistent.is_pin_set, true); \
-	EXPECT_EQ(ctap.persistent.pin_total_remaining_attempts, PIN_TOTAL_ATTEMPTS); \
-	EXPECT_EQ(ctap.pin_boot_remaining_attempts, PIN_PER_BOOT_ATTEMPTS)
+	EXPECT_EQ(ctap.persistent.pin_total_remaining_attempts, CTAP_PIN_TOTAL_ATTEMPTS); \
+	EXPECT_EQ(ctap.pin_boot_remaining_attempts, CTAP_PIN_PER_BOOT_ATTEMPTS)
 
 
 class CtapClientPinTest : public testing::Test {
@@ -423,8 +423,8 @@ TEST_F(CtapClientPinTest, SetPinV1OneCodePoint) {
 	EXPECT_ERROR_RESPONSE(CTAP2_ERR_PIN_POLICY_VIOLATION);
 
 	EXPECT_EQ(ctap.persistent.is_pin_set, false);
-	EXPECT_EQ(ctap.persistent.pin_total_remaining_attempts, PIN_TOTAL_ATTEMPTS);
-	EXPECT_EQ(ctap.pin_boot_remaining_attempts, PIN_PER_BOOT_ATTEMPTS);
+	EXPECT_EQ(ctap.persistent.pin_total_remaining_attempts, CTAP_PIN_TOTAL_ATTEMPTS);
+	EXPECT_EQ(ctap.pin_boot_remaining_attempts, CTAP_PIN_PER_BOOT_ATTEMPTS);
 }
 
 TEST_F(CtapClientPinTest, SetPinV1Emoji) {
@@ -655,8 +655,8 @@ TEST_F(CtapClientPinTest, SetPinV2OneCodePoint) {
 	EXPECT_ERROR_RESPONSE(CTAP2_ERR_PIN_POLICY_VIOLATION);
 
 	EXPECT_EQ(ctap.persistent.is_pin_set, false);
-	EXPECT_EQ(ctap.persistent.pin_total_remaining_attempts, PIN_TOTAL_ATTEMPTS);
-	EXPECT_EQ(ctap.pin_boot_remaining_attempts, PIN_PER_BOOT_ATTEMPTS);
+	EXPECT_EQ(ctap.persistent.pin_total_remaining_attempts, CTAP_PIN_TOTAL_ATTEMPTS);
+	EXPECT_EQ(ctap.pin_boot_remaining_attempts, CTAP_PIN_PER_BOOT_ATTEMPTS);
 }
 
 TEST_F(CtapClientPinTest, SetPinV2Emoji) {

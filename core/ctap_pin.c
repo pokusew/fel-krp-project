@@ -46,8 +46,8 @@ static void decrement_pin_remaining_attempts(ctap_state_t *state) {
 }
 
 static void reset_pin_remaining_attempts(ctap_state_t *state) {
-	state->persistent.pin_total_remaining_attempts = PIN_TOTAL_ATTEMPTS;
-	state->pin_boot_remaining_attempts = PIN_PER_BOOT_ATTEMPTS;
+	state->persistent.pin_total_remaining_attempts = CTAP_PIN_TOTAL_ATTEMPTS;
+	state->pin_boot_remaining_attempts = CTAP_PIN_PER_BOOT_ATTEMPTS;
 }
 
 static uint8_t check_pin_remaining_attempts(ctap_state_t *state) {

@@ -17,7 +17,7 @@ static void ctap_init_persistent_state_tmp(ctap_persistent_state_t *state) {
 
 	// state->is_initialized = INITIALIZED_MARKER;
 
-	state->pin_total_remaining_attempts = PIN_TOTAL_ATTEMPTS;
+	state->pin_total_remaining_attempts = CTAP_PIN_TOTAL_ATTEMPTS;
 
 	// The default pre-configured minimum PIN length is at least 4 Unicode code points
 	//   See 6.4. authenticatorGetInfo (0x04) minPINLength (0x0D)
@@ -81,7 +81,7 @@ void ctap_init(ctap_state_t *state) {
 	// TODO: Replace once proper persistence is implemented.
 	ctap_init_persistent_state_tmp(&state->persistent);
 
-	state->pin_boot_remaining_attempts = PIN_PER_BOOT_ATTEMPTS;
+	state->pin_boot_remaining_attempts = CTAP_PIN_PER_BOOT_ATTEMPTS;
 
 	// 6.5.5.1. Authenticator Configuration Operations Upon Power Up
 	// At power-up, the authenticator calls initialize for each pinUvAuthProtocol that it supports.
