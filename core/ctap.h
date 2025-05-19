@@ -115,17 +115,17 @@ typedef struct ctap_get_assertion_state {
 	ctap_credential credentials[128];
 } ctap_get_assertion_state_t;
 
-typedef struct cred_mgmt_enumerate_rps_state {
+typedef struct ctap_cred_mgmt_enumerate_rps_state {
 	size_t num_rps;
 	size_t next_rp_idx;
 	CTAP_rpId *rp_ids[128];
-} cred_mgmt_enumerate_rps_state_t;
+} ctap_cred_mgmt_enumerate_rps_state_t;
 
-typedef struct cred_mgmt_enumerate_credentials_state {
+typedef struct ctap_cred_mgmt_enumerate_credentials_state {
 	size_t num_credentials;
 	size_t next_credential_idx;
 	ctap_credential credentials[128];
-} cred_mgmt_enumerate_credentials_state_t;
+} ctap_cred_mgmt_enumerate_credentials_state_t;
 
 typedef enum ctap_stateful_command {
 	CTAP_STATEFUL_CMD_NONE = 0,
@@ -149,8 +149,8 @@ typedef struct ctap_stateful_command_state {
 	uint32_t last_cmd_time;
 	union {
 		ctap_get_assertion_state_t get_assertion;
-		cred_mgmt_enumerate_rps_state_t cred_mgmt_enumerate_rps;
-		cred_mgmt_enumerate_credentials_state_t cred_mgmt_enumerate_credentials;
+		ctap_cred_mgmt_enumerate_rps_state_t cred_mgmt_enumerate_rps;
+		ctap_cred_mgmt_enumerate_credentials_state_t cred_mgmt_enumerate_credentials;
 	};
 
 } ctap_stateful_command_state_t;

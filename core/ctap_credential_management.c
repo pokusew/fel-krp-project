@@ -116,7 +116,7 @@ static uint8_t credential_management_enumerate_rps_begin(ctap_state_t *const sta
 	uint8_t ret;
 
 	ctap_discard_stateful_command_state(state);
-	cred_mgmt_enumerate_rps_state_t *enumerate_rps_state = &state->stateful_command_state.cred_mgmt_enumerate_rps;
+	ctap_cred_mgmt_enumerate_rps_state_t *enumerate_rps_state = &state->stateful_command_state.cred_mgmt_enumerate_rps;
 	enumerate_rps_state->num_rps = 0;
 	enumerate_rps_state->next_rp_idx = 0;
 	const size_t max_num_rp_ids = sizeof(enumerate_rps_state->rp_ids) / sizeof(CTAP_rpId *);
@@ -168,7 +168,7 @@ static uint8_t credential_management_enumerate_rps_get_next_rp(ctap_state_t *con
 		return CTAP2_ERR_NOT_ALLOWED;
 	}
 
-	cred_mgmt_enumerate_rps_state_t *enumerate_rps_state = &state->stateful_command_state.cred_mgmt_enumerate_rps;
+	ctap_cred_mgmt_enumerate_rps_state_t *enumerate_rps_state = &state->stateful_command_state.cred_mgmt_enumerate_rps;
 
 	uint8_t ret;
 
@@ -271,7 +271,8 @@ static uint8_t credential_management_enumerate_credentials_begin(
 	uint8_t ret;
 
 	ctap_discard_stateful_command_state(state);
-	cred_mgmt_enumerate_credentials_state_t *enumerate_credentials_state = &state->stateful_command_state.cred_mgmt_enumerate_credentials;
+	ctap_cred_mgmt_enumerate_credentials_state_t *enumerate_credentials_state =
+		&state->stateful_command_state.cred_mgmt_enumerate_credentials;
 	enumerate_credentials_state->num_credentials = 0;
 	enumerate_credentials_state->next_credential_idx = 0;
 	const size_t max_num_credentials = sizeof(enumerate_credentials_state->credentials) / sizeof(ctap_credential);
@@ -340,7 +341,8 @@ static uint8_t credential_management_enumerate_credentials_get_next_credential(
 		return CTAP2_ERR_NOT_ALLOWED;
 	}
 
-	cred_mgmt_enumerate_credentials_state_t *enumerate_credentials_state = &state->stateful_command_state.cred_mgmt_enumerate_credentials;
+	ctap_cred_mgmt_enumerate_credentials_state_t *enumerate_credentials_state =
+		&state->stateful_command_state.cred_mgmt_enumerate_credentials;
 
 	uint8_t ret;
 
