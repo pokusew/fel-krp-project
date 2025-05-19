@@ -596,7 +596,6 @@ void app_test_hash_big_two_parts(void) {
 
 	uint32_t t1;
 	uint32_t t2;
-	ctap_crypto_status_t status;
 
 	t1 = HAL_GetTick();
 	const hash_alg_t *const sw_sha256 = app_sw_crypto.sha256;
