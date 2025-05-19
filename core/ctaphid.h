@@ -28,6 +28,10 @@
 #define CTAPHID_PACKET_SIZE 64
 #endif
 
+#ifndef CTAPHID_TRANSACTION_TIMEOUT
+#define CTAPHID_TRANSACTION_TIMEOUT 2000 // ms
+#endif
+
 // 11.2.4. Message and packet structure
 // https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-message-and-packet-structure
 #define CTAPHID_PACKET_TYPE_INIT 0x80
@@ -156,6 +160,7 @@ static_assert(
 // Message consists of one initialization packet and up to 128 continuation packets.
 // see https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#usb-message-and-packet-structure
 typedef struct ctaphid_channel_buffer {
+	uint32_t start_time;
 	uint32_t cid;
 	uint8_t cmd;
 	bool cancel;
@@ -199,12 +204,15 @@ uint32_t ctaphid_allocate_channel(ctaphid_state_t *state);
 ctaphid_process_packet_result_t ctaphid_process_packet(
 	ctaphid_state_t *state,
 	const ctaphid_packet_t *packet,
+	uint32_t current_time,
 	uint8_t *error_code
 );
 
 bool ctaphid_is_idle(const ctaphid_state_t *state);
 
 bool ctaphid_has_complete_message_ready(const ctaphid_state_t *state);
+
+bool ctaphid_has_incomplete_message_timeout(const ctaphid_state_t *state, uint32_t current_time);
 
 void ctaphid_create_init_packet(
 	ctaphid_packet_t *packet,

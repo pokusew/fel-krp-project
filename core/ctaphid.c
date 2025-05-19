@@ -166,7 +166,48 @@ bool ctaphid_has_complete_message_ready(const ctaphid_state_t *state) {
 	return is_complete_message(buffer);
 }
 
+/**
+ * Returns true if a transaction timeout occurred and the current incomplete message should be discarded
+ *
+ * This function can be used to implement 11.2.5.2. Transaction timeout:
+ *   A transaction has to be completed within a specified period of time
+ *   to prevent a stalling application to cause the device to be completely
+ *   locked out for access by other applications.
+ *
+ * This check is not a part of the ctaphid_process_packet() so that the caller
+ * can send an error (e.g., CTAP1_ERR_TIMEOUT) on the channel with the timeout
+ * before the buffer is reset.
+ *
+ * @param state the current CTAPHID state
+ * @retval true iff there is an incomplete message in the buffer and CTAPHID_TRANSACTION_TIMEOUT time
+ *         has elapsed since the initialization packet (of the current incomplete message) was processed.
+ *         The caller can send an error (e.g., CTAP1_ERR_TIMEOUT) on the channel with the timeout
+ *         and then it should reset the buffer (ctaphid_reset_to_idle()) so that receiving (assembling)
+ *         of a new message on any valid (allocated) channel can start in ctaphid_process_packet().
+ * @retval false otherwise (i.e., idle, or an incomplete message within the time limit, or a complete message
+ */
+bool ctaphid_has_incomplete_message_timeout(const ctaphid_state_t *state, uint32_t current_time) {
+
+	const ctaphid_channel_buffer_t *const buffer = &state->buffer;
+
+	if (is_incomplete_message(buffer)) {
+
+		assert(buffer->cid != CTAPHID_BROADCAST_CID);
+		assert(buffer->cmd != 0);
+
+		const uint32_t elapsed_since_init_packet = current_time - buffer->start_time;
+		if (elapsed_since_init_packet > CTAPHID_TRANSACTION_TIMEOUT) {
+			return true;
+		}
+
+	}
+
+	return false;
+
+}
+
 static void reset_buffer(ctaphid_channel_buffer_t *buffer) {
+	buffer->start_time = 0;
 	buffer->cid = 0;
 	buffer->cmd = 0;
 	buffer->cancel = false;
@@ -224,15 +265,10 @@ void ctaphid_reset_to_idle(ctaphid_state_t *state) {
 ctaphid_process_packet_result_t ctaphid_process_packet(
 	ctaphid_state_t *state,
 	const ctaphid_packet_t *packet,
+	uint32_t current_time,
 	uint8_t *error_code
 ) {
 	ctaphid_channel_buffer_t *buffer = &state->buffer;
-
-	// TODO: Implement channel timeout:
-	//   Reset the buffer via ctaphid_reset_to_idle() when no packet is received within X seconds
-	//   on the current busy channel (buffer holds an incomplete message).
-	//   This way other channels get chance to communicate and a stuck channel cannot block the communication.
-	//   Once the buffer is reset, we can start receiving (assembling) a new message from any valid (allocated) channel.
 
 	if (is_initialization_packet(packet)) {
 		debug_log(
@@ -353,6 +389,7 @@ ctaphid_process_packet_result_t ctaphid_process_packet(
 		}
 
 		assert(packet->cid != 0 && packet->cid <= state->highest_allocated_cid);
+		buffer->start_time = current_time;
 		buffer->cid = packet->cid;
 		assert(packet->pkt.init.cmd != CTAPHID_CANCEL && packet->pkt.init.cmd != CTAPHID_INIT);
 		buffer->cmd = packet->pkt.init.cmd;

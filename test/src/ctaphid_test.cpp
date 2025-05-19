@@ -60,15 +60,21 @@ protected:
 	ctaphid_state_t ctaphid{};
 	ctaphid_process_packet_result_t result{};
 	uint8_t error_code{};
+	uint32_t current_time = 0;
 
 	CtapCtaphidTest() {
 		ctaphid_init(&ctaphid);
+	}
+
+	void increase_time(uint32_t increase) {
+		current_time += increase;
 	}
 
 	void test_ctaphid_process_packet(ctaphid_packet_t packet) {
 		result = ctaphid_process_packet(
 			&ctaphid,
 			&packet,
+			current_time,
 			&error_code
 		);
 	}
@@ -437,6 +443,39 @@ TEST_F(CtapCtaphidTest, InitPacketWhileOtherChannelBusyWithMessage) {
 	));
 	ASSERT_EQ(result, CTAPHID_RESULT_ERROR);
 	EXPECT_EQ(error_code, CTAP1_ERR_CHANNEL_BUSY);
+
+}
+
+TEST_F(CtapCtaphidTest, TransactionTimeout) {
+
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), 1);
+	EXPECT_EQ(ctaphid_allocate_channel(&ctaphid), 2);
+
+	test_ctaphid_process_packet(init_packet(
+		1,
+		CTAPHID_PING,
+		CTAPHID_PACKET_INIT_PAYLOAD_SIZE + 1
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_BUFFERING);
+	EXPECT_EQ(ctaphid_has_complete_message_ready(&ctaphid), false);
+	EXPECT_EQ(ctaphid_has_incomplete_message_timeout(&ctaphid, current_time), false);
+	EXPECT_EQ(ctaphid_is_idle(&ctaphid), false);
+
+	test_ctaphid_process_packet(init_packet(
+		2,
+		CTAPHID_PING,
+		0
+	));
+	ASSERT_EQ(result, CTAPHID_RESULT_ERROR);
+	EXPECT_EQ(error_code, CTAP1_ERR_CHANNEL_BUSY);
+
+	increase_time(CTAPHID_TRANSACTION_TIMEOUT + 1);
+	EXPECT_EQ(ctaphid_has_incomplete_message_timeout(&ctaphid, current_time), true);
+
+	ctaphid_reset_to_idle(&ctaphid);
+	EXPECT_EQ(ctaphid_is_idle(&ctaphid), true);
+	EXPECT_EQ(ctaphid_has_complete_message_ready(&ctaphid), false);
+	EXPECT_EQ(ctaphid_has_incomplete_message_timeout(&ctaphid, current_time), false);
 
 }
 
