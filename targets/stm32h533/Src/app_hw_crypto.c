@@ -1,4 +1,5 @@
 #include "app_hw_crypto.h"
+#include "app_hw_crypto_curves.h"
 #include "main.h"
 #include "compiler.h"
 #include "utils.h"
@@ -141,6 +142,8 @@ ctap_crypto_status_t app_hw_crypto_rng_generate_data(
 
 // ####################  ECC (ECDSA and ECDH)  ####################
 
+static const size_t app_hw_crypto_ecc_max_num_tries = 2;
+
 void HAL_PKA_MspInit(PKA_HandleTypeDef *hpka) {
 	if (hpka->Instance == PKA) {
 		__HAL_RCC_PKA_CLK_ENABLE();
@@ -182,6 +185,29 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_compute_public_key(
 	return CTAP_CRYPTO_OK;
 }
 
+static ctap_crypto_status_t app_hw_crypto_generate_random_k(
+	const ctap_crypto_t *const crypto,
+	const hw_crypto_ecc_curve_t *const curve,
+	uint8_t *const k,
+	size_t max_num_tries
+) {
+	while (max_num_tries > 0) {
+		max_num_tries--;
+		if (app_hw_crypto_rng_generate_data(crypto, k, curve->prime_order_size) == CTAP_CRYPTO_OK) {
+			return CTAP_CRYPTO_OK;
+		}
+		// Consider checking that 0 < k < n
+		// Note:
+		//   1. app_hw_crypto_rng_generate_data() will never generate 0
+		//      (in fact, RNG never generates zero 32-bit word).
+		//   2. PKA ECDSA sign operation fails with an error if k == 0.
+		//   3. PKA ECDSA sign seems to work with k >= n. uECC_sign() strictly checks that 0 < k < n.
+		//      However, a signature generated with k >= n using PKA ECDSA sign can be successfully
+		//      verified using uECC_verify().
+	}
+	return CTAP_CRYPTO_ERROR;
+}
+
 ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_sign(
 	const ctap_crypto_t *const crypto,
 	const uint8_t *const private_key,
@@ -190,21 +216,91 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_sign(
 	uint8_t *const signature,
 	const uint8_t *const optional_fixed_k
 ) {
-	uint32_t t1 = HAL_GetTick();
-	if (uECC_sign(
-		private_key,
-		message_hash,
-		message_hash_size,
-		signature,
-		uECC_secp256r1(),
-		micro_ecc_compatible_rng,
-		(void *) crypto
-	) != 1) {
+	if (message_hash_size != hw_crypto_ecc_curve_secp256r1.prime_order_size) {
 		return CTAP_CRYPTO_ERROR;
 	}
-	uint32_t t2 = HAL_GetTick();
-	debug_log("ecc_secp256r1_sign took %" PRIu32 "ms" nl, t2 - t1);
-	return CTAP_CRYPTO_OK;
+
+	const uint32_t t1 = HAL_GetTick();
+
+	const uint8_t *k = optional_fixed_k;
+	uint8_t random_k[hw_crypto_ecc_curve_secp256r1.prime_order_size];
+
+	if (k == NULL) {
+		if (app_hw_crypto_generate_random_k(
+			crypto,
+			&hw_crypto_ecc_curve_secp256r1,
+			random_k,
+			app_hw_crypto_ecc_max_num_tries
+		) != CTAP_CRYPTO_OK) {
+			error_log(red("app_hw_crypto_ecc_secp256r1_sign: failed to generate valid random k") nl);
+			return CTAP_CRYPTO_ERROR;
+		}
+		k = random_k;
+	}
+
+	app_hw_crypto_context_t *const ctx = crypto->context;
+	PKA_HandleTypeDef *const hal_pka = &ctx->hal_pka;
+
+	PKA_ECDSASignInTypeDef in;
+
+	// static params for the curve secp256r1 (P-256 = secp256r1 = prime256v1)
+	in.primeOrderSize = hw_crypto_ecc_curve_secp256r1.prime_order_size;
+	in.modulusSize = hw_crypto_ecc_curve_secp256r1.modulus_size;
+	in.coefSign = hw_crypto_ecc_curve_secp256r1.a_sign;
+	in.coef = hw_crypto_ecc_curve_secp256r1.abs_a;
+	in.coefB = hw_crypto_ecc_curve_secp256r1.b;
+	in.modulus = hw_crypto_ecc_curve_secp256r1.p;
+	in.basePointX = hw_crypto_ecc_curve_secp256r1.xG;
+	in.basePointY = hw_crypto_ecc_curve_secp256r1.yG;
+	in.primeOrder = hw_crypto_ecc_curve_secp256r1.n;
+
+	// dynamic params
+	in.integer = k; // random integer k (0 < k < n) (prime_order_size bytes)
+	in.hash = message_hash; // hash of the message (prime_order_size bytes)
+	in.privateKey = private_key; // private key d (prime_order_size bytes)
+
+	HAL_StatusTypeDef status;
+
+	for (size_t attempt = 0; attempt < app_hw_crypto_ecc_max_num_tries; ++attempt) {
+
+		status = HAL_PKA_ECDSASign(hal_pka, &in, HAL_MAX_DELAY);
+
+		if (status == HAL_OK) {
+
+			PKA_ECDSASignOutTypeDef out;
+			out.RSign = signature;
+			out.SSign = signature + 32;
+			HAL_PKA_ECDSASign_GetResult(hal_pka, &out, NULL);
+
+			const uint32_t t2 = HAL_GetTick();
+			debug_log("ecc_secp256r1_sign took %" PRIu32 "ms" nl, t2 - t1);
+
+			return CTAP_CRYPTO_OK;
+
+		}
+
+		// RM0481 36.5.16 ECDSA sign
+		//   The application has to check if the output error is equal to 0xD60D,
+		//   if it is different a new k must be generated and the ECDSA sign operation must be repeated.
+		//   HAL_PKA_ECDSASign() returns HAL_OK iff the output error is equal to 0xD60D (successful computation)
+		//   In other cases, it returns HAL_ERROR.
+		//   The Table 368. ECDSA sign - Outputs (RM0481 36.5.16 ECDSA sign) lists all possible output error codes?
+		//     0xD60D: successful computation, no error
+		//     0xCBC9: failed computation
+		//     0xA3B7: signature part r is equal to 0
+		//     0xF946: signature part s is equal to 0
+		const uint32_t t2 = HAL_GetTick();
+		const uint32_t output_error_code = hal_pka->Instance->RAM[PKA_ECDSA_SIGN_OUT_ERROR];
+		error_log(
+			red("HAL_PKA_ECDSASign error: attempt = %" PRIsz ", total duration = %" PRIu32 " ms, status = %d, ErrorCode = %" PRIx32 ", PKA ECDSA sign output = %" PRIx32) nl,
+			attempt, t2 - t1, status, hal_pka->ErrorCode, output_error_code
+		);
+
+	}
+
+	error_log(red("HAL_PKA_ECDSASign() max attempts (%" PRIsz ") reached") nl, app_hw_crypto_ecc_max_num_tries);
+
+	return CTAP_CRYPTO_ERROR;
 }
 
 ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_shared_secret(

@@ -6,6 +6,7 @@
 #include "tusb.h"
 #include "ctap_crypto_software.h"
 #include "app_hw_crypto.h"
+#include <uECC.h>
 
 // supported using UART debug chars:
 // l - toggle the Blue LED
@@ -28,7 +29,7 @@ ctap_software_crypto_context_t app_crypto_ctx;
 const ctap_crypto_t app_crypto = CTAP_SOFTWARE_CRYPTO_CONST_INIT(&app_crypto_ctx);
 app_hw_crypto_context_t app_hw_crypto_ctx;
 const ctap_crypto_t app_hw_crypto = APP_HW_CRYPTO_CONST_INIT(&app_hw_crypto_ctx);
-ctap_state_t app_ctap = CTAP_STATE_CONST_INIT(&app_crypto);
+ctap_state_t app_ctap = CTAP_STATE_CONST_INIT(&app_hw_crypto);
 
 static inline void app_hid_task(void) {
 	tud_task(); // tinyusb device task
@@ -149,6 +150,141 @@ static void app_test_rng_hw(void) {
 	}
 	dump_hex(random_test_buffer, sizeof(random_test_buffer));
 	info_log("done in %" PRIu32 " ms" nl, t2 - t1);
+}
+
+static void app_test_ecc_sign(void) {
+
+	info_log(cyan("app_test_ecc_sign") nl);
+
+	ctap_crypto_status_t status;
+	int result;
+	uint32_t t1;
+	uint32_t t2;
+
+	status = app_crypto.rng_init(&app_crypto, 0);
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("rng_init failed") nl);
+		return;
+	}
+
+	uint8_t private_key[32];
+	status = app_crypto.rng_generate_data(
+		&app_crypto,
+		private_key,
+		sizeof(private_key)
+	);
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("rng_generate_data(private_key) failed") nl);
+		return;
+	}
+	debug_log("private_key" nl);
+	dump_hex(private_key, sizeof(private_key));
+
+	uint8_t message_hash[32];
+	status = app_crypto.rng_generate_data(
+		&app_crypto,
+		message_hash,
+		sizeof(message_hash)
+	);
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("rng_generate_data(message_hash) failed") nl);
+		return;
+	}
+	debug_log("message_hash" nl);
+	dump_hex(message_hash, sizeof(message_hash));
+
+	uint8_t public_key[64];
+	status = app_hw_crypto.ecc_secp256r1_compute_public_key(
+		&app_hw_crypto,
+		private_key,
+		public_key
+	);
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("ecc_secp256r1_compute_public_key failed") nl);
+		return;
+	}
+	debug_log("public_key" nl);
+	dump_hex(public_key, sizeof(public_key));
+
+	const uint8_t fixed_k[32] = {
+		1, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0
+	};
+
+	// const uint8_t fixed_k[32] = "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff";
+
+	uint8_t sw_signature[64]; // r (32 bytes) || s (32 bytes)
+	uint8_t hw_signature[64]; // r (32 bytes) || s (32 bytes)
+
+	t1 = HAL_GetTick();
+	status = app_crypto.ecc_secp256r1_sign(
+		&app_crypto,
+		private_key,
+		message_hash,
+		sizeof(message_hash),
+		sw_signature,
+		fixed_k
+	);
+	t2 = HAL_GetTick();
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("sw ecc_secp256r1_sign failed") nl);
+	}
+	debug_log("sw signature" nl);
+	dump_hex(sw_signature, sizeof(sw_signature));
+	info_log("sw took %" PRIu32 " ms" nl, t2 - t1);
+
+	t1 = HAL_GetTick();
+	status = app_hw_crypto.ecc_secp256r1_sign(
+		&app_hw_crypto,
+		private_key,
+		message_hash,
+		sizeof(message_hash),
+		hw_signature,
+		fixed_k
+	);
+	t2 = HAL_GetTick();
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("hw ecc_secp256r1_sign failed") nl);
+	}
+	debug_log("hw signature" nl);
+	dump_hex(hw_signature, sizeof(hw_signature));
+	info_log("hw took %" PRIu32 " ms" nl, t2 - t1);
+
+	if (memcmp(sw_signature, hw_signature, 64) != 0) {
+		error_log(red("sw and hw signature differs") nl);
+	}
+
+	t1 = HAL_GetTick();
+	result = uECC_verify(
+		public_key,
+		message_hash,
+		sizeof(message_hash),
+		sw_signature,
+		uECC_secp256r1()
+	);
+	t2 = HAL_GetTick();
+	if (result != 1) {
+		error_log(red("uECC_verify failed to verify sw-generated signature") nl);
+	}
+	info_log("uECC_verify took %" PRIu32 " ms" nl, t2 - t1);
+
+
+	t1 = HAL_GetTick();
+	result = uECC_verify(
+		public_key,
+		message_hash,
+		sizeof(message_hash),
+		hw_signature,
+		uECC_secp256r1()
+	);
+	t2 = HAL_GetTick();
+	if (result != 1) {
+		error_log(red("uECC_verify failed to verify hw-generated signature") nl);
+	}
+	info_log("uECC_verify took %" PRIu32 " ms" nl, t2 - t1);
+
 }
 
 static void app_test_aes(void) {
@@ -479,6 +615,10 @@ noreturn void app_run(void) {
 			} else if (debug_uart_rx == 'e') {
 
 				app_test_aes();
+
+			} else if (debug_uart_rx == 'w') {
+
+				app_test_ecc_sign();
 
 			} else if (debug_uart_rx == 'h') {
 

@@ -107,6 +107,7 @@ target_link_libraries(ctap_crypto_software
 add_library(app_hw_crypto STATIC)
 target_sources(app_hw_crypto PUBLIC
 		Src/app_hw_crypto.c
+		Src/app_hw_crypto_curves.c
 )
 target_include_directories(app_hw_crypto PUBLIC ../../core)
 target_link_libraries(app_hw_crypto
