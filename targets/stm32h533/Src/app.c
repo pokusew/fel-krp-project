@@ -26,7 +26,7 @@ ctap_response_t app_ctap_response = {
 	.data = &app_ctaphid_cbor_response_buffer[1]
 };
 ctap_software_crypto_context_t app_crypto_ctx;
-const ctap_crypto_t app_crypto = CTAP_SOFTWARE_CRYPTO_CONST_INIT(&app_crypto_ctx);
+const ctap_crypto_t app_sw_crypto = CTAP_SOFTWARE_CRYPTO_CONST_INIT(&app_crypto_ctx);
 app_hw_crypto_context_t app_hw_crypto_ctx;
 const ctap_crypto_t app_hw_crypto = APP_HW_CRYPTO_CONST_INIT(&app_hw_crypto_ctx);
 ctap_state_t app_ctap = CTAP_STATE_CONST_INIT(&app_hw_crypto);
@@ -120,8 +120,8 @@ static void app_test_rng_tinymt(void) {
 	info_log(cyan("app_test_rng_tinymt") nl);
 	uint8_t random_test_buffer[1024];
 	const uint32_t t1 = HAL_GetTick();
-	const ctap_crypto_status_t status = app_crypto.rng_generate_data(
-		&app_crypto,
+	const ctap_crypto_status_t status = app_sw_crypto.rng_generate_data(
+		&app_sw_crypto,
 		random_test_buffer, sizeof(random_test_buffer)
 	);
 	const uint32_t t2 = HAL_GetTick();
@@ -161,15 +161,15 @@ static void app_test_ecc_sign(void) {
 	uint32_t t1;
 	uint32_t t2;
 
-	status = app_crypto.rng_init(&app_crypto, 0);
+	status = app_sw_crypto.rng_init(&app_sw_crypto, 0);
 	if (status != CTAP_CRYPTO_OK) {
 		error_log(red("rng_init failed") nl);
 		return;
 	}
 
 	uint8_t private_key[32];
-	status = app_crypto.rng_generate_data(
-		&app_crypto,
+	status = app_sw_crypto.rng_generate_data(
+		&app_sw_crypto,
 		private_key,
 		sizeof(private_key)
 	);
@@ -181,8 +181,8 @@ static void app_test_ecc_sign(void) {
 	dump_hex(private_key, sizeof(private_key));
 
 	uint8_t message_hash[32];
-	status = app_crypto.rng_generate_data(
-		&app_crypto,
+	status = app_sw_crypto.rng_generate_data(
+		&app_sw_crypto,
 		message_hash,
 		sizeof(message_hash)
 	);
@@ -219,8 +219,8 @@ static void app_test_ecc_sign(void) {
 	uint8_t hw_signature[64]; // r (32 bytes) || s (32 bytes)
 
 	t1 = HAL_GetTick();
-	status = app_crypto.ecc_secp256r1_sign(
-		&app_crypto,
+	status = app_sw_crypto.ecc_secp256r1_sign(
+		&app_sw_crypto,
 		private_key,
 		message_hash,
 		sizeof(message_hash),
@@ -295,15 +295,15 @@ static void app_test_ecc_compute_public_key(void) {
 	uint32_t t1;
 	uint32_t t2;
 
-	status = app_crypto.rng_init(&app_crypto, 0);
+	status = app_sw_crypto.rng_init(&app_sw_crypto, 0);
 	if (status != CTAP_CRYPTO_OK) {
 		error_log(red("rng_init failed") nl);
 		return;
 	}
 
 	uint8_t private_key[32];
-	status = app_crypto.rng_generate_data(
-		&app_crypto,
+	status = app_sw_crypto.rng_generate_data(
+		&app_sw_crypto,
 		private_key,
 		sizeof(private_key)
 	);
@@ -318,8 +318,8 @@ static void app_test_ecc_compute_public_key(void) {
 	uint8_t hw_public_key[64];
 
 	t1 = HAL_GetTick();
-	status = app_crypto.ecc_secp256r1_compute_public_key(
-		&app_crypto,
+	status = app_sw_crypto.ecc_secp256r1_compute_public_key(
+		&app_sw_crypto,
 		private_key,
 		sw_public_key
 	);
@@ -356,21 +356,21 @@ static void app_test_aes(void) {
 
 	info_log(cyan("app_test_rng_hw") nl);
 
-	app_crypto.rng_init(&app_crypto, 0);
+	app_sw_crypto.rng_init(&app_sw_crypto, 0);
 
 	uint8_t random_iv[CTAP_CRYPTO_AES_BLOCK_SIZE];
-	app_crypto.rng_generate_data(&app_crypto, random_iv, sizeof(random_iv));
+	app_sw_crypto.rng_generate_data(&app_sw_crypto, random_iv, sizeof(random_iv));
 	debug_log("iv: ");
 	dump_hex(random_iv, sizeof(random_iv));
 
 	uint8_t random_key[CTAP_CRYPTO_AES_256_KEY_SIZE];
-	app_crypto.rng_generate_data(&app_crypto, random_key, sizeof(random_key));
+	app_sw_crypto.rng_generate_data(&app_sw_crypto, random_key, sizeof(random_key));
 	debug_log("key: ");
 	dump_hex(random_key, sizeof(random_key));
 
 	const size_t test_size = CTAP_CRYPTO_AES_BLOCK_SIZE * 3;
 	uint8_t random_plaintext[test_size];
-	app_crypto.rng_generate_data(&app_crypto, random_plaintext, test_size);
+	app_sw_crypto.rng_generate_data(&app_sw_crypto, random_plaintext, test_size);
 	debug_log("plaintext: ");
 	dump_hex(random_plaintext, test_size);
 
@@ -385,8 +385,8 @@ static void app_test_aes(void) {
 	ctap_crypto_status_t status;
 
 	t1 = HAL_GetTick();
-	status = app_crypto.aes_256_cbc_encrypt(
-		&app_crypto,
+	status = app_sw_crypto.aes_256_cbc_encrypt(
+		&app_sw_crypto,
 		random_iv, random_key, data_sw, test_size
 	);
 	t2 = HAL_GetTick();
@@ -419,8 +419,8 @@ static void app_test_aes(void) {
 	}
 
 	t1 = HAL_GetTick();
-	status = app_crypto.aes_256_cbc_decrypt(
-		&app_crypto,
+	status = app_sw_crypto.aes_256_cbc_decrypt(
+		&app_sw_crypto,
 		random_iv, random_key, data_sw, test_size
 	);
 	t2 = HAL_GetTick();
@@ -458,12 +458,12 @@ static void app_test_hash_zero(void) {
 
 	info_log(cyan("app_test_hash_zero") nl);
 
-	app_crypto.rng_init(&app_crypto, 0);
+	app_sw_crypto.rng_init(&app_sw_crypto, 0);
 
 	uint8_t data[1]; // zero-length variable-length arrays are not allowed
 
-	assert(app_crypto.sha256->output_size == app_hw_crypto.sha256->output_size);
-	uint8_t hash_sw[app_crypto.sha256->output_size];
+	assert(app_sw_crypto.sha256->output_size == app_hw_crypto.sha256->output_size);
+	uint8_t hash_sw[app_sw_crypto.sha256->output_size];
 	uint8_t hash_hw[app_hw_crypto.sha256->output_size];
 
 	uint32_t t1;
@@ -471,8 +471,8 @@ static void app_test_hash_zero(void) {
 	ctap_crypto_status_t status;
 
 	t1 = HAL_GetTick();
-	status = app_crypto.sha256_compute_digest(
-		&app_crypto,
+	status = app_sw_crypto.sha256_compute_digest(
+		&app_sw_crypto,
 		data, 0,
 		hash_sw
 	);
@@ -512,16 +512,16 @@ static void app_test_hash_big(void) {
 
 	info_log(cyan("app_test_hash_big") nl);
 
-	app_crypto.rng_init(&app_crypto, 0);
+	app_sw_crypto.rng_init(&app_sw_crypto, 0);
 
 	uint8_t data[333];
-	app_crypto.rng_generate_data(&app_crypto, data, sizeof(data));
+	app_sw_crypto.rng_generate_data(&app_sw_crypto, data, sizeof(data));
 	debug_log("data: ");
 	dump_hex(data, sizeof(data));
 
 
-	assert(app_crypto.sha256->output_size == app_hw_crypto.sha256->output_size);
-	uint8_t hash_sw[app_crypto.sha256->output_size];
+	assert(app_sw_crypto.sha256->output_size == app_hw_crypto.sha256->output_size);
+	uint8_t hash_sw[app_sw_crypto.sha256->output_size];
 	uint8_t hash_hw[app_hw_crypto.sha256->output_size];
 
 	uint32_t t1;
@@ -529,8 +529,8 @@ static void app_test_hash_big(void) {
 	ctap_crypto_status_t status;
 
 	t1 = HAL_GetTick();
-	status = app_crypto.sha256_compute_digest(
-		&app_crypto,
+	status = app_sw_crypto.sha256_compute_digest(
+		&app_sw_crypto,
 		data, sizeof(data),
 		hash_sw
 	);
@@ -570,20 +570,20 @@ static void app_test_hash_big_two_parts(void) {
 
 	info_log(cyan("app_test_hash_big") nl);
 
-	app_crypto.rng_init(&app_crypto, 0);
+	app_sw_crypto.rng_init(&app_sw_crypto, 0);
 
 	uint8_t data1[49];
-	app_crypto.rng_generate_data(&app_crypto, data1, sizeof(data1));
+	app_sw_crypto.rng_generate_data(&app_sw_crypto, data1, sizeof(data1));
 	debug_log("data1: ");
 	dump_hex(data1, sizeof(data1));
 	uint8_t data2[87];
-	app_crypto.rng_generate_data(&app_crypto, data2, sizeof(data2));
+	app_sw_crypto.rng_generate_data(&app_sw_crypto, data2, sizeof(data2));
 	debug_log("data2: ");
 	dump_hex(data2, sizeof(data2));
 
 
-	assert(app_crypto.sha256->output_size == app_hw_crypto.sha256->output_size);
-	uint8_t hash_sw[app_crypto.sha256->output_size];
+	assert(app_sw_crypto.sha256->output_size == app_hw_crypto.sha256->output_size);
+	uint8_t hash_sw[app_sw_crypto.sha256->output_size];
 	uint8_t hash_hw[app_hw_crypto.sha256->output_size];
 
 	uint32_t t1;
@@ -591,9 +591,9 @@ static void app_test_hash_big_two_parts(void) {
 	ctap_crypto_status_t status;
 
 	t1 = HAL_GetTick();
-	const hash_alg_t *const sw_sha256 = app_crypto.sha256;
+	const hash_alg_t *const sw_sha256 = app_sw_crypto.sha256;
 	uint8_t sw_sha256_ctx[sw_sha256->ctx_size];
-	app_crypto.sha256_bind_ctx(&app_crypto, sw_sha256_ctx);
+	app_sw_crypto.sha256_bind_ctx(&app_sw_crypto, sw_sha256_ctx);
 	sw_sha256->init(sw_sha256_ctx);
 	sw_sha256->update(sw_sha256_ctx, data1, sizeof(data1));
 	sw_sha256->update(sw_sha256_ctx, data2, sizeof(data2));
@@ -641,7 +641,7 @@ noreturn void app_run(void) {
 	uint32_t t1 = HAL_GetTick();
 
 	ctaphid_init(&app_ctaphid);
-	if (app_crypto.init(&app_crypto, 0) != CTAP_CRYPTO_OK) {
+	if (app_sw_crypto.init(&app_sw_crypto, 0) != CTAP_CRYPTO_OK) {
 		Error_Handler();
 	}
 	if (app_hw_crypto.init(&app_hw_crypto, 0) != CTAP_CRYPTO_OK) {
