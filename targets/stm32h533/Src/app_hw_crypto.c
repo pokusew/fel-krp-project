@@ -167,6 +167,7 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_compute_public_key(
 	const uint8_t *const private_key,
 	uint8_t *const public_key
 ) {
+	uint32_t t1 = HAL_GetTick();
 	if (uECC_compute_public_key(
 		private_key,
 		public_key,
@@ -176,6 +177,8 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_compute_public_key(
 	) != 1) {
 		return CTAP_CRYPTO_ERROR;
 	}
+	uint32_t t2 = HAL_GetTick();
+	debug_log("ecc_secp256r1_compute_public_key took %" PRIu32 "ms" nl, t2 - t1);
 	return CTAP_CRYPTO_OK;
 }
 
@@ -186,6 +189,7 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_sign(
 	const size_t message_hash_size,
 	uint8_t *const signature
 ) {
+	uint32_t t1 = HAL_GetTick();
 	if (uECC_sign(
 		private_key,
 		message_hash,
@@ -197,6 +201,8 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_sign(
 	) != 1) {
 		return CTAP_CRYPTO_ERROR;
 	}
+	uint32_t t2 = HAL_GetTick();
+	debug_log("ecc_secp256r1_sign took %" PRIu32 "ms" nl, t2 - t1);
 	return CTAP_CRYPTO_OK;
 }
 
@@ -206,6 +212,7 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_shared_secret(
 	const uint8_t *const private_key,
 	uint8_t *const secret
 ) {
+	uint32_t t1 = HAL_GetTick();
 	if (uECC_shared_secret(
 		public_key,
 		private_key,
@@ -216,6 +223,8 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_shared_secret(
 	) != 1) {
 		return CTAP_CRYPTO_ERROR;
 	}
+	uint32_t t2 = HAL_GetTick();
+	debug_log("ecc_secp256r1_shared_secret took %" PRIu32 "ms" nl, t2 - t1);
 	return CTAP_CRYPTO_OK;
 }
 
