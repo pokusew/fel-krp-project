@@ -287,6 +287,71 @@ static void app_test_ecc_sign(void) {
 
 }
 
+static void app_test_ecc_compute_public_key(void) {
+
+	info_log(cyan("app_test_ecc_compute_public_key") nl);
+
+	ctap_crypto_status_t status;
+	uint32_t t1;
+	uint32_t t2;
+
+	status = app_crypto.rng_init(&app_crypto, 0);
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("rng_init failed") nl);
+		return;
+	}
+
+	uint8_t private_key[32];
+	status = app_crypto.rng_generate_data(
+		&app_crypto,
+		private_key,
+		sizeof(private_key)
+	);
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("rng_generate_data(private_key) failed") nl);
+		return;
+	}
+	debug_log("private_key" nl);
+	dump_hex(private_key, sizeof(private_key));
+
+	uint8_t sw_public_key[64];
+	uint8_t hw_public_key[64];
+
+	t1 = HAL_GetTick();
+	status = app_crypto.ecc_secp256r1_compute_public_key(
+		&app_crypto,
+		private_key,
+		sw_public_key
+	);
+	t2 = HAL_GetTick();
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("sw ecc_secp256r1_compute_public_key failed") nl);
+	}
+	debug_log("sw_public_key" nl);
+	dump_hex(sw_public_key, sizeof(sw_public_key));
+	info_log("sw took %" PRIu32 " ms" nl, t2 - t1);
+
+	t1 = HAL_GetTick();
+	status = app_hw_crypto.ecc_secp256r1_compute_public_key(
+		&app_hw_crypto,
+		private_key,
+		hw_public_key
+	);
+	t2 = HAL_GetTick();
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("hw ecc_secp256r1_compute_public_key failed") nl);
+		return;
+	}
+	debug_log("hw_public_key" nl);
+	dump_hex(hw_public_key, sizeof(hw_public_key));
+	info_log("hw took %" PRIu32 " ms" nl, t2 - t1);
+
+	if (memcmp(sw_public_key, hw_public_key, 64) != 0) {
+		error_log(red("sw and hw signature differs") nl);
+	}
+
+}
+
 static void app_test_aes(void) {
 
 	info_log(cyan("app_test_rng_hw") nl);
@@ -619,6 +684,10 @@ noreturn void app_run(void) {
 			} else if (debug_uart_rx == 'w') {
 
 				app_test_ecc_sign();
+
+			} else if (debug_uart_rx == 'q') {
+
+				app_test_ecc_compute_public_key();
 
 			} else if (debug_uart_rx == 'h') {
 

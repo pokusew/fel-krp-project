@@ -7,6 +7,7 @@
 #include <uECC.h>
 #include <assert.h>
 #include <string.h>
+#include <stdbool.h>
 
 static ctap_crypto_status_t app_hw_crypto_pka_init(app_hw_crypto_context_t *ctx);
 
@@ -165,23 +166,79 @@ ctap_crypto_status_t app_hw_crypto_pka_init(app_hw_crypto_context_t *ctx) {
 	return CTAP_CRYPTO_OK;
 }
 
+static bool are_all_bytes_zero(const uint8_t *const bytes, const size_t num_bytes) {
+	// if we had a guarantee that the bytes array is word (32-bit) aligned,
+	// we could iterate over uint32_t
+	uint8_t value = 0;
+	for (size_t i = 0; i < num_bytes; ++i) {
+		value |= bytes[i];
+	}
+	return (value == 0);
+}
+
 ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_compute_public_key(
 	const ctap_crypto_t *const crypto,
 	const uint8_t *const private_key,
 	uint8_t *const public_key
 ) {
-	uint32_t t1 = HAL_GetTick();
-	if (uECC_compute_public_key(
-		private_key,
-		public_key,
-		uECC_secp256r1(),
-		micro_ecc_compatible_rng,
-		(void *) crypto
-	) != 1) {
+	const uint32_t t1 = HAL_GetTick();
+
+	// make sure the private key is in the range [1, n-1]
+
+	app_hw_crypto_context_t *const ctx = crypto->context;
+	PKA_HandleTypeDef *const hal_pka = &ctx->hal_pka;
+
+	PKA_ECCMulInTypeDef in;
+
+	// static params for the curve secp256r1 (P-256 = secp256r1 = prime256v1)
+	in.scalarMulSize = hw_crypto_ecc_curve_secp256r1.prime_order_size;
+	in.modulusSize = hw_crypto_ecc_curve_secp256r1.modulus_size;
+	in.coefSign = hw_crypto_ecc_curve_secp256r1.a_sign;
+	in.coefA = hw_crypto_ecc_curve_secp256r1.abs_a;
+	in.coefB = hw_crypto_ecc_curve_secp256r1.b;
+	in.modulus = hw_crypto_ecc_curve_secp256r1.p;
+	in.pointX = hw_crypto_ecc_curve_secp256r1.xG; // point P coordinate xP
+	in.pointY = hw_crypto_ecc_curve_secp256r1.yG; // point P coordinate yP
+	in.primeOrder = hw_crypto_ecc_curve_secp256r1.n;
+
+
+	// dynamic params
+	in.scalarMul = private_key; // scalar multiplier k
+	// RM0481 36.5.15 ECC Fp scalar multiplication
+	//   For k = 0 this function returns a point at infinity (0, 0)
+	//   if curve parameter b is nonzero, (0, 1) otherwise.
+	//   For k different from 0 it might happen that a point at infinity is returned.
+	//   When the application detects this behavior a new computation must be carried out.
+
+	HAL_StatusTypeDef status = HAL_PKA_ECCMul(hal_pka, &in, HAL_MAX_DELAY);
+
+	if (status != HAL_OK) {
+		const uint32_t t2 = HAL_GetTick();
+		const uint32_t output_error_code = hal_pka->Instance->RAM[PKA_ECC_SCALAR_MUL_OUT_ERROR];
+		error_log(
+			red("HAL_PKA_ECCMul error: duration = %" PRIu32 " ms, status = %d, ErrorCode = %" PRIx32 ", PKA output = %" PRIx32) nl,
+			t2 - t1, status, hal_pka->ErrorCode, output_error_code
+		);
 		return CTAP_CRYPTO_ERROR;
 	}
-	uint32_t t2 = HAL_GetTick();
+
+	PKA_ECCMulOutTypeDef out;
+	out.ptX = public_key;
+	out.ptY = public_key + 32;
+	HAL_PKA_ECCMul_GetResult(hal_pka, &out);
+
+	if (are_all_bytes_zero(public_key, 64)) {
+		const uint32_t t2 = HAL_GetTick();
+		error_log(
+			red("ecc_secp256r1_compute_public_key: error public_key is (0,0), computed in %" PRIu32 " ms") nl,
+			t2 - t1
+		);
+		return CTAP_CRYPTO_ERROR;
+	}
+
+	const uint32_t t2 = HAL_GetTick();
 	debug_log("ecc_secp256r1_compute_public_key took %" PRIu32 "ms" nl, t2 - t1);
+
 	return CTAP_CRYPTO_OK;
 }
 
