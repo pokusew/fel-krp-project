@@ -29,7 +29,7 @@ static const uint8_t secp256r1_G[64] = {
 // STM32H533 example:
 //   https://github.com/STMicroelectronics/STM32CubeH5/blob/main/Projects/NUCLEO-H533RE/Examples/PKA/PKA_ECDSA_Sign/Src/prime256v1.c
 //   https://github.com/STMicroelectronics/STM32CubeH5/blob/main/Projects/NUCLEO-H533RE/Examples/PKA/PKA_ECDSA_Sign/Src/main.c
-const hw_crypto_ecc_curve_t hw_crypto_ecc_curve_secp256r1 = {
+const stm32h533_crypto_ecc_curve_t stm32h533_secp256r1 = {
 	.prime_order_size = 32,
 	.modulus_size = 32,
 	// a = -3

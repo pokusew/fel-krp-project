@@ -9,19 +9,19 @@
 #include <string.h>
 #include <stdbool.h>
 
-static ctap_crypto_status_t app_hw_crypto_pka_init(app_hw_crypto_context_t *ctx);
+static ctap_crypto_status_t stm32h533_crypto_pka_init(stm32h533_crypto_context_t *ctx);
 
-static ctap_crypto_status_t app_hw_crypto_aes_init(app_hw_crypto_context_t *ctx);
+static ctap_crypto_status_t stm32h533_crypto_aes_init(stm32h533_crypto_context_t *ctx);
 
-static ctap_crypto_status_t app_hw_crypto_hash_init(app_hw_crypto_context_t *ctx);
+static ctap_crypto_status_t stm32h533_crypto_hash_init(stm32h533_crypto_context_t *ctx);
 
-ctap_crypto_status_t app_hw_crypto_init(
+ctap_crypto_status_t stm32h533_crypto_init(
 	const ctap_crypto_t *const crypto,
 	uint32_t seed
 ) {
-	app_hw_crypto_context_t *const ctx = crypto->context;
+	stm32h533_crypto_context_t *const ctx = crypto->context;
 
-	memset(ctx, 0, sizeof(app_hw_crypto_context_t));
+	memset(ctx, 0, sizeof(stm32h533_crypto_context_t));
 
 	ctap_crypto_status_t status;
 
@@ -30,17 +30,17 @@ ctap_crypto_status_t app_hw_crypto_init(
 		return status;
 	}
 
-	status = app_hw_crypto_pka_init(ctx);
+	status = stm32h533_crypto_pka_init(ctx);
 	if (status != CTAP_CRYPTO_OK) {
 		return status;
 	}
 
-	status = app_hw_crypto_aes_init(ctx);
+	status = stm32h533_crypto_aes_init(ctx);
 	if (status != CTAP_CRYPTO_OK) {
 		return status;
 	}
 
-	return app_hw_crypto_hash_init(ctx);
+	return stm32h533_crypto_hash_init(ctx);
 }
 
 // ####################  RNG  ####################
@@ -71,7 +71,7 @@ void HAL_RNG_MspDeInit(RNG_HandleTypeDef *hrng) {
 	}
 }
 
-ctap_crypto_status_t app_hw_crypto_rng_init(
+ctap_crypto_status_t stm32h533_crypto_rng_init(
 	const ctap_crypto_t *const crypto,
 	uint32_t seed
 ) {
@@ -79,7 +79,7 @@ ctap_crypto_status_t app_hw_crypto_rng_init(
 	// to generate all random data directly
 	lion_unused(seed);
 
-	app_hw_crypto_context_t *const ctx = crypto->context;
+	stm32h533_crypto_context_t *const ctx = crypto->context;
 	RNG_HandleTypeDef *const hal_rng = &ctx->hal_rng;
 
 	hal_rng->Instance = RNG;
@@ -91,11 +91,11 @@ ctap_crypto_status_t app_hw_crypto_rng_init(
 	return CTAP_CRYPTO_OK;
 }
 
-ctap_crypto_status_t app_hw_crypto_rng_generate_data(
+ctap_crypto_status_t stm32h533_crypto_rng_generate_data(
 	const ctap_crypto_t *const crypto,
 	uint8_t *const buffer, const size_t length
 ) {
-	app_hw_crypto_context_t *const ctx = crypto->context;
+	stm32h533_crypto_context_t *const ctx = crypto->context;
 	RNG_HandleTypeDef *const hal_rng = &ctx->hal_rng;
 
 	HAL_StatusTypeDef status;
@@ -143,7 +143,7 @@ ctap_crypto_status_t app_hw_crypto_rng_generate_data(
 
 // ####################  ECC (ECDSA and ECDH)  ####################
 
-static const size_t app_hw_crypto_ecc_max_num_tries = 2;
+static const size_t stm32h533_crypto_ecc_max_num_tries = 2;
 
 void HAL_PKA_MspInit(PKA_HandleTypeDef *hpka) {
 	if (hpka->Instance == PKA) {
@@ -157,7 +157,7 @@ void HAL_PKA_MspDeInit(PKA_HandleTypeDef *hpka) {
 	}
 }
 
-ctap_crypto_status_t app_hw_crypto_pka_init(app_hw_crypto_context_t *ctx) {
+ctap_crypto_status_t stm32h533_crypto_pka_init(stm32h533_crypto_context_t *ctx) {
 	PKA_HandleTypeDef *const hal_pka = &ctx->hal_pka;
 	hal_pka->Instance = PKA;
 	if (HAL_PKA_Init(hal_pka) != HAL_OK) {
@@ -176,7 +176,7 @@ static bool are_all_bytes_zero(const uint8_t *const bytes, const size_t num_byte
 	return (value == 0);
 }
 
-ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_compute_public_key(
+ctap_crypto_status_t stm32h533_crypto_ecc_secp256r1_compute_public_key(
 	const ctap_crypto_t *const crypto,
 	const uint8_t *const private_key,
 	uint8_t *const public_key
@@ -185,21 +185,21 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_compute_public_key(
 
 	// make sure the private key is in the range [1, n-1]
 
-	app_hw_crypto_context_t *const ctx = crypto->context;
+	stm32h533_crypto_context_t *const ctx = crypto->context;
 	PKA_HandleTypeDef *const hal_pka = &ctx->hal_pka;
 
 	PKA_ECCMulInTypeDef in;
 
 	// static params for the curve secp256r1 (P-256 = secp256r1 = prime256v1)
-	in.scalarMulSize = hw_crypto_ecc_curve_secp256r1.prime_order_size;
-	in.modulusSize = hw_crypto_ecc_curve_secp256r1.modulus_size;
-	in.coefSign = hw_crypto_ecc_curve_secp256r1.a_sign;
-	in.coefA = hw_crypto_ecc_curve_secp256r1.abs_a;
-	in.coefB = hw_crypto_ecc_curve_secp256r1.b;
-	in.modulus = hw_crypto_ecc_curve_secp256r1.p;
-	in.pointX = hw_crypto_ecc_curve_secp256r1.xG; // point P coordinate xP
-	in.pointY = hw_crypto_ecc_curve_secp256r1.yG; // point P coordinate yP
-	in.primeOrder = hw_crypto_ecc_curve_secp256r1.n;
+	in.scalarMulSize = stm32h533_secp256r1.prime_order_size;
+	in.modulusSize = stm32h533_secp256r1.modulus_size;
+	in.coefSign = stm32h533_secp256r1.a_sign;
+	in.coefA = stm32h533_secp256r1.abs_a;
+	in.coefB = stm32h533_secp256r1.b;
+	in.modulus = stm32h533_secp256r1.p;
+	in.pointX = stm32h533_secp256r1.xG; // point P coordinate xP
+	in.pointY = stm32h533_secp256r1.yG; // point P coordinate yP
+	in.primeOrder = stm32h533_secp256r1.n;
 
 
 	// dynamic params
@@ -242,20 +242,20 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_compute_public_key(
 	return CTAP_CRYPTO_OK;
 }
 
-static ctap_crypto_status_t app_hw_crypto_generate_random_k(
+static ctap_crypto_status_t stm32h533_crypto_generate_random_k(
 	const ctap_crypto_t *const crypto,
-	const hw_crypto_ecc_curve_t *const curve,
+	const stm32h533_crypto_ecc_curve_t *const curve,
 	uint8_t *const k,
 	size_t max_num_tries
 ) {
 	while (max_num_tries > 0) {
 		max_num_tries--;
-		if (app_hw_crypto_rng_generate_data(crypto, k, curve->prime_order_size) == CTAP_CRYPTO_OK) {
+		if (stm32h533_crypto_rng_generate_data(crypto, k, curve->prime_order_size) == CTAP_CRYPTO_OK) {
 			return CTAP_CRYPTO_OK;
 		}
 		// Consider checking that 0 < k < n
 		// Note:
-		//   1. app_hw_crypto_rng_generate_data() will never generate 0
+		//   1. stm32h533_crypto_rng_generate_data() will never generate 0
 		//      (in fact, RNG never generates zero 32-bit word).
 		//   2. PKA ECDSA sign operation fails with an error if k == 0.
 		//   3. PKA ECDSA sign seems to work with k >= n. uECC_sign() strictly checks that 0 < k < n.
@@ -265,7 +265,7 @@ static ctap_crypto_status_t app_hw_crypto_generate_random_k(
 	return CTAP_CRYPTO_ERROR;
 }
 
-ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_sign(
+ctap_crypto_status_t stm32h533_crypto_ecc_secp256r1_sign(
 	const ctap_crypto_t *const crypto,
 	const uint8_t *const private_key,
 	const uint8_t *const message_hash,
@@ -273,43 +273,43 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_sign(
 	uint8_t *const signature,
 	const uint8_t *const optional_fixed_k
 ) {
-	if (message_hash_size != hw_crypto_ecc_curve_secp256r1.prime_order_size) {
+	if (message_hash_size != stm32h533_secp256r1.prime_order_size) {
 		return CTAP_CRYPTO_ERROR;
 	}
 
 	const uint32_t t1 = HAL_GetTick();
 
 	const uint8_t *k = optional_fixed_k;
-	uint8_t random_k[hw_crypto_ecc_curve_secp256r1.prime_order_size];
+	uint8_t random_k[stm32h533_secp256r1.prime_order_size];
 
 	if (k == NULL) {
-		if (app_hw_crypto_generate_random_k(
+		if (stm32h533_crypto_generate_random_k(
 			crypto,
-			&hw_crypto_ecc_curve_secp256r1,
+			&stm32h533_secp256r1,
 			random_k,
-			app_hw_crypto_ecc_max_num_tries
+			stm32h533_crypto_ecc_max_num_tries
 		) != CTAP_CRYPTO_OK) {
-			error_log(red("app_hw_crypto_ecc_secp256r1_sign: failed to generate valid random k") nl);
+			error_log(red("stm32h533_crypto_ecc_secp256r1_sign: failed to generate valid random k") nl);
 			return CTAP_CRYPTO_ERROR;
 		}
 		k = random_k;
 	}
 
-	app_hw_crypto_context_t *const ctx = crypto->context;
+	stm32h533_crypto_context_t *const ctx = crypto->context;
 	PKA_HandleTypeDef *const hal_pka = &ctx->hal_pka;
 
 	PKA_ECDSASignInTypeDef in;
 
 	// static params for the curve secp256r1 (P-256 = secp256r1 = prime256v1)
-	in.primeOrderSize = hw_crypto_ecc_curve_secp256r1.prime_order_size;
-	in.modulusSize = hw_crypto_ecc_curve_secp256r1.modulus_size;
-	in.coefSign = hw_crypto_ecc_curve_secp256r1.a_sign;
-	in.coef = hw_crypto_ecc_curve_secp256r1.abs_a;
-	in.coefB = hw_crypto_ecc_curve_secp256r1.b;
-	in.modulus = hw_crypto_ecc_curve_secp256r1.p;
-	in.basePointX = hw_crypto_ecc_curve_secp256r1.xG;
-	in.basePointY = hw_crypto_ecc_curve_secp256r1.yG;
-	in.primeOrder = hw_crypto_ecc_curve_secp256r1.n;
+	in.primeOrderSize = stm32h533_secp256r1.prime_order_size;
+	in.modulusSize = stm32h533_secp256r1.modulus_size;
+	in.coefSign = stm32h533_secp256r1.a_sign;
+	in.coef = stm32h533_secp256r1.abs_a;
+	in.coefB = stm32h533_secp256r1.b;
+	in.modulus = stm32h533_secp256r1.p;
+	in.basePointX = stm32h533_secp256r1.xG;
+	in.basePointY = stm32h533_secp256r1.yG;
+	in.primeOrder = stm32h533_secp256r1.n;
 
 	// dynamic params
 	in.integer = k; // random integer k (0 < k < n) (prime_order_size bytes)
@@ -318,7 +318,7 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_sign(
 
 	HAL_StatusTypeDef status;
 
-	for (size_t attempt = 0; attempt < app_hw_crypto_ecc_max_num_tries; ++attempt) {
+	for (size_t attempt = 0; attempt < stm32h533_crypto_ecc_max_num_tries; ++attempt) {
 
 		status = HAL_PKA_ECDSASign(hal_pka, &in, HAL_MAX_DELAY);
 
@@ -355,12 +355,12 @@ ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_sign(
 
 	}
 
-	error_log(red("HAL_PKA_ECDSASign() max attempts (%" PRIsz ") reached") nl, app_hw_crypto_ecc_max_num_tries);
+	error_log(red("HAL_PKA_ECDSASign() max attempts (%" PRIsz ") reached") nl, stm32h533_crypto_ecc_max_num_tries);
 
 	return CTAP_CRYPTO_ERROR;
 }
 
-ctap_crypto_status_t app_hw_crypto_ecc_secp256r1_shared_secret(
+ctap_crypto_status_t stm32h533_crypto_ecc_secp256r1_shared_secret(
 	const ctap_crypto_t *const crypto,
 	const uint8_t *const public_key,
 	const uint8_t *const private_key,
@@ -396,7 +396,7 @@ void HAL_CRYP_MspDeInit(CRYP_HandleTypeDef *hcryp) {
 	}
 }
 
-static ctap_crypto_status_t app_hw_crypto_aes_init(app_hw_crypto_context_t *const ctx) {
+static ctap_crypto_status_t stm32h533_crypto_aes_init(stm32h533_crypto_context_t *const ctx) {
 
 	CRYP_HandleTypeDef *const hal_cryp = &ctx->hal_cryp;
 
@@ -488,7 +488,7 @@ static HAL_StatusTypeDef CRYP_AES_256_CBC_SetDecryptKey(
 	return HAL_OK;
 }
 
-ctap_crypto_status_t app_hw_crypto_aes_256_cbc_encrypt(
+ctap_crypto_status_t stm32h533_crypto_aes_256_cbc_encrypt(
 	const ctap_crypto_t *const crypto,
 	const uint8_t *iv,
 	const uint8_t *key,
@@ -501,7 +501,7 @@ ctap_crypto_status_t app_hw_crypto_aes_256_cbc_encrypt(
 	if (data_length % CTAP_CRYPTO_AES_BLOCK_SIZE) {
 		return CTAP_CRYPTO_ERROR;
 	}
-	app_hw_crypto_context_t *const ctx = crypto->context;
+	stm32h533_crypto_context_t *const ctx = crypto->context;
 	CRYP_HandleTypeDef *const hal_cryp = &ctx->hal_cryp;
 	CRYP_AES_256_SetKey_Swap(hal_cryp, (const uint32_t *) key);
 	CRYP_AES_256_SetIV_Swap(hal_cryp, (const uint32_t *) iv);
@@ -522,7 +522,7 @@ ctap_crypto_status_t app_hw_crypto_aes_256_cbc_encrypt(
 	return CTAP_CRYPTO_OK;
 }
 
-ctap_crypto_status_t app_hw_crypto_aes_256_cbc_decrypt(
+ctap_crypto_status_t stm32h533_crypto_aes_256_cbc_decrypt(
 	const ctap_crypto_t *const crypto,
 	const uint8_t *iv,
 	const uint8_t *key,
@@ -535,7 +535,7 @@ ctap_crypto_status_t app_hw_crypto_aes_256_cbc_decrypt(
 	if (data_length % CTAP_CRYPTO_AES_BLOCK_SIZE) {
 		return CTAP_CRYPTO_ERROR;
 	}
-	app_hw_crypto_context_t *const ctx = crypto->context;
+	stm32h533_crypto_context_t *const ctx = crypto->context;
 	CRYP_HandleTypeDef *const hal_cryp = &ctx->hal_cryp;
 	CRYP_AES_256_SetIV_Swap(hal_cryp, (const uint32_t *) iv);
 	HAL_StatusTypeDef status = CRYP_AES_256_CBC_SetDecryptKey(
@@ -577,7 +577,7 @@ void HAL_HASH_MspDeInit(HASH_HandleTypeDef *hhash) {
 	__HAL_RCC_HASH_CLK_DISABLE();
 }
 
-static ctap_crypto_status_t app_hw_crypto_hash_init(app_hw_crypto_context_t *const ctx) {
+static ctap_crypto_status_t stm32h533_crypto_hash_init(stm32h533_crypto_context_t *const ctx) {
 
 	HASH_HandleTypeDef *const hal_hash = &ctx->hal_hash;
 
@@ -592,30 +592,30 @@ static ctap_crypto_status_t app_hw_crypto_hash_init(app_hw_crypto_context_t *con
 
 }
 
-typedef struct app_hw_crypto_sha256_ctx {
+typedef struct stm32h533_crypto_sha256_ctx {
 	HASH_HandleTypeDef *hal_hash;
 	// HAL_HASH_Accumulate() requires all parts to be of a length that is a multiple of 4
 	size_t num_extra_bytes;
 	uint8_t extra_bytes[4];
-} app_hw_crypto_sha256_ctx_t;
+} stm32h533_crypto_sha256_ctx_t;
 
-ctap_crypto_status_t app_hw_crypto_sha256_bind_ctx(
+ctap_crypto_status_t stm32h533_crypto_sha256_bind_ctx(
 	const ctap_crypto_t *crypto,
 	void *sha256_ctx
 ) {
-	app_hw_crypto_sha256_ctx_t *ctx = sha256_ctx;
-	ctx->hal_hash = &((app_hw_crypto_context_t *) crypto->context)->hal_hash;
+	stm32h533_crypto_sha256_ctx_t *ctx = sha256_ctx;
+	ctx->hal_hash = &((stm32h533_crypto_context_t *) crypto->context)->hal_hash;
 	ctx->num_extra_bytes = 0;
 	return CTAP_CRYPTO_OK;
 }
 
-void app_hw_crypto_sha256_init(
+void stm32h533_crypto_sha256_init(
 	void *ctx
 ) {
 	lion_unused(ctx);
 }
 
-void app_hw_crypto_sha256_update(
+void stm32h533_crypto_sha256_update(
 	void *sha256_ctx,
 	const uint8_t *data, size_t data_length
 ) {
@@ -623,7 +623,7 @@ void app_hw_crypto_sha256_update(
 		return;
 	}
 
-	app_hw_crypto_sha256_ctx_t *ctx = sha256_ctx;
+	stm32h533_crypto_sha256_ctx_t *ctx = sha256_ctx;
 	HASH_HandleTypeDef *const hal_hash = ctx->hal_hash;
 
 	if (ctx->num_extra_bytes > 0) {
@@ -676,11 +676,11 @@ void app_hw_crypto_sha256_update(
 	}
 }
 
-void app_hw_crypto_sha256_final(
+void stm32h533_crypto_sha256_final(
 	void *sha256_ctx,
 	uint8_t *hash
 ) {
-	app_hw_crypto_sha256_ctx_t *ctx = sha256_ctx;
+	stm32h533_crypto_sha256_ctx_t *ctx = sha256_ctx;
 	HASH_HandleTypeDef *const hal_hash = ctx->hal_hash;
 	HAL_StatusTypeDef status = HAL_HASH_AccumulateLast(
 		hal_hash,
@@ -698,12 +698,12 @@ void app_hw_crypto_sha256_final(
 	ctx->num_extra_bytes = 0;
 }
 
-ctap_crypto_status_t app_hw_crypto_sha256_compute_digest(
+ctap_crypto_status_t stm32h533_crypto_sha256_compute_digest(
 	const ctap_crypto_t *crypto,
 	const uint8_t *data, size_t data_length,
 	uint8_t *hash
 ) {
-	app_hw_crypto_context_t *const ctx = crypto->context;
+	stm32h533_crypto_context_t *const ctx = crypto->context;
 	HASH_HandleTypeDef *const hal_hash = &ctx->hal_hash;
 	HAL_StatusTypeDef status = HAL_HASH_Start(
 		hal_hash,
@@ -722,10 +722,10 @@ ctap_crypto_status_t app_hw_crypto_sha256_compute_digest(
 }
 
 const hash_alg_t hash_alg_hw_sha256 = {
-	.ctx_size = sizeof(app_hw_crypto_sha256_ctx_t),
+	.ctx_size = sizeof(stm32h533_crypto_sha256_ctx_t),
 	.output_size = 32,
 	.block_size = 64,
-	.init = app_hw_crypto_sha256_init,
-	.update = app_hw_crypto_sha256_update,
-	.final = app_hw_crypto_sha256_final,
+	.init = stm32h533_crypto_sha256_init,
+	.update = stm32h533_crypto_sha256_update,
+	.final = stm32h533_crypto_sha256_final,
 };

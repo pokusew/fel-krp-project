@@ -27,8 +27,8 @@ ctap_response_t app_ctap_response = {
 };
 ctap_software_crypto_context_t app_crypto_ctx;
 const ctap_crypto_t app_sw_crypto = CTAP_SOFTWARE_CRYPTO_CONST_INIT(&app_crypto_ctx);
-app_hw_crypto_context_t app_hw_crypto_ctx;
-const ctap_crypto_t app_hw_crypto = APP_HW_CRYPTO_CONST_INIT(&app_hw_crypto_ctx);
+stm32h533_crypto_context_t app_hw_crypto_ctx;
+const ctap_crypto_t app_hw_crypto = STM32H533_CRYPTO_CONST_INIT(&app_hw_crypto_ctx);
 ctap_state_t app_ctap = CTAP_STATE_CONST_INIT(&app_hw_crypto);
 
 static inline void app_hid_task(void) {
@@ -138,7 +138,7 @@ static void app_test_rng_hw(void) {
 	info_log(cyan("app_test_rng_hw") nl);
 	uint8_t random_test_buffer[1024];
 	const uint32_t t1 = HAL_GetTick();
-	const ctap_crypto_status_t status = app_hw_crypto_rng_generate_data(
+	const ctap_crypto_status_t status = app_hw_crypto.rng_generate_data(
 		&app_hw_crypto,
 		random_test_buffer, sizeof(random_test_buffer)
 	);
