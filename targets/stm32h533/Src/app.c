@@ -175,6 +175,10 @@ noreturn void app_run(void) {
 
 				app_test_ecc_compute_public_key();
 
+			} else if (debug_uart_rx == 't') {
+
+				app_test_ecc_shared_secret();
+
 			} else if (debug_uart_rx == 'h') {
 
 				app_test_hash_zero();

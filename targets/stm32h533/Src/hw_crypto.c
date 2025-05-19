@@ -360,25 +360,185 @@ ctap_crypto_status_t stm32h533_crypto_ecc_secp256r1_sign(
 	return CTAP_CRYPTO_ERROR;
 }
 
+// secp256r1
+//   n = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
+//   -> Montgomery param = 0x1c1f0858d0b168a4619076ab51d16bdbdf119f1b30a9cdc75706acb03af42abb
+//      We precomputed it using PKA (see the commented below in stm32h533_crypto_ecc_secp256r1_shared_secret()).
+//      We were also able to compute the same value using the Python code from
+//        https://community.st.com/t5/stm32-mcus-products/stm32-pka-rsa-montgomery-parameter/m-p/652031/highlight/true#M238683
+// Montgomery param has the same number of bytes as the n itself (32 bytes, 256 bits)
+// Montgomery param = 0x1c1f0858d0b168a4619076ab51d16bdbdf119f1b30a9cdc75706acb03af42abb
+// Here is stored in 32-bit words, exactly as it is produced by HAL_PKA_MontgomeryParam()
+// and accepted by HAL_PKA_PointCheck_IsOnCurve().
+// static const uint32_t secp256r1_montgomery_param[8] = {
+// 	0x3af42abd, 0x5706acb0, 0x30a9cdc7, 0xdf119f1b,
+// 	0x51d16bdb, 0x619076ab, 0xd0b168a4, 0x1c1f0858,
+// };
+
 ctap_crypto_status_t stm32h533_crypto_ecc_secp256r1_shared_secret(
 	const ctap_crypto_t *const crypto,
 	const uint8_t *const public_key,
 	const uint8_t *const private_key,
 	uint8_t *const secret
 ) {
-	uint32_t t1 = HAL_GetTick();
-	if (uECC_shared_secret(
-		public_key,
-		private_key,
-		secret,
-		uECC_secp256r1(),
-		micro_ecc_compatible_rng,
-		(void *) crypto
-	) != 1) {
+	const uint32_t t1 = HAL_GetTick();
+
+	// make sure the private key is in the range [1, n-1]
+
+	stm32h533_crypto_context_t *const ctx = crypto->context;
+	PKA_HandleTypeDef *const hal_pka = &ctx->hal_pka;
+
+	HAL_StatusTypeDef status;
+
+	// Compute the Montgomery parameter (R^2 mod n) used by PKA to convert operands
+	// into the Montgomery residue system representation.
+	// It is required for the Point on elliptic curve Fp check (HAL_PKA_PointCheck()).
+	// This can be precomputed beforehand (we did that, see the result in secp256r1_montgomery_param).
+	// {
+	// 	PKA_MontgomeryParamInTypeDef in;
+	//
+	// 	// static params for the curve secp256r1 (P-256 = secp256r1 = prime256v1)
+	// 	in.size = stm32h533_secp256r1.modulus_size;
+	// 	in.pOp1 = stm32h533_secp256r1.n;
+	//
+	// 	status = HAL_PKA_MontgomeryParam(hal_pka, &in, HAL_MAX_DELAY);
+	// 	if (status != HAL_OK) {
+	// 		const uint32_t t2 = HAL_GetTick();
+	// 		const uint32_t output_error_code = hal_pka->Instance->RAM[PKA_MONTGOMERY_PARAM_OUT_PARAMETER];
+	// 		error_log(
+	// 			red("HAL_PKA_MontgomeryParam error: duration = %" PRIu32 " ms, status = %d, ErrorCode = %" PRIx32 ", PKA output = %" PRIx32) nl,
+	// 			t2 - t1, status, hal_pka->ErrorCode, output_error_code
+	// 		);
+	// 		return CTAP_CRYPTO_ERROR;
+	// 	}
+	//
+	// 	assert(stm32h533_secp256r1.modulus_size == sizeof(secp256r1_montgomery_param));
+	// 	assert(stm32h533_secp256r1.modulus_size % 4 == 0);
+	// 	uint32_t montgomery_param[stm32h533_secp256r1.modulus_size / 4];
+	//
+	// 	// we checked that HAL_PKA_MontgomeryParam() succeeded, so we can retrieve the result
+	// 	HAL_PKA_MontgomeryParam_GetResult(hal_pka, montgomery_param);
+	//
+	// 	debug_log("montgomery_param ");
+	// 	dump_hex((const uint8_t *) montgomery_param, stm32h533_secp256r1.modulus_size);
+	//
+	// 	assert(memcmp(montgomery_param, secp256r1_montgomery_param, sizeof(secp256r1_montgomery_param)) == 0);
+	//
+	// 	return CTAP_CRYPTO_ERROR;
+	//
+	// }
+
+	// A valid public key is a point (x, y) that lies on the curve (it satisfies the curve equation).
+	// Before using a public key to compute the shared secret (performing an ECC Fp scalar multiplication
+	// using HAL_PKA_ECCMul()), we first check that the public key is a valid curve point
+	// (when performing ECDH, any value can be supplied as the public key by the other party or an attacker).
+	// Note that when an invalid point is passed to PKA, it seems that ECC Fp scalar multiplication operation
+	// correctly fails with an error. However, the reference manual (RM0481, Section 36.5.1) states that
+	// "The validity of all input parameters to the PKA must be checked before starting any operation,
+	// as PKA assumes that all of them are valid and consistent with each other.".
+	// Therefore, we rather validate the public key (the point) explicitly performing
+	// the ECC Fp scalar multiplication operation.
+	// TODO:
+	//    We temporarily disabled the point on curve check as it does not currently seem to work.
+	//    The PKA "Point on elliptic curve Fp check" currently seems to always return
+	//    the "0xA3B7: point not on curve" error, even though the given point is valid
+	//    and the PKA "ECC Fp scalar multiplication" succeeds and returns correct result.
+	//    Note that when an invalid point is passed to PKA "ECC Fp scalar multiplication" operation,
+	//    it correctly fails with an error (hopefully it does that always). So the missing check should be okay.
+	//    But we should still try to fix the PKA "Point on elliptic curve Fp check" and re-enable it.
+	// {
+	//
+	// 	PKA_PointCheckInTypeDef in;
+	//
+	// 	// static params for the curve secp256r1 (P-256 = secp256r1 = prime256v1)
+	// 	in.modulusSize = stm32h533_secp256r1.modulus_size;
+	// 	in.coefSign = stm32h533_secp256r1.a_sign;
+	// 	in.coefA = stm32h533_secp256r1.abs_a;
+	// 	in.coefB = stm32h533_secp256r1.b;
+	// 	in.modulus = stm32h533_secp256r1.p;
+	// 	in.pMontgomeryParam = secp256r1_montgomery_param;
+	//
+	// 	// dynamic params
+	// 	in.pointX = public_key; // point P coordinate xP
+	// 	in.pointY = public_key + 32; // point P coordinate yP
+	//
+	// 	status = HAL_PKA_PointCheck(hal_pka, &in, HAL_MAX_DELAY);
+	//
+	// 	if (status != HAL_OK) {
+	// 		const uint32_t t2 = HAL_GetTick();
+	// 		const uint32_t output_error_code = hal_pka->Instance->RAM[PKA_POINT_CHECK_OUT_ERROR];
+	// 		error_log(
+	// 			red("HAL_PKA_PointCheck error: duration = %" PRIu32 " ms, status = %d, ErrorCode = %" PRIx32 ", PKA output = %" PRIx32) nl,
+	// 			t2 - t1, status, hal_pka->ErrorCode, output_error_code
+	// 		);
+	// 		return CTAP_CRYPTO_ERROR;
+	// 	}
+	//
+	// 	// we checked that HAL_PKA_PointCheck() succeeded, so we can retrieve the result
+	// 	if (HAL_PKA_PointCheck_IsOnCurve(hal_pka) == 0) {
+	// 		const uint32_t t2 = HAL_GetTick();
+	// 		const uint32_t output_error_code = hal_pka->Instance->RAM[PKA_POINT_CHECK_OUT_ERROR];
+	// 		error_log(
+	// 			red("ecc_secp256r1_shared_secret error: the public key is not a valid point the secp256r1, duration = %" PRIu32 " ms, status = %d, ErrorCode = %" PRIx32 ", PKA output = %" PRIx32) nl,
+	// 			t2 - t1, status, hal_pka->ErrorCode, output_error_code
+	// 		);
+	// 		// return CTAP_CRYPTO_ERROR;
+	// 	}
+	//
+	// }
+
+	PKA_ECCMulInTypeDef in;
+
+	// static params for the curve secp256r1 (P-256 = secp256r1 = prime256v1)
+	in.scalarMulSize = stm32h533_secp256r1.prime_order_size;
+	in.modulusSize = stm32h533_secp256r1.modulus_size;
+	in.coefSign = stm32h533_secp256r1.a_sign;
+	in.coefA = stm32h533_secp256r1.abs_a;
+	in.coefB = stm32h533_secp256r1.b;
+	in.modulus = stm32h533_secp256r1.p;
+	in.primeOrder = stm32h533_secp256r1.n;
+
+	// dynamic params
+	in.pointX = public_key; // point P coordinate xP
+	in.pointY = public_key + 32; // point P coordinate yP
+	in.scalarMul = private_key; // scalar multiplier k
+	// RM0481 36.5.15 ECC Fp scalar multiplication
+	//   For k = 0 this function returns a point at infinity (0, 0)
+	//   if curve parameter b is nonzero, (0, 1) otherwise.
+	//   For k different from 0 it might happen that a point at infinity is returned.
+	//   When the application detects this behavior a new computation must be carried out.
+
+	status = HAL_PKA_ECCMul(hal_pka, &in, HAL_MAX_DELAY);
+
+	if (status != HAL_OK) {
+		const uint32_t t2 = HAL_GetTick();
+		const uint32_t output_error_code = hal_pka->Instance->RAM[PKA_ECC_SCALAR_MUL_OUT_ERROR];
+		error_log(
+			red("HAL_PKA_ECCMul error: duration = %" PRIu32 " ms, status = %d, ErrorCode = %" PRIx32 ", PKA output = %" PRIx32) nl,
+			t2 - t1, status, hal_pka->ErrorCode, output_error_code
+		);
 		return CTAP_CRYPTO_ERROR;
 	}
-	uint32_t t2 = HAL_GetTick();
+
+	uint8_t shared_point_y[32];
+	PKA_ECCMulOutTypeDef out;
+	out.ptX = secret; // as the shared secret we return just the shared point's x-coordinate
+	out.ptY = shared_point_y;
+	HAL_PKA_ECCMul_GetResult(hal_pka, &out);
+
+	// the computed shared point must not be (0,0)
+	if (are_all_bytes_zero(secret, 32) && are_all_bytes_zero(shared_point_y, 32)) {
+		const uint32_t t2 = HAL_GetTick();
+		error_log(
+			red("ecc_secp256r1_shared_secret error: the computed shared point is (0,0), computed in %" PRIu32 " ms") nl,
+			t2 - t1
+		);
+		return CTAP_CRYPTO_ERROR;
+	}
+
+	const uint32_t t2 = HAL_GetTick();
 	debug_log("ecc_secp256r1_shared_secret took %" PRIu32 "ms" nl, t2 - t1);
+
 	return CTAP_CRYPTO_OK;
 }
 

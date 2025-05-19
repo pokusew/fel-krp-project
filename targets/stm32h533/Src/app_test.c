@@ -240,6 +240,126 @@ void app_test_ecc_compute_public_key(void) {
 
 }
 
+void app_test_ecc_shared_secret(void) {
+
+	info_log(cyan("app_test_ecc_shared_secret") nl);
+
+	ctap_crypto_status_t status;
+	uint32_t t1;
+	uint32_t t2;
+
+	status = app_sw_crypto.rng_init(&app_sw_crypto, 0);
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("rng_init failed") nl);
+		return;
+	}
+
+	uint8_t peer_private_key[32];
+	status = app_sw_crypto.rng_generate_data(
+		&app_sw_crypto,
+		peer_private_key,
+		sizeof(peer_private_key)
+	);
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("rng_generate_data(peer_private_key) failed") nl);
+		return;
+	}
+	debug_log("peer_private_key" nl);
+	dump_hex(peer_private_key, sizeof(peer_private_key));
+
+	uint8_t peer_public_key[64];
+	status = app_sw_crypto.ecc_secp256r1_compute_public_key(
+		&app_sw_crypto,
+		peer_private_key,
+		peer_public_key
+	);
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("ecc_secp256r1_compute_public_key(peer_private_key) failed") nl);
+		return;
+	}
+	debug_log("peer_public_key" nl);
+	dump_hex(peer_public_key, sizeof(peer_public_key));
+
+	// This is a valid point on the secp256r1 (aka P-256 aka prime256v1) curve.
+	// uint8_t peer_public_key[64] = {
+	// 	0xbc,0xfd,0x95,0xdb,0x7b,0xe6,0x4d,0x2d,
+	// 	0xc1,0x9d,0x45,0x0b,0x87,0x63,0x5f,0x9d,
+	// 	0xfc,0x5a,0x4a,0x7c,0x87,0x2c,0x3a,0x66,
+	// 	0xcc,0x98,0xe2,0xf7,0x24,0x79,0x90,0x95,
+	// 	0xd5,0x5c,0x36,0x41,0xe9,0x9a,0x6c,0xa1,
+	// 	0xeb,0xe9,0xbc,0x66,0x00,0xdf,0x3d,0xe0,
+	// 	0xf2,0xe3,0xbe,0x33,0x43,0x59,0xc7,0x42,
+	// 	0x2b,0xff,0x87,0x3f,0x34,0x1f,0x37,0x9b
+	// };
+
+	// // random public key will be most probably invalid
+	// // a valid public key is a point (x, y) that lies on the curve (it satisfies the curve equation)
+	// uint8_t peer_public_key[64];
+	// status = app_sw_crypto.rng_generate_data(
+	// 	&app_sw_crypto,
+	// 	peer_public_key,
+	// 	sizeof(peer_public_key)
+	// );
+	// if (status != CTAP_CRYPTO_OK) {
+	// 	error_log(red("rng_generate_data(peer_public_key) failed") nl);
+	// 	return;
+	// }
+	// debug_log("peer_public_key" nl);
+	// dump_hex(peer_public_key, sizeof(peer_public_key));
+
+	uint8_t private_key[32];
+	status = app_sw_crypto.rng_generate_data(
+		&app_sw_crypto,
+		private_key,
+		sizeof(private_key)
+	);
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("rng_generate_data(private_key) failed") nl);
+		return;
+	}
+	debug_log("private_key" nl);
+	dump_hex(private_key, sizeof(private_key));
+
+	uint8_t sw_shared_secret[32];
+	uint8_t hw_shared_secret[32];
+
+	t1 = HAL_GetTick();
+	status = app_sw_crypto.ecc_secp256r1_shared_secret(
+		&app_sw_crypto,
+		peer_public_key,
+		private_key,
+		sw_shared_secret
+	);
+	t2 = HAL_GetTick();
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("sw ecc_secp256r1_shared_secret failed") nl);
+	}
+	debug_log("sw_shared_secret" nl);
+	dump_hex(sw_shared_secret, sizeof(sw_shared_secret));
+	info_log("sw took %" PRIu32 " ms" nl, t2 - t1);
+
+	t1 = HAL_GetTick();
+	status = app_hw_crypto.ecc_secp256r1_shared_secret(
+		&app_hw_crypto,
+		peer_public_key,
+		private_key,
+		hw_shared_secret
+	);
+	t2 = HAL_GetTick();
+	if (status != CTAP_CRYPTO_OK) {
+		error_log(red("hw ecc_secp256r1_shared_secret failed") nl);
+		return;
+	}
+	debug_log("hw_shared_secret" nl);
+	dump_hex(hw_shared_secret, sizeof(hw_shared_secret));
+	info_log("hw took %" PRIu32 " ms" nl, t2 - t1);
+
+	if (memcmp(sw_shared_secret, hw_shared_secret, 32) != 0) {
+		error_log(red("sw and hw shared secrets differs") nl);
+	}
+
+}
+
 void app_test_aes(void) {
 
 	info_log(cyan("app_test_rng_hw") nl);

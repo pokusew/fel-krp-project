@@ -9,6 +9,8 @@ void app_test_ecc_sign(void);
 
 void app_test_ecc_compute_public_key(void);
 
+void app_test_ecc_shared_secret(void);
+
 void app_test_aes(void);
 
 void app_test_hash_zero(void);
