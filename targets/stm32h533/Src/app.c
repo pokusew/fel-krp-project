@@ -107,6 +107,16 @@ ctap_user_presence_result_t ctap_wait_for_user_presence(void) {
 			return CTAP_UP_RESULT_TIMEOUT;
 		}
 
+#ifdef LIONKEY_DEVELOPMENT_AUTO_USER_PRESENCE
+		if (elapsed_ms > LIONKEY_DEVELOPMENT_AUTO_USER_PRESENCE) {
+			info_log(
+				yellow("ctap_wait_for_user_presence: ") green("AUTO_ALLOW after %d ms") nl,
+				LIONKEY_DEVELOPMENT_AUTO_USER_PRESENCE
+			);
+			return CTAP_UP_RESULT_ALLOW;
+		}
+#endif
+
 		if (BspButtonState == BUTTON_PRESSED) {
 			BspButtonState = BUTTON_RELEASED;
 			info_log(yellow("ctap_wait_for_user_presence: ") green("ALLOW") nl);
