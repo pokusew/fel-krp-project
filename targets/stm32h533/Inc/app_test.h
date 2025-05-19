@@ -1,6 +1,8 @@
 #ifndef LIONKEY_STM32H33_APP_TEST_H
 #define LIONKEY_STM32H33_APP_TEST_H
 
+void app_debug_task(void);
+
 void app_test_rng_tinymt(void);
 
 void app_test_rng_hw(void);

@@ -13,9 +13,11 @@ extern ctap_state_t app_ctap;
 
 noreturn void app_run(void);
 
+void app_hid_task(void);
+
 void app_handle_incoming_hid_packet(const ctaphid_packet_t *packet);
 
-void app_hid_report_send_queue_add(const ctaphid_packet_t *packet);
+void app_hid_report_send_queue_add(const ctaphid_packet_t *packet, bool fail_if_full);
 
 void app_hid_report_send_queue_send_one_if_possible(void);
 

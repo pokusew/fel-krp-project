@@ -1,8 +1,91 @@
 #include "app.h"
 #include "app_test.h"
 #include "main.h"
+#include "tusb.h"
 
-#include <uECC.h>
+// supported using UART debug chars:
+// l - toggle the Blue LED
+
+// LED status indicators:
+// Green  main loop running
+
+void app_debug_task(void) {
+
+	int debug_uart_rx = Debug_UART_Get_Byte();
+
+	// no UART data received
+	if (debug_uart_rx == -1) {
+		return;
+	}
+
+	debug_log("debug_uart_rx = %c" nl, debug_uart_rx);
+
+	if (debug_uart_rx == 'l') {
+		BSP_LED_Toggle(LED_GREEN);
+		return;
+	}
+
+	if (debug_uart_rx == 'r') {
+		app_test_rng_tinymt();
+		app_test_rng_hw();
+		return;
+	}
+
+	if (debug_uart_rx == 'e') {
+		app_test_aes();
+		return;
+	}
+
+	if (debug_uart_rx == 'w') {
+		app_test_ecc_sign();
+		return;
+	}
+
+	if (debug_uart_rx == 'q') {
+		app_test_ecc_compute_public_key();
+		return;
+	}
+
+	if (debug_uart_rx == 't') {
+		app_test_ecc_shared_secret();
+		return;
+	}
+
+	if (debug_uart_rx == 'h') {
+		app_test_hash_zero();
+		app_test_hash_big();
+		app_test_hash_big_two_parts();
+		return;
+	}
+
+	if (debug_uart_rx == 'b') {
+		// for testing: simulate the "reboot" (MCU reset) behavior without the actual reset
+		app_ctap.init_time = ctap_get_current_time();
+		app_ctap.pin_boot_remaining_attempts = CTAP_PIN_PER_BOOT_ATTEMPTS;
+		info_log("power cycle simulated" nl);
+		return;
+	}
+
+	if (debug_uart_rx == 'p') {
+		info_log("pin_total_remaining_attempts = %" wPRIu8 nl, app_ctap.persistent.pin_total_remaining_attempts);
+		info_log("pin_boot_remaining_attempts = %" wPRIu8 nl, app_ctap.pin_boot_remaining_attempts);
+		return;
+	}
+
+	if (debug_uart_rx == 's') {
+		ctaphid_packet_t packet;
+		memset(&packet, 0, sizeof(packet));
+		packet.pkt.init.cmd = CTAPHID_PING;
+		packet.pkt.init.bcnt = lion_htons(1);
+		packet.pkt.init.payload[0] = 'A';
+		bool result = tud_hid_report(0, &packet, sizeof(packet));
+		debug_log("tud_hid_report result = %d" nl, result);
+		return;
+	}
+
+	// ignore unknown debug_uart_rx commands (a command is a single character)
+
+}
 
 void app_test_rng_tinymt(void) {
 	info_log(cyan("app_test_rng_tinymt") nl);
@@ -45,7 +128,6 @@ void app_test_ecc_sign(void) {
 	info_log(cyan("app_test_ecc_sign") nl);
 
 	ctap_crypto_status_t status;
-	int result;
 	uint32_t t1;
 	uint32_t t2;
 
@@ -144,34 +226,36 @@ void app_test_ecc_sign(void) {
 		error_log(red("sw and hw signature differs") nl);
 	}
 
-	t1 = HAL_GetTick();
-	result = uECC_verify(
-		public_key,
-		message_hash,
-		sizeof(message_hash),
-		sw_signature,
-		uECC_secp256r1()
-	);
-	t2 = HAL_GetTick();
-	if (result != 1) {
-		error_log(red("uECC_verify failed to verify sw-generated signature") nl);
-	}
-	info_log("uECC_verify took %" PRIu32 " ms" nl, t2 - t1);
-
-
-	t1 = HAL_GetTick();
-	result = uECC_verify(
-		public_key,
-		message_hash,
-		sizeof(message_hash),
-		hw_signature,
-		uECC_secp256r1()
-	);
-	t2 = HAL_GetTick();
-	if (result != 1) {
-		error_log(red("uECC_verify failed to verify hw-generated signature") nl);
-	}
-	info_log("uECC_verify took %" PRIu32 " ms" nl, t2 - t1);
+	// int result;
+	// #include <uECC.h>
+	// t1 = HAL_GetTick();
+	// result = uECC_verify(
+	// 	public_key,
+	// 	message_hash,
+	// 	sizeof(message_hash),
+	// 	sw_signature,
+	// 	uECC_secp256r1()
+	// );
+	// t2 = HAL_GetTick();
+	// if (result != 1) {
+	// 	error_log(red("uECC_verify failed to verify sw-generated signature") nl);
+	// }
+	// info_log("uECC_verify took %" PRIu32 " ms" nl, t2 - t1);
+	//
+	//
+	// t1 = HAL_GetTick();
+	// result = uECC_verify(
+	// 	public_key,
+	// 	message_hash,
+	// 	sizeof(message_hash),
+	// 	hw_signature,
+	// 	uECC_secp256r1()
+	// );
+	// t2 = HAL_GetTick();
+	// if (result != 1) {
+	// 	error_log(red("uECC_verify failed to verify hw-generated signature") nl);
+	// }
+	// info_log("uECC_verify took %" PRIu32 " ms" nl, t2 - t1);
 
 }
 
