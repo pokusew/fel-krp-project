@@ -93,6 +93,9 @@ void ctap_init(ctap_state_t *state) {
 
 	if (state->persistent.is_pin_set) {
 		info_log("pin remaining_tries=%" wPRId8 nl, state->persistent.pin_total_remaining_attempts);
+		if (state->persistent.pin_total_remaining_attempts == 0) {
+			info_log(red("pin permanently blocked until CTAP_CMD_RESET") nl);
+		}
 	} else {
 		info_log("pin not set" nl);
 	}
