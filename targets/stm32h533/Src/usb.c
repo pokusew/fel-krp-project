@@ -113,6 +113,18 @@ void usb_init(void) {
 // Invoked when device is mounted
 void tud_mount_cb(void) {
 	info_log(green("usb device mounted") nl);
+	// Note:
+	//   This is a development-only workaround to simulate the "reboot" (MCU reset) behavior
+	//   even without the actual reset.
+	// Rationale:
+	//   During debugging, when LionKey is powered from ST-LINK, it is possible
+	//   to connect/disconnect/reconnect the USB (USER USB port) and the MCU preserves its state (including RAM).
+	//   During normal operation (no ST-LINK connected), LionKey is powered directly from the USB bus (USER USB port).
+	//   Therefore, disconnecting USB powers down LionKey and the MCU state (RAM) is lost.
+	//   Once reconnected, the standard power-on reset sequence runs (during which the pin_boot_remaining_attempts
+	//   is set to its per-boot value).
+	// TODO: Add compile flag to disable during production/release builds.
+	app_ctap.pin_boot_remaining_attempts = CTAP_PIN_PER_BOOT_ATTEMPTS;
 }
 
 // Invoked when device is unmounted
