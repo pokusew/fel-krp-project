@@ -78,6 +78,10 @@ void ctap_init(ctap_state_t *state) {
 
 	debug_log("ctap_init" nl);
 
+	// store the init time so that we can validate if the CTAP_CMD_RESET command
+	// comes within 10 seconds of powering up of the authenticator as the spec requires
+	state->init_time = ctap_get_current_time();
+
 	// TODO: Replace once proper persistence is implemented.
 	ctap_init_persistent_state_tmp(&state->persistent);
 

@@ -12,11 +12,16 @@ uint8_t ctap_reset(ctap_state_t *const state, CborValue *const it, CborEncoder *
 
 	// * In order to prevent an accidental triggering of this mechanism,
 	//   evidence of user interaction is required.
-
-	// TODO:
-	//  * In case of authenticators with no display,
+	// * In case of authenticators with no display,
 	//   request MUST have come to the authenticator within 10 seconds of powering up of the authenticator.
-	//  * If the request comes after 10 seconds of powering up, the authenticator returns CTAP2_ERR_NOT_ALLOWED
+	// * If the request comes after 10 seconds of powering up, the authenticator returns CTAP2_ERR_NOT_ALLOWED.
+#if LIONKEY_DEVELOPMENT_OVERRIDE != 1
+	const uint32_t elapsed_ms_since_power_on = state->current_time - state->init_time;
+	if (elapsed_ms_since_power_on > (10 * 1000)) {
+		debug_log(red("reset command received after 10 seconds of powering up") nl);
+		return CTAP2_ERR_NOT_ALLOWED;
+	}
+#endif
 
 	// Response:
 	// * If all conditions are met, authenticator returns CTAP2_OK.

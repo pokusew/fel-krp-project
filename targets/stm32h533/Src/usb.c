@@ -123,8 +123,10 @@ void tud_mount_cb(void) {
 	//   Therefore, disconnecting USB powers down LionKey and the MCU state (RAM) is lost.
 	//   Once reconnected, the standard power-on reset sequence runs (during which the pin_boot_remaining_attempts
 	//   is set to its per-boot value).
-	// TODO: Add compile flag to disable during production/release builds.
+#if LIONKEY_DEVELOPMENT_OVERRIDE == 1
+	app_ctap.init_time = ctap_get_current_time();
 	app_ctap.pin_boot_remaining_attempts = CTAP_PIN_PER_BOOT_ATTEMPTS;
+#endif
 }
 
 // Invoked when device is unmounted
