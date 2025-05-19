@@ -23,12 +23,16 @@ static const uint8_t secp256r1_G[64] = {
 	0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31, 0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5
 };
 
-// The secp256r1 curve (also known as P-256 and prime256v1)
-// https://neuromancer.sk/std/secg/secp256r1
-// https://www.secg.org/sec2-v2.pdf (Section 2.4.2)
-// STM32H533 example:
-//   https://github.com/STMicroelectronics/STM32CubeH5/blob/main/Projects/NUCLEO-H533RE/Examples/PKA/PKA_ECDSA_Sign/Src/prime256v1.c
-//   https://github.com/STMicroelectronics/STM32CubeH5/blob/main/Projects/NUCLEO-H533RE/Examples/PKA/PKA_ECDSA_Sign/Src/main.c
+/**
+ * The secp256r1 curve (also known as P-256 and prime256v1)
+ *
+ * https://neuromancer.sk/std/secg/secp256r1
+ * https://www.secg.org/sec2-v2.pdf (Section 2.4.2)
+ *
+ * STM32H533 example:
+ *   https://github.com/STMicroelectronics/STM32CubeH5/blob/main/Projects/NUCLEO-H533RE/Examples/PKA/PKA_ECDSA_Sign/Src/prime256v1.c
+ *   https://github.com/STMicroelectronics/STM32CubeH5/blob/main/Projects/NUCLEO-H533RE/Examples/PKA/PKA_ECDSA_Sign/Src/main.c
+ */
 const stm32h533_crypto_ecc_curve_t stm32h533_secp256r1 = {
 	.prime_order_size = 32,
 	.modulus_size = 32,
