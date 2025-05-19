@@ -37,7 +37,7 @@ int ctap_pin_protocol_regenerate(
 		error_log("rng_generate_data() failed" nl);
 		return 1;
 	}
-	debug_log("key_agreement_private_key = ");
+	debug_log("v%" PRIsz " key_agreement_private_key = ", protocol->version);
 	dump_hex(protocol->key_agreement_private_key, sizeof(protocol->key_agreement_private_key));
 
 	if (crypto->ecc_secp256r1_compute_public_key(
