@@ -959,7 +959,14 @@ static uint8_t parse_get_assertion_hmac_secret_extension(CborValue *it, CTAP_get
 	ctap_parse_map_leave();
 
 	// validate: check that all required parameters are present
-	// (everything is optional)
+	const uint32_t required_params =
+		ctap_param_to_mask(CTAP_getAssertion_hmac_secret_keyAgreement) |
+		ctap_param_to_mask(CTAP_getAssertion_hmac_secret_saltEnc) |
+		ctap_param_to_mask(CTAP_getAssertion_hmac_secret_saltAuth);
+	// CTAP_getAssertion_hmac_secret_pinUvAuthProtocol is optional (defaults to 1)
+	if (!ctap_is_present(params->present, required_params)) {
+		return CTAP2_ERR_MISSING_PARAMETER;
+	}
 
 	return CTAP2_OK;
 

@@ -1,5 +1,7 @@
 #include "ctap.h"
 
+#include <hmac.h>
+
 static inline bool is_option_present(const CTAP_mc_ga_options *options, const uint8_t option) {
 	return (options->present & option) == option;
 }
@@ -919,6 +921,96 @@ static uint8_t generate_get_assertion_response(
 
 }
 
+static uint8_t process_get_assertion_hmac_secret_extension(
+	ctap_state_t *const state,
+	CTAP_getAssertion *const ga,
+	const uint32_t auth_data_flags,
+	const ctap_credential *const credential
+) {
+
+	if ((auth_data_flags & CTAP_authenticator_data_flags_up) == 0) {
+		return CTAP2_ERR_UNSUPPORTED_OPTION;
+	}
+
+	uint8_t ret;
+
+	CTAP_getAssertion_hmac_secret *const hmac_secret = &ga->hmac_secret;
+
+	const uint8_t pinUvAuthProtocol =
+		ctap_param_is_present(hmac_secret, CTAP_getAssertion_hmac_secret_pinUvAuthProtocol)
+			? hmac_secret->pinUvAuthProtocol
+			: 1;
+	ctap_pin_protocol_t *pin_protocol;
+	ctap_check(ctap_get_pin_protocol(state, pinUvAuthProtocol, &pin_protocol));
+
+	uint8_t shared_secret[pin_protocol->shared_secret_length];
+	if (pin_protocol->decapsulate(pin_protocol, &hmac_secret->keyAgreement, shared_secret) != 0) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+
+	uint8_t verify_ctx[pin_protocol->verify_get_context_size(pin_protocol)];
+	pin_protocol->verify_init_with_shared_secret(pin_protocol, &verify_ctx, shared_secret);
+	pin_protocol->verify_update(pin_protocol, &verify_ctx, hmac_secret->saltEnc.data, hmac_secret->saltEnc.size);
+	if (pin_protocol->verify_final(
+		pin_protocol, &verify_ctx, hmac_secret->saltAuth.data, hmac_secret->saltAuth.size
+	) != 0) {
+		return CTAP2_ERR_PIN_AUTH_INVALID;
+	}
+
+	if (hmac_secret->saltEnc.size < pin_protocol->encryption_extra_length) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+	const size_t salt_length = hmac_secret->saltEnc.size - pin_protocol->encryption_extra_length;
+	if (salt_length != 32 && salt_length != 64) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+	uint8_t salt[salt_length];
+	if (pin_protocol->decrypt(
+		pin_protocol,
+		shared_secret,
+		hmac_secret->saltEnc.data, hmac_secret->saltEnc.size,
+		salt
+	) != 0) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+
+	const ctap_crypto_t *const crypto = state->crypto;
+	const hash_alg_t *const sha256 = crypto->sha256;
+	uint8_t sha256_ctx[crypto->sha256->ctx_size];
+	crypto->sha256_bind_ctx(crypto, sha256_ctx);
+	uint8_t hmac_ctx[hmac_get_context_size(sha256)];
+
+	uint8_t *const CredRandom = (auth_data_flags & CTAP_authenticator_data_flags_up) != 0
+		? credential->value->CredRandomWithUV : credential->value->CredRandomWithoutUV;
+
+	uint8_t output[salt_length];
+	// output1: HMAC-SHA-256(CredRandom, salt1)
+	hmac_init(hmac_ctx, sha256, sha256_ctx, CredRandom, 32);
+	hmac_update(hmac_ctx, salt, 32);
+	hmac_final(hmac_ctx, output);
+	if (salt_length == 64) {
+		// output2: HMAC-SHA-256(CredRandom, salt2)
+		hmac_init(hmac_ctx, sha256, sha256_ctx, CredRandom, 32);
+		hmac_update(hmac_ctx, salt + 32, 32);
+		hmac_final(hmac_ctx, output + 32);
+	}
+
+	uint8_t output_enc[salt_length + pin_protocol->encryption_extra_length];
+	if (pin_protocol->encrypt(
+		pin_protocol,
+		shared_secret,
+		output, salt_length,
+		output_enc
+	) != 0) {
+		return CTAP1_ERR_OTHER;
+	}
+
+	// TODO: finish
+
+	return CTAP2_OK;
+
+}
+
 uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborEncoder *const encoder) {
 
 	uint8_t ret;
@@ -1065,6 +1157,7 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 		// the "uv" bit and/or "up" bit in the response.
 		if ((params->extensions_present & CTAP_extension_hmac_secret) != 0u) {
 			// TODO
+			// ctap_check(process_get_assertion_hmac_secret_extension(state, &ga, auth_data_flags, NULL));
 		}
 	}
 
