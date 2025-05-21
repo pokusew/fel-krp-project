@@ -1,16 +1,34 @@
-# FIDO2 USB Security Key
+<p align="center"><img src="./docs/logo/lionkey-logo-v2-no-padding.svg" title="LionKey" alt="LionKey logo" height="100"></p>
 
-A working [FIDO2] USB hardware external authenticator (also called “security key”) 🔑 implemented on STM32F4.
+# LionKey: An open-source FIDO2 USB Security Key
 
-Running on the **[STM3240G-EVAL]** board with the **[STM32F407IGH6]** MCU.
+[![build status](https://img.shields.io/github/actions/workflow/status/pokusew/lionkey/ci.yml?logo=github)](https://github.com/pokusew/lionkey/actions/workflows/ci.yml)
 
-Written in **C**. Uses [STM32CubeF4](#stm32cubef4).
+A working [FIDO2]/[WebAuthn] USB hardware external authenticator (also called “security key”) 🔑
+implemented on STM32H533.
 
-See the full 👉 **[Project Description].**
+In terms of [WebAuthn], **LionKey** is a _roaming authenticator_ with _cross-platform attachment_
+using CTAP 2.1 over USB 2.0 (CTAPHID) as the communication protocol,
+supporting _user verification_ using PIN (CTAP2 ClientPIN),
+and capable of storing **passkeys** _(client-side discoverable credentials)_.
 
-_Note: This project was originally created as a semestral project in the B4M38KRP (Computer Interfaces) course
-and later extended as a part of my pre-thesis project (B4MSVP) at CTU FEE (ČVUT FEL)._
+Key features:
+* **Fully compliant implementation of [CTAP 2.1].**
+  * Implements all mandatory features.
+  * Written in **C**.
+  * No dynamic memory allocations.
+  * Designed for use in resource-constrained environments.
+  * MCU independent, easily portable, can be used as a library (see the [core](./core) dir).
+  * Just a single external dependency ([TinyCBOR]).
+* Running on the **[NUCLEO-H533RE]** board with the **[STM32H533RET6]** MCU.
+* Uses [STM32CubeH5](#stm32cubeH5).
+* **Hardware-accelerated cryptography** on STM32H533 (using the RNG, PKA, AES, SHA peripherals).
 
+> [!WARNING]  
+> 🚧 This is still a work in progress. **The security key is already usable.**
+> More detailed documentation will be added soon.
+> The main missing feature is state persistence to the flash memory on STM32H533
+(currently all state is reset when power is lost).
 
 ## Content
 
@@ -21,14 +39,10 @@ and later extended as a part of my pre-thesis project (B4MSVP) at CTU FEE (ČVUT
 - [Development](#development)
   - [Requirements](#requirements)
   - [Cloning the Project](#cloning-the-project)
-  - [Building the External Dependencies](#building-the-external-dependencies)
-    - [salty](#salty)
   - [Build from the Command Line](#build-from-the-command-line)
   - [Using IDE](#using-ide)
   - [SVD file for the MCU](#svd-file-for-the-mcu)
-- [STM32CubeF4](#stm32cubef4)
-- [STM32CubeMX](#stm32cubemx)
-  - [Customization](#customization)
+- [STM32CubeH5](#stm32cubeh5)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -39,19 +53,19 @@ and later extended as a part of my pre-thesis project (B4MSVP) at CTU FEE (ČVUT
 ### Requirements
 
 - [CMake] _(tested with version 3.30.5)_
-  * Note: CLion has a bundled CMake so there is no need to install it.
+  * Note: [CLion](#using-ide) has a bundled CMake so there is no need to install it.
 
 - [Arm GNU Toolchain] _(tested with Version 14.2.Rel1)_
   * Download _AArch32 bare-metal target (arm-none-eabi)_ from the Arm website [here][Arm GNU Toolchain].
   * On macOS, `brew install --cask gcc-arm-embedded` can be used.
 
-- [OpenOCD] _(tested with version 0.12.0)_
-  * Download prebuilt binary from [xPack OpenOCD Releases].
-  * Note, that the packages in apt repository in Ubuntu are outdated.
-  * On macOS, `brew install open-ocd` can be used.
-  * **Note:** **STM32H5** does not work with the original OpenOCD.
-    Currently, it only works with the STMicroelectronics' fork [STMicroelectronics/OpenOCD],
-    which has to be built from source, see [this guide for the instructions](./docs/OpenOCD.md).
+- [OpenOCD] or any other tool for programming and debugging Arm Cortex-M microcontrollers,
+  such as pyOCD or ST-LINK_gdbserver (a part of STM32CubeIDE).
+
+> [!CAUTION]  
+> **STM32H5** does not work with the original OpenOCD.
+> Currently, it only works with the STMicroelectronics' fork [STMicroelectronics/OpenOCD],
+> which has to be built from source, **see 👉 [this guide for the instructions](./docs/OpenOCD.md)**.
 
 
 ### Cloning the Project
@@ -62,37 +76,12 @@ There are two options how to get the contents of the submodules:
 
 **When cloning the project**, you can use:
 ```bash
-git clone --recurse-submodules https://github.com/pokusew/fel-krp-project.git
+git clone --recurse-submodules https://github.com/pokusew/lionkey.git
 ```
 
 **If you already cloned the project** and forgot `--recurse-submodules`, you can use:
 ```bash
 git submodule update --init --recursive
-```
-
-
-### Building the External Dependencies
-
-Currently, some of the external dependencies (specifically [salty](#salty)) need to be built manually
-before we can build the project. In the future, we plan to integrate all dependencies
-into the main project build process.
-
-
-#### salty
-
-salty is an implementation of Ed25519 signatures for microcontrollers.
-It is written in [Rust], but it also provides a C API.
-
-In order to build it, you need a working [Rust] installation with the `thumbv7em-none-eabihf` target:
-```bash
-rustup target add thumbv7em-none-eabihf
-```
-
-Then from the project root run the following commands:
-```bash
-cd crypto/salty/c-api
-cargo clean
-make build
 ```
 
 
@@ -103,23 +92,23 @@ It is possible to build, flash and start the whole project from the command line
 Building is done via `cmake` since this project is a standard [CMake] project (see [CMakeLists.txt](./CMakeLists.txt)).
 We also included a [CMakePresets.json](CMakePresets.json) to simplify passing common options.
 
-Here is an example how to build the executable for the STM3240G-EVAL board (STM32F407IGH6 MCU):
+Here is an example how to build the executable for the NUCLEO-H533RE board with the STM32H533RET6 MCU.
 ```bash
 # configure step (only has to be done once)
-cmake --preset stm32f407-debug
+cmake --preset stm32h533-debug
 # build step
-cmake --build --preset stm32f407-debug
+cmake --build --preset stm32h533-debug
 ```
 
 Flashing can be done for example using `openocd` like this (run from the project root):
 ```bash
-openocd -s /usr/local/share/openocd/scripts -f targets/stm32f407/stm3240g_eval_stlink.cfg -c 'tcl_port disabled' -c 'gdb_port disabled' -c 'program "build/stm32f407-debug/targets/stm32f407/lionkey_stm32f407.elf"' -c reset -c shutdown
+openocd -s /usr/local/share/openocd/scripts -f targets/stm32h533/st_nucleo_h5.cfg -c 'tcl_port disabled' -c 'gdb_port disabled' -c 'program "build/stm32h533-debug/targets/stm32h533/lionkey_stm32h533.elf"' -c reset -c shutdown
 ```
 
 
 ### Using IDE
 
-**Use JetBrains [CLion] (free for non-commercial use for students) for development.**
+**Use JetBrains [CLion] (free for non-commercial use) for development.**
 The project is already imported and fully configured, use _File > Open..._ to just open it.
 
 If you have all the [tools](#requirements) installed, you should be able to open, build and run the project from CLion.
@@ -127,74 +116,56 @@ If you have all the [tools](#requirements) installed, you should be able to open
 You can read more in this [CLion's Embedded development with STM32CubeMX projects][CLion-Embedded-Development]
 guide.
 
+Note that CLion bundles CMake (and other tools). Those can be used outside CLion from terminal as well.
+On a x64 macOS system, the CLion's `cmake` binary
+is located at `/Applications/CLion.app/Contents/bin/cmake/mac/x64/bin/cmake`.
+If you add the `/Applications/CLion.app/Contents/bin/cmake/mac/x64/bin/` dir to your PATH,
+then you can run CLion's CMake just by typing `cmake` in your terminal.
+
 
 ### SVD file for the MCU
 
 CLion and other IDEs support SVD files for describing the layout of registers for debugging.
 
-**Note:** We downloaded the SVD file to [svd/STM32F407.svd](./svd/STM32F407.svd),
-so you don't need to download it yourselves.
-
-For more information, see the [README in the svd dir](./svd/README.md).
+See the [README in the svd dir](./svd/README.md) which lists the available SVD files you can use.
 
 
-## STM32CubeF4
+## STM32CubeH5
 
-We use the **STM32CubeF4** package via the [STM32CubeMX] generator.
+We use the **STM32CubeH5** package (CMSIS, HAL, LL) via the [STM32CubeMX] generator.
+
+The STM32CubeH5 includes the CMSIS modules (for the Arm Cortex-M33 core and for the STM32H5 MCUs),
+and the HAL (hardware abstraction layer) and LL (low-level) drivers for the STM32H5 MCUs.
 
 **Relevant resources:**
-* see [STM32CubeF4 GitHub repo][STM32CubeF4-GitHub]
-* see [product page with docs on st.com][STM32CubeF4-Product-Page]
-* see [UM1725 Description of STM32F4 HAL and low-layer drivers][UM1725]
-* see [UM1734 STM32Cube USB device library][UM1734]
-  * In this project, we use the USB device library and its **Custom HID** class.
-    Unfortunately, its customizability is limited, so we had to change some of the hardcoded template values.
-    See more info [below](#customization).
-
-
-## STM32CubeMX
-
-**Note:** _This section is here only for future reference. You don't need to download STM32CubeMX and don't need to
-follow steps in this section._
-
-This project was created by [STM32CubeMX]. Here is the procedure we used:
-1. _New Project_ > _Board Selector_ > **STM3240G-EVAL** > _Start Project_ > _Initialize all peripherals with their
-   default Mode?_
-   **Yes**
-2. Then in the _Project Manager_ tab:
-	1. Fill in the _Project Name._
-	2. Change the _Application structure_ to **Basic**. Keep the _Do not generate the main()_ unchecked.
-	3. Change the _Toolchain / IDE_ to STM32CubeIDE (so that the project is compatible with CLion). **Check** _Generate
-	   Under Root_ option.
-	4. The other fields should be okay with the default values.
-
-
-### Customization
-
-We tried to maintain compatibility with the STM32CubeMX as much as we could (so that the project could be modified in
-STM32CubeMX while the custom code remained in place). This was somehow possible until we implemented USB support.
-The generated USB middleware is very hard to customize, and some required changes must be made in the automatically
-generated code. So for now, one must carefully diff the changes using git after using STM32CubeMX to avoid losing
-some of our custom changes.
+* see [STM32CubeH5 GitHub repo][STM32CubeH5-GitHub]
+* see [product page with docs on st.com][STM32CubeH5-Product-Page]
+* see [UM3132 Description of STM32H5 HAL and low-layer drivers][UM3132]
 
 
 <!-- links references -->
 
+[Thesis]: https://github.com/pokusew/fel-masters-thesis
+
+[Thesis-PDF]: https://github.com/pokusew/fel-masters-thesis/raw/main/docs/FIDO2_USB_Security_Key.pdf
+
 [FIDO2]: https://fidoalliance.org/specifications/
 
-[Project Description]: https://github.com/pokusew/fel-krp-project/raw/main/docs/FIDO2_USB_Security_Key_SVP_Final_Report.pdf
+[WebAuthn]: https://w3c.github.io/webauthn/
 
-[STM3240G-EVAL]: https://www.st.com/en/evaluation-tools/stm3240g-eval.html
+[CTAP 2.1]: https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html
 
-[STM32F407IGH6]: https://www.st.com/en/microcontrollers-microprocessors/stm32f407ig.html
+[TinyCBOR]: https://github.com/intel/tinycbor
 
-[STM32CubeF4-GitHub]: https://github.com/STMicroelectronics/STM32CubeF4
+[NUCLEO-H533RE]: https://www.st.com/en/evaluation-tools/nucleo-h533re.html
 
-[STM32CubeF4-Product-Page]: https://www.st.com/en/embedded-software/stm32cubef4.html#documentation
+[STM32H533RET6]: https://www.st.com/en/microcontrollers-microprocessors/stm32h533re.html
 
-[UM1725]: https://www.st.com/resource/en/user_manual/um1725-description-of-stm32f4-hal-and-lowlayer-drivers-stmicroelectronics.pdf
+[STM32CubeH5-GitHub]: https://github.com/STMicroelectronics/STM32CubeH5
 
-[UM1734]: https://www.st.com/resource/en/user_manual/um1734-stm32cube-usb-device-library-stmicroelectronics.pdf
+[STM32CubeH5-Product-Page]: https://www.st.com/en/embedded-software/stm32cubeh5.html#documentation
+
+[UM3132]: https://www.st.com/resource/en/user_manual/um3132-description-of-stm32h5-hal-and-lowlayer-drivers-stmicroelectronics.pdf
 
 [STM32CubeMX]: https://www.st.com/en/development-tools/stm32cubemx.html
 
@@ -213,5 +184,3 @@ some of our custom changes.
 [CMake]: https://cmake.org/
 
 [Git submodules]: https://git-scm.com/docs/gitsubmodules
-
-[Rust]: https://www.rust-lang.org/
