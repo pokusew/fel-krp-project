@@ -17,15 +17,6 @@
 			}
 		},
 		{
-			"name": "stm32f407",
-			"inherits": "default",
-			"hidden": true,
-			"description": "Configure preset for the stm32f407 embedded builds",
-			"cacheVariables": {
-				"BUILD_TARGET": "stm32f407"
-			}
-		},
-		{
 			"name": "stm32h533",
 			"inherits": "default",
 			"hidden": true,
@@ -52,13 +43,6 @@
 			}
 		},
 		{
-			"name": "stm32f407-debug",
-			"inherits": "stm32f407",
-			"cacheVariables": {
-				"CMAKE_BUILD_TYPE": "Debug"
-			}
-		},
-		{
 			"name": "stm32h533-debug",
 			"inherits": "stm32h533",
 			"cacheVariables": {
@@ -81,10 +65,6 @@
 		{
 			"name": "host-debug-coverage",
 			"configurePreset": "host-debug-coverage"
-		},
-		{
-			"name": "stm32f407-debug",
-			"configurePreset": "stm32f407-debug"
 		},
 		{
 			"name": "stm32h533-debug",
@@ -119,19 +99,6 @@
 				{
 					"type": "build",
 					"name": "host-debug-coverage"
-				}
-			]
-		},
-		{
-			"name": "stm32f407-debug",
-			"steps": [
-				{
-					"type": "configure",
-					"name": "stm32f407-debug"
-				},
-				{
-					"type": "build",
-					"name": "stm32f407-debug"
 				}
 			]
 		},

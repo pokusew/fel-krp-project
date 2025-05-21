@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.30)
 
 set(BUILD_TARGET "host" CACHE STRING "Build the embedded targets")
-set_property(CACHE BUILD_TARGET PROPERTY STRINGS "host" "stm32f407" "stm32h533")
+set_property(CACHE BUILD_TARGET PROPERTY STRINGS "host" "stm32h533")
 
 option(SANITIZERS "Enable sanitizers (only takes effect when BUILD_TARGET=host)" OFF)
 

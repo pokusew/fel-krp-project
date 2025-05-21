@@ -29,7 +29,7 @@ jobs:
       matrix:
         # https://github.com/actions/runner-images?tab=readme-ov-file#available-images
         os: [ macos-latest ]
-        preset: [ stm32f407-debug, stm32h533-debug, stm32h533-release ]
+        preset: [ stm32h533-debug, stm32h533-release ]
 
     runs-on: ${{ matrix.os }}
 
@@ -57,13 +57,6 @@ jobs:
       - name: Install Arm GNU Toolchain using brew
         if: startsWith(matrix.os, 'macos')
         run: brew install --cask gcc-arm-embedded
-
-      - name: Add Rust thumbv7em-none-eabihf target
-        run: rustup target add thumbv7em-none-eabihf
-
-      - name: Build salty C API
-        working-directory: crypto/salty/c-api
-        run: make build
 
       - name: Configue project
         id: configure
