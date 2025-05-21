@@ -38,8 +38,5 @@ Desktop.ini
 /build-*/
 /log/
 
-# https://github.com/solokeys/solo1
-/solo1
-
 # Node.js project
 /tools/scripts/node_modules/
