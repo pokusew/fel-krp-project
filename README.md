@@ -127,7 +127,7 @@ then you can run CLion's CMake just by typing `cmake` in your terminal.
 
 CLion and other IDEs support SVD files for describing the layout of registers for debugging.
 
-See the [README in the svd dir](./svd/README.md) which lists the available SVD files you can use.
+See the [README in the tools/svd dir](./tools/svd/README.md) which lists the available SVD files you can use.
 
 
 ## STM32CubeH5
