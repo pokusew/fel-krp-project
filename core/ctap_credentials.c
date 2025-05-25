@@ -91,7 +91,7 @@ static uint8_t create_attested_credential_data(
 
 }
 
-static uint8_t encode_authenticator_data_extensions(
+static uint8_t encode_make_credential_authenticator_data_extensions(
 	uint8_t *buffer,
 	const size_t buffer_size,
 	size_t *extensions_size,
@@ -770,7 +770,7 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 
 	if (ctap_param_is_present(params, CTAP_makeCredential_extensions)) {
 		size_t extensions_size;
-		ctap_check(encode_authenticator_data_extensions(
+		ctap_check(encode_make_credential_authenticator_data_extensions(
 			&auth_data.variable_data[auth_data_variable_size],
 			auth_data_variable_max_size - auth_data_variable_size,
 			&extensions_size,
