@@ -143,11 +143,24 @@ typedef struct CTAP_credParams {
 
 #define CTAP_CREDENTIAL_ID_MAX_SIZE 128
 
+// authenticatorMakeCredential response extensions worst case (max size when CBOR-encoded):
 // {
 //     "credProtect": 1, // or 2 or 3
 //     "hmac-secret": true,
 // }
-#define CTAP_authenticator_data_extensions_MAX_SIZE 27
+#define CTAP_authenticator_data_makeCredential_extensions_MAX_SIZE 27
+// authenticatorGetAssertion response extensions worst case (max size when CBOR-encoded):
+// {
+//     // hmac-secret output worst case = 80 bytes
+//     //   (two 32-bytes salts + 16 bytes for the PIN/UV Auth Protocol v2 encryption_extra_length)
+//     "hmac-secret": h'... 80 bytes ...',
+// }
+#define CTAP_authenticator_data_getAssertion_extensions_MAX_SIZE 95
+#define CTAP_authenticator_data_extensions_MAX_SIZE \
+    max( \
+        CTAP_authenticator_data_makeCredential_extensions_MAX_SIZE, \
+        CTAP_authenticator_data_getAssertion_extensions_MAX_SIZE \
+    )
 
 // WebAuthn 6.5.1. Attested Credential Data
 // https://w3c.github.io/webauthn/#attested-credential-data

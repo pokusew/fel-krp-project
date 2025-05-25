@@ -816,20 +816,181 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 
 }
 
-static uint8_t generate_get_assertion_response(
+static uint8_t prepare_get_assertion_hmac_secret_extension(
+	ctap_state_t *const state,
+	ctap_get_assertion_state_t *const ga_state,
+	const CTAP_getAssertion_hmac_secret *const hmac_secret,
+	const uint32_t auth_data_flags
+) {
+
+	if ((auth_data_flags & CTAP_authenticator_data_flags_up) == 0) {
+		return CTAP2_ERR_UNSUPPORTED_OPTION;
+	}
+
+	uint8_t ret;
+
+	const uint8_t pinUvAuthProtocol =
+		ctap_param_is_present(hmac_secret, CTAP_getAssertion_hmac_secret_pinUvAuthProtocol)
+			? hmac_secret->pinUvAuthProtocol
+			: 1;
+	ctap_pin_protocol_t *pin_protocol;
+	ctap_check(ctap_get_pin_protocol(state, pinUvAuthProtocol, &pin_protocol));
+
+	assert(pin_protocol->shared_secret_length <= sizeof(ga_state->hmac_secret_state.shared_secret));
+	if (pin_protocol->decapsulate(
+		pin_protocol,
+		&hmac_secret->keyAgreement,
+		ga_state->hmac_secret_state.shared_secret
+	) != 0) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+
+	uint8_t verify_ctx[pin_protocol->verify_get_context_size(pin_protocol)];
+	pin_protocol->verify_init_with_shared_secret(pin_protocol, &verify_ctx, ga_state->hmac_secret_state.shared_secret);
+	pin_protocol->verify_update(pin_protocol, &verify_ctx, hmac_secret->saltEnc.data, hmac_secret->saltEnc.size);
+	if (pin_protocol->verify_final(
+		pin_protocol, &verify_ctx, hmac_secret->saltAuth.data, hmac_secret->saltAuth.size
+	) != 0) {
+		return CTAP2_ERR_PIN_AUTH_INVALID;
+	}
+
+	if (hmac_secret->saltEnc.size < pin_protocol->encryption_extra_length) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+	const size_t salt_length = hmac_secret->saltEnc.size - pin_protocol->encryption_extra_length;
+	if (salt_length != 32 && salt_length != 64) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+	static_assert(
+		sizeof(ga_state->hmac_secret_state.salt) == 64,
+		"sizeof(ga_state->hmac_secret_state.salt) == 64"
+	);
+	if (pin_protocol->decrypt(
+		pin_protocol,
+		ga_state->hmac_secret_state.shared_secret,
+		hmac_secret->saltEnc.data, hmac_secret->saltEnc.size,
+		ga_state->hmac_secret_state.salt
+	) != 0) {
+		return CTAP1_ERR_INVALID_PARAMETER;
+	}
+
+	// the stored hmac_secret_state will be used by generate_get_assertion_extensions_output()
+	// to generate the output for each returned credential because multiple credentials
+	// can be returned (authenticatorGetAssertion followed by authenticatorGetNextAssertion commands)
+	ga_state->hmac_secret_state.salt_length = salt_length;
+	ga_state->hmac_secret_state.pin_protocol = pin_protocol;
+	ga_state->extensions = CTAP_extension_hmac_secret;
+
+	return CTAP2_OK;
+
+}
+
+static uint8_t generate_get_assertion_hmac_secret_extension_output(
 	const ctap_crypto_t *const crypto,
-	CborEncoder *encoder,
+	const ctap_get_assertion_hmac_secret_state_t *const hmac_secret_state,
+	const uint32_t auth_data_flags,
 	const ctap_credential *const credential,
-	const uint8_t *const auth_data_rp_id_hash,
-	const uint8_t *const client_data_hash_hash,
-	const uint8_t auth_data_flags,
-	const size_t num_credentials
+	CborEncoder *const encoder
+) {
+
+	ctap_pin_protocol_t *const pin_protocol = hmac_secret_state->pin_protocol;
+	assert(pin_protocol != NULL);
+
+	const hash_alg_t *const sha256 = crypto->sha256;
+	uint8_t sha256_ctx[crypto->sha256->ctx_size];
+	crypto->sha256_bind_ctx(crypto, sha256_ctx);
+	uint8_t hmac_ctx[hmac_get_context_size(sha256)];
+
+	uint8_t *const CredRandom = (auth_data_flags & CTAP_authenticator_data_flags_uv) != 0
+		? credential->value->CredRandomWithUV : credential->value->CredRandomWithoutUV;
+
+	assert(hmac_secret_state->salt_length == 32 || hmac_secret_state->salt_length == 64);
+	static_assert(
+		sizeof(hmac_secret_state->salt) == 64,
+		"sizeof(hmac_secret_state->salt) == 64"
+	);
+	uint8_t output[hmac_secret_state->salt_length];
+	// output1: HMAC-SHA-256(CredRandom, salt1)
+	hmac_init(hmac_ctx, sha256, sha256_ctx, CredRandom, 32);
+	hmac_update(hmac_ctx, hmac_secret_state->salt, 32);
+	hmac_final(hmac_ctx, output);
+	if (hmac_secret_state->salt_length == 64) {
+		// output2: HMAC-SHA-256(CredRandom, salt2)
+		hmac_init(hmac_ctx, sha256, sha256_ctx, CredRandom, 32);
+		hmac_update(hmac_ctx, hmac_secret_state->salt + 32, 32);
+		hmac_final(hmac_ctx, output + 32);
+	}
+
+	uint8_t output_enc[hmac_secret_state->salt_length + pin_protocol->encryption_extra_length];
+	if (pin_protocol->encrypt(
+		pin_protocol,
+		hmac_secret_state->shared_secret,
+		output, hmac_secret_state->salt_length,
+		output_enc
+	) != 0) {
+		return CTAP1_ERR_OTHER;
+	}
+
+	CborError err;
+	cbor_encoding_check(cbor_encode_byte_string(encoder, output_enc, sizeof(output_enc)));
+
+	return CTAP2_OK;
+
+}
+
+static uint8_t generate_get_assertion_extensions_output(
+	const ctap_crypto_t *const crypto,
+	const ctap_get_assertion_state_t *const ga_state,
+	uint8_t *const buffer,
+	const size_t buffer_size,
+	size_t *const extensions_size
 ) {
 
 	uint8_t ret;
 
-	// 13. Sign the clientDataHash along with authData with the selected credential
-	//     using the structure specified in
+	assert(ga_state->next_credential_idx < ga_state->num_credentials);
+
+	const ctap_credential *const credential = &ga_state->credentials[ga_state->next_credential_idx];
+
+	const uint8_t extensions = ga_state->extensions;
+
+	CborEncoder encoder;
+	cbor_encoder_init(&encoder, buffer, buffer_size, 0);
+
+	CborError err;
+	CborEncoder map;
+
+	size_t num_extensions_in_output_map = 0;
+	if ((extensions & CTAP_extension_hmac_secret) != 0u) {
+		num_extensions_in_output_map++;
+	}
+
+	cbor_encoding_check(cbor_encoder_create_map(&encoder, &map, num_extensions_in_output_map));
+	if ((extensions & CTAP_extension_hmac_secret) != 0u) {
+		cbor_encoding_check(cbor_encode_text_string(&map, "hmac-secret", 11));
+		ctap_check(generate_get_assertion_hmac_secret_extension_output(
+			crypto, &ga_state->hmac_secret_state, ga_state->auth_data_flags, credential, &map
+		));
+	}
+	cbor_encoding_check(cbor_encoder_close_container(&encoder, &map));
+
+	*extensions_size = cbor_encoder_get_buffer_size(&encoder, buffer);
+
+	return CTAP2_OK;
+
+}
+
+static uint8_t generate_get_assertion_response(
+	CborEncoder *encoder,
+	const ctap_crypto_t *const crypto,
+	const ctap_get_assertion_state_t *const ga_state
+) {
+
+	uint8_t ret;
+
+	assert(ga_state->next_credential_idx < ga_state->num_credentials);
+
+	const ctap_credential *const credential = &ga_state->credentials[ga_state->next_credential_idx];
 
 	uint8_t public_key[64];
 	ctap_crypto_check(crypto->ecc_secp256r1_compute_public_key(
@@ -839,26 +1000,36 @@ static uint8_t generate_get_assertion_response(
 	));
 
 	CTAP_authenticator_data auth_data;
-	memcpy(auth_data.fixed_header.rpIdHash, auth_data_rp_id_hash, sizeof(auth_data.fixed_header.rpIdHash));
-	auth_data.fixed_header.flags = auth_data_flags;
+
+	// copy the RP ID hash to the authenticator data
+	static_assert(
+		sizeof(auth_data.fixed_header.rpIdHash) == sizeof(ga_state->auth_data_rp_id_hash),
+		"sizeof(auth_data.fixed_header.rpIdHash) == sizeof(ga_state->auth_data_rp_id_hash)"
+	);
+	memcpy(auth_data.fixed_header.rpIdHash, ga_state->auth_data_rp_id_hash, sizeof(auth_data.fixed_header.rpIdHash));
+
+	// copy the auth_data_flags to the authenticator data
+	auth_data.fixed_header.flags = ga_state->auth_data_flags;
+
+	// increment the credential's signature counter and copy tne new value to the authenticator data
 	credential->value->signCount++;
 	auth_data.fixed_header.signCount = lion_htonl(credential->value->signCount);
 
 	size_t auth_data_variable_size = 0u;
 	const size_t auth_data_variable_max_size = sizeof(auth_data.variable_data);
 
-	// if (ctap_param_is_present(params, CTAP_getAssertion_extensions)) {
-	// 	size_t extensions_size;
-	// 	ctap_check(encode_authenticator_data_extensions(
-	// 		&auth_data.variable_data[auth_data_variable_size],
-	// 		auth_data_variable_max_size - auth_data_variable_size,
-	// 		&extensions_size,
-	// 		params->extensions_present,
-	// 		credential
-	// 	));
-	// 	auth_data_variable_size += extensions_size;
-	// 	auth_data.fixed_header.flags |= CTAP_authenticator_data_flags_ed;
-	// }
+	if (ga_state->extensions != 0) {
+		size_t extensions_size;
+		ctap_check(generate_get_assertion_extensions_output(
+			crypto,
+			ga_state,
+			&auth_data.variable_data[auth_data_variable_size],
+			auth_data_variable_max_size - auth_data_variable_size,
+			&extensions_size
+		));
+		auth_data_variable_size += extensions_size;
+		auth_data.fixed_header.flags |= CTAP_authenticator_data_flags_ed;
+	}
 
 	assert(auth_data_variable_size < auth_data_variable_max_size);
 
@@ -870,7 +1041,7 @@ static uint8_t generate_get_assertion_response(
 		crypto,
 		&auth_data,
 		auth_data_total_size,
-		client_data_hash_hash,
+		ga_state->client_data_hash,
 		credential->value,
 		asn1_der_sig,
 		&asn1_der_sig_size
@@ -879,11 +1050,14 @@ static uint8_t generate_get_assertion_response(
 	CborError err;
 	CborEncoder map;
 
+	// numberOfCredentials (0x05) is only included in the authenticatorGetAssertion response
+	// (it is omitted in the authenticatorGetNextAssertion response)
+	const size_t num_credentials = ga_state->next_credential_idx == 0 ? ga_state->num_credentials : 0;
 	// start response map
 	cbor_encoding_check(cbor_encoder_create_map(
 		encoder,
 		&map,
-		num_credentials ? 5 : 4
+		num_credentials > 0 ? 5 : 4
 	));
 	// credential (0x01)
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_credential));
@@ -906,7 +1080,7 @@ static uint8_t generate_get_assertion_response(
 	//   User identifiable information (name, DisplayName, icon) inside the publicKeyCredentialUserEntity
 	//   MUST NOT be returned if user verification was not done by the authenticator
 	//   in the original authenticatorGetAssertion call.
-	bool include_user_identifiable_info = (auth_data_flags & CTAP_authenticator_data_flags_uv) != 0u;
+	bool include_user_identifiable_info = (ga_state->auth_data_flags & CTAP_authenticator_data_flags_uv) != 0u;
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_user));
 	ctap_check(ctap_encode_pub_key_cred_user_entity(&map, &credential->key->user, include_user_identifiable_info));
 	if (num_credentials > 0) {
@@ -916,96 +1090,6 @@ static uint8_t generate_get_assertion_response(
 	}
 	// close response map
 	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
-
-	return CTAP2_OK;
-
-}
-
-static uint8_t process_get_assertion_hmac_secret_extension(
-	ctap_state_t *const state,
-	CTAP_getAssertion *const ga,
-	const uint32_t auth_data_flags,
-	const ctap_credential *const credential
-) {
-
-	if ((auth_data_flags & CTAP_authenticator_data_flags_up) == 0) {
-		return CTAP2_ERR_UNSUPPORTED_OPTION;
-	}
-
-	uint8_t ret;
-
-	CTAP_getAssertion_hmac_secret *const hmac_secret = &ga->hmac_secret;
-
-	const uint8_t pinUvAuthProtocol =
-		ctap_param_is_present(hmac_secret, CTAP_getAssertion_hmac_secret_pinUvAuthProtocol)
-			? hmac_secret->pinUvAuthProtocol
-			: 1;
-	ctap_pin_protocol_t *pin_protocol;
-	ctap_check(ctap_get_pin_protocol(state, pinUvAuthProtocol, &pin_protocol));
-
-	uint8_t shared_secret[pin_protocol->shared_secret_length];
-	if (pin_protocol->decapsulate(pin_protocol, &hmac_secret->keyAgreement, shared_secret) != 0) {
-		return CTAP1_ERR_INVALID_PARAMETER;
-	}
-
-	uint8_t verify_ctx[pin_protocol->verify_get_context_size(pin_protocol)];
-	pin_protocol->verify_init_with_shared_secret(pin_protocol, &verify_ctx, shared_secret);
-	pin_protocol->verify_update(pin_protocol, &verify_ctx, hmac_secret->saltEnc.data, hmac_secret->saltEnc.size);
-	if (pin_protocol->verify_final(
-		pin_protocol, &verify_ctx, hmac_secret->saltAuth.data, hmac_secret->saltAuth.size
-	) != 0) {
-		return CTAP2_ERR_PIN_AUTH_INVALID;
-	}
-
-	if (hmac_secret->saltEnc.size < pin_protocol->encryption_extra_length) {
-		return CTAP1_ERR_INVALID_PARAMETER;
-	}
-	const size_t salt_length = hmac_secret->saltEnc.size - pin_protocol->encryption_extra_length;
-	if (salt_length != 32 && salt_length != 64) {
-		return CTAP1_ERR_INVALID_PARAMETER;
-	}
-	uint8_t salt[salt_length];
-	if (pin_protocol->decrypt(
-		pin_protocol,
-		shared_secret,
-		hmac_secret->saltEnc.data, hmac_secret->saltEnc.size,
-		salt
-	) != 0) {
-		return CTAP1_ERR_INVALID_PARAMETER;
-	}
-
-	const ctap_crypto_t *const crypto = state->crypto;
-	const hash_alg_t *const sha256 = crypto->sha256;
-	uint8_t sha256_ctx[crypto->sha256->ctx_size];
-	crypto->sha256_bind_ctx(crypto, sha256_ctx);
-	uint8_t hmac_ctx[hmac_get_context_size(sha256)];
-
-	uint8_t *const CredRandom = (auth_data_flags & CTAP_authenticator_data_flags_up) != 0
-		? credential->value->CredRandomWithUV : credential->value->CredRandomWithoutUV;
-
-	uint8_t output[salt_length];
-	// output1: HMAC-SHA-256(CredRandom, salt1)
-	hmac_init(hmac_ctx, sha256, sha256_ctx, CredRandom, 32);
-	hmac_update(hmac_ctx, salt, 32);
-	hmac_final(hmac_ctx, output);
-	if (salt_length == 64) {
-		// output2: HMAC-SHA-256(CredRandom, salt2)
-		hmac_init(hmac_ctx, sha256, sha256_ctx, CredRandom, 32);
-		hmac_update(hmac_ctx, salt + 32, 32);
-		hmac_final(hmac_ctx, output + 32);
-	}
-
-	uint8_t output_enc[salt_length + pin_protocol->encryption_extra_length];
-	if (pin_protocol->encrypt(
-		pin_protocol,
-		shared_secret,
-		output, salt_length,
-		output_enc
-	) != 0) {
-		return CTAP1_ERR_OTHER;
-	}
-
-	// TODO: finish
 
 	return CTAP2_OK;
 
@@ -1063,7 +1147,7 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 
 	// 5. (not applicable to LionKey) If the alwaysUv option ID is present and true and ...
 
-	// 6. If the authenticator is protected by some form of user verification , then:
+	// 6. If the authenticator is protected by some form of user verification, then:
 	if (state->persistent.is_pin_set) {
 		// 1. If pinUvAuthParam parameter is present (implying the "uv" option is false (see Step 4)):
 		if (pinUvAuthParam_present) {
@@ -1083,6 +1167,7 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 
 	ctap_discard_stateful_command_state(state);
 	ctap_get_assertion_state_t *ga_state = &state->stateful_command_state.get_assertion;
+	ga_state->extensions = 0;
 	ga_state->num_credentials = 0;
 	ga_state->next_credential_idx = 0;
 	const size_t max_num_credentials = sizeof(ga_state->credentials) / sizeof(ctap_credential);
@@ -1156,13 +1241,27 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 		// Note: Some extensions may produce different output depending on the state of
 		// the "uv" bit and/or "up" bit in the response.
 		if ((params->extensions_present & CTAP_extension_hmac_secret) != 0u) {
-			// TODO
-			// ctap_check(process_get_assertion_hmac_secret_extension(state, &ga, auth_data_flags, NULL));
+			ctap_check(prepare_get_assertion_hmac_secret_extension(
+				state, ga_state, &ga.hmac_secret, auth_data_flags
+			));
 		}
 	}
 
 	// 11. If the allowList parameter is present: ...
 	//     (nothing to do here, already handled by our other logic)
+
+	// copy the remaining necessary data into the ga_state
+	// so that they can be used by the generate_get_assertion_response()
+	memcpy(ga_state->client_data_hash, params->clientDataHash.data, CTAP_SHA256_HASH_SIZE);
+	memcpy(ga_state->auth_data_rp_id_hash, params->rpId.hash, CTAP_SHA256_HASH_SIZE);
+	ga_state->auth_data_flags = auth_data_flags;
+
+	// 13. Sign the clientDataHash along with authData.
+	ctap_check(generate_get_assertion_response(
+		encoder,
+		crypto,
+		ga_state
+	));
 
 	// 12. If allowList is not present:
 	// 12.1. If numberOfCredentials is one, select that credential.
@@ -1173,39 +1272,25 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 	// 12.2.2. If the authenticator does not have a display,
 	//         or the authenticator does have a display and the "uv" and "up" options are false:
 	if (!ctap_param_is_present(params, CTAP_getAssertion_allowList) && ga_state->num_credentials > 1) {
-		memcpy(ga_state->client_data_hash, params->clientDataHash.data, sizeof(ga_state->client_data_hash));
-		ga_state->auth_data_flags = auth_data_flags;
 		state->stateful_command_state.active_cmd = CTAP_STATEFUL_CMD_GET_ASSERTION;
-		// 12.2.2.3. Start a timer. This is used during authenticatorGetNextAssertion command.
-		//           This step is OPTIONAL if transport is done over NFC.
-		ctap_update_stateful_command_timer(state);
-	}
-
-	memcpy(ga_state->auth_data_rp_id_hash, params->rpId.hash, CTAP_SHA256_HASH_SIZE);
-
-	// 13. Sign the clientDataHash along with authData.
-	ctap_check(generate_get_assertion_response(
-		crypto,
-		encoder,
-		&ga_state->credentials[ga_state->next_credential_idx],
-		ga_state->auth_data_rp_id_hash,
-		params->clientDataHash.data,
-		auth_data_flags,
-		ga_state->num_credentials
-	));
-
-	if (state->stateful_command_state.active_cmd == CTAP_STATEFUL_CMD_GET_ASSERTION) {
 		// 12.2.2.2. Create a credential counter (credentialCounter) and set it to 1.
 		//    This counter signifies the next credential to be returned by the authenticator,
 		//    assuming zero-based indexing.
 		ga_state->next_credential_idx++;
+		// 12.2.2.3. Start a timer. This is used during authenticatorGetNextAssertion command.
+		//           This step is OPTIONAL if transport is done over NFC.
+		ctap_update_stateful_command_timer(state);
 	} else {
 		// We could just leave the partial state in memory since it's not valid anyway
 		// (because, at this point, stateful_command_state.active_cmd == CTAP_STATEFUL_CMD_NONE).
 		// However, as a good practice, we want to avoid keeping any potentially sensitive state
 		// in memory longer than necessary. To avoid unnecessary large memset()
 		// in ctap_discard_stateful_command_state(), we manually clean up the partial state.
+		memset(ga_state->client_data_hash, 0, CTAP_SHA256_HASH_SIZE);
 		memset(ga_state->auth_data_rp_id_hash, 0, CTAP_SHA256_HASH_SIZE);
+		ga_state->auth_data_flags = 0;
+		ga_state->extensions = 0;
+		memset(&ga_state->hmac_secret_state, 0, sizeof(ga_state->hmac_secret_state));
 		static_assert(
 			sizeof(ga_state->credentials[0]) == sizeof(ctap_credential),
 			"sizeof(ga_state->credentials[0]) == sizeof(ctap_credential)"
@@ -1255,14 +1340,9 @@ uint8_t ctap_get_next_assertion(ctap_state_t *const state, CborValue *const it, 
 
 	// 6. Sign the clientDataHash along with authData. (also handles Step 5)
 	ctap_check(generate_get_assertion_response(
-		state->crypto,
 		encoder,
-		// 4. Select the credential indexed by credentialCounter.
-		&ga_state->credentials[ga_state->next_credential_idx],
-		ga_state->auth_data_rp_id_hash,
-		ga_state->client_data_hash,
-		ga_state->auth_data_flags,
-		0 // numberOfCredentials (0x05) is omitted for the authenticatorGetNextAssertion
+		state->crypto,
+		ga_state
 	));
 
 	// 7. Reset the timer. This step is OPTIONAL if transport is done over NFC.

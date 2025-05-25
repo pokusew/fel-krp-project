@@ -106,10 +106,19 @@ typedef struct ctap_credential {
 	ctap_credentials_map_value *value;
 } ctap_credential;
 
+typedef struct ctap_get_assertion_hmac_secret_state {
+	ctap_pin_protocol_t *pin_protocol;
+	uint8_t shared_secret[64];
+	size_t salt_length;
+	uint8_t salt[64];
+} ctap_get_assertion_hmac_secret_state_t;
+
 typedef struct ctap_get_assertion_state {
 	uint8_t client_data_hash[CTAP_SHA256_HASH_SIZE];
 	uint8_t auth_data_rp_id_hash[CTAP_SHA256_HASH_SIZE];
 	uint8_t auth_data_flags;
+	uint8_t extensions;
+	ctap_get_assertion_hmac_secret_state_t hmac_secret_state;
 	size_t num_credentials;
 	size_t next_credential_idx;
 	ctap_credential credentials[128];
