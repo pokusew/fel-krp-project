@@ -12,6 +12,8 @@ const RST = CSI('0');
 
 const LOG_PREFIX = `${MAGENTA} automation ${RST}`;
 
+const SERVER_PORT = 3000;
+
 const RESULTS_DIR = 'results.local';
 
 function createFidoConformanceToolsServer(port: SerialPort) {
@@ -54,7 +56,10 @@ function createFidoConformanceToolsServer(port: SerialPort) {
 					createWriteStream(`${RESULTS_DIR}/${new Date().toISOString()}.json`),
 				);
 			} catch (err) {
-				console.error(`${LOG_PREFIX} an error occurred while saving results to file`, err);
+				console.error(
+					`${LOG_PREFIX} an error occurred while saving results to file`,
+					err,
+				);
 				res.statusCode = 500;
 				res.end();
 			}
@@ -72,10 +77,14 @@ function createFidoConformanceToolsServer(port: SerialPort) {
 	});
 
 	server.on('close', () => {
-		console.log(`${LOG_PREFIX} server close`);
+		console.log(`${LOG_PREFIX} server closed`);
 	});
 
-	server.listen(3000);
+	server.on('listening', () => {
+		console.log(`${LOG_PREFIX} server listening on http://localhost:${SERVER_PORT}`);
+	});
+
+	server.listen(SERVER_PORT, 'localhost');
 
 	return server;
 }
@@ -117,7 +126,7 @@ function main() {
 	};
 
 	port.on('close', () => {
-		console.log(`${LOG_PREFIX} port close`);
+		console.log(`${LOG_PREFIX} port closed`);
 		cleanup();
 	});
 
@@ -127,7 +136,7 @@ function main() {
 	});
 
 	port.on('open', () => {
-		console.log(`${LOG_PREFIX} port open`);
+		console.log(`${LOG_PREFIX} port open ${port?.path} ${port?.baudRate}`);
 
 		if (port === null) {
 			return;
@@ -135,10 +144,15 @@ function main() {
 
 		port.pipe(process.stdout);
 
+		console.log(`${LOG_PREFIX} entering raw input mode, to exit press x`);
 		process.stdin.setRawMode(true);
 		process.stdin.on('data', (data) => {
 			// lowercase letter 'x'
 			if (data.length > 0 && data[0] === 0x78) {
+				process.stdin.setRawMode(false);
+				console.log(`${LOG_PREFIX} exited raw input mode`);
+				console.log(`${LOG_PREFIX} Ctrl-C now works as usual`);
+				console.log(`${LOG_PREFIX} performing cleanup ...`);
 				cleanup();
 			}
 		});
