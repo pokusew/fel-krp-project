@@ -5,6 +5,13 @@ import { mkdir } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
 import { SerialPort } from 'serialport';
 
+// https://en.wikipedia.org/wiki/ANSI_escape_code#CSIsection
+const CSI = (attrs: string) => `\x1b[${attrs}m`;
+const MAGENTA = CSI('45;1');
+const RST = CSI('0');
+
+const LOG_PREFIX = `${MAGENTA} automation ${RST}`;
+
 const RESULTS_DIR = 'results.local';
 
 function createFidoConformanceToolsServer(port: SerialPort) {
@@ -14,7 +21,13 @@ function createFidoConformanceToolsServer(port: SerialPort) {
 
 		// https://github.com/fido-alliance/conformance-test-tools-resources/blob/main/docs/FIDO2/Automation.md#automation-api
 
-		console.log(`request`, req.method, path);
+		console.log(`${LOG_PREFIX} received ${req.method} ${path}`);
+
+		if (req.method !== 'POST') {
+			res.statusCode = 405;
+			res.end();
+			return;
+		}
 
 		if (path === '/conformance/userpresence') {
 			port.write('u');
@@ -33,11 +46,6 @@ function createFidoConformanceToolsServer(port: SerialPort) {
 		}
 
 		if (path === '/conformance/results') {
-			if (req.method !== 'POST') {
-				res.statusCode = 405;
-				res.end();
-				return;
-			}
 			try {
 				// https://nodejs.org/docs/latest-v20.x/api/stream.html#streampipelinesource-transforms-destination-options
 				await mkdir(RESULTS_DIR, { recursive: true });
@@ -46,7 +54,7 @@ function createFidoConformanceToolsServer(port: SerialPort) {
 					createWriteStream(`${RESULTS_DIR}/${new Date().toISOString()}.json`),
 				);
 			} catch (err) {
-				console.error(err);
+				console.error(`${LOG_PREFIX} an error occurred while saving results to file`, err);
 				res.statusCode = 500;
 				res.end();
 			}
@@ -64,7 +72,7 @@ function createFidoConformanceToolsServer(port: SerialPort) {
 	});
 
 	server.on('close', () => {
-		console.log('server close');
+		console.log(`${LOG_PREFIX} server close`);
 	});
 
 	server.listen(3000);
@@ -109,17 +117,17 @@ function main() {
 	};
 
 	port.on('close', () => {
-		console.log('port close');
+		console.log(`${LOG_PREFIX} port close`);
 		cleanup();
 	});
 
 	port.on('error', (err) => {
-		console.error('port error', err);
+		console.error(`${LOG_PREFIX} port error`, err);
 		process.exit(1);
 	});
 
 	port.on('open', () => {
-		console.log('port open');
+		console.log(`${LOG_PREFIX} port open`);
 
 		if (port === null) {
 			return;
