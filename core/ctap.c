@@ -116,7 +116,7 @@ ctap_command_handler_t ctap_get_command_handler(const uint8_t cmd) {
 	return ctap_command_handlers[cmd];
 }
 
-#if LIONKEY_DEBUG_LEVEL > 0
+#if LIONKEY_DEBUG_LEVEL > 2
 
 static const ctap_string_t ctap_command_names[] = {
 	[CTAP_CMD_MAKE_CREDENTIAL] = ctap_str_i("CTAP_CMD_MAKE_CREDENTIAL"),
@@ -275,7 +275,7 @@ uint8_t ctap_request(
 	// to have one constant value throughout the whole command processing
 	state->current_time = ctap_get_current_time();
 
-	info_log("ctap_request cmd=0x%02" wPRIx8 " params_size=%" PRIsz nl, cmd, params_size);
+	info_log("ctap_request: cmd=0x%02" wPRIx8 " params_size=%" PRIsz nl, cmd, params_size);
 	if (params_size > 0) {
 		dump_hex(params, params_size);
 	}
@@ -290,16 +290,14 @@ uint8_t ctap_request(
 		uint32_t duration = ctap_get_current_time() - state->current_time;
 		if (status == CTAP2_OK) {
 			info_log(
-				green(
-					"ctap_request: response status code"
-					" 0x%02" wPRIx8 " in %" PRId32 " ms, response length %" PRIsz " bytes") nl,
-				status, duration, response->length
+				green("ctap_request: success in %" PRId32 " ms, response length %" PRIsz " bytes") nl nl,
+				duration, response->length
 			);
 			dump_hex(response->data, response->length);
 		} else {
 			info_log(
-				red("ctap_request: error response status code 0x%02" wPRIx8 " in %" PRId32 " ms") nl,
-				status, duration
+				red("ctap_request: error in %" PRId32 " ms, status code 0x%02" wPRIx8) nl nl,
+				duration, status
 			);
 		}
 	}
