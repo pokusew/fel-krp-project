@@ -25,6 +25,16 @@ void app_debug_task(void) {
 		return;
 	}
 
+	if (debug_uart_rx == 'f') {
+		app_test_flash();
+		return;
+	}
+
+	if (debug_uart_rx == 'd') {
+		app_test_flash_high_cycling();
+		return;
+	}
+
 	if (debug_uart_rx == 'r') {
 		app_test_rng_tinymt();
 		app_test_rng_hw();
@@ -90,6 +100,163 @@ void app_debug_task(void) {
 	}
 
 	// ignore unknown debug_uart_rx commands (a command is a single character)
+
+}
+
+void app_test_flash(void) {
+	info_log(cyan("app_test_flash") nl);
+
+	HAL_StatusTypeDef status;
+
+	// FLASH_TYPEPROGRAM_QUADWORD
+	// FLASH_TYPEPROGRAM_HALFWORD_EDATA
+	// FLASH_TYPEPROGRAM_WORD_EDATA
+
+	uint32_t flash_address = FLASH_BASE + FLASH_BANK_SIZE;
+	uint8_t data[16] LION_ATTR_ALIGNED(4) = {
+		0x01, 0x02, 0x03, 0x04,
+		0x05, 0x06, 0x07, 0x08,
+		0x09, 0x10, 0x11, 0x12,
+		0x13, 0x14, 0x15, 0x16,
+	};
+
+	uint32_t data_address = (uint32_t) data;
+
+	debug_log("flash_address = 0x%08" PRIx32 nl, flash_address);
+	debug_log("data_address = 0x%08" PRIx32 nl, data_address);
+
+	uint8_t first_byte = *((uint8_t *) (flash_address));
+
+	debug_log("first_byte = 0x%02" wPRIx8 nl, first_byte);
+
+	status = HAL_FLASH_Unlock();
+	if (status != HAL_OK) {
+		error_log(red("HAL_FLASH_Unlock failed") nl);
+		return;
+	}
+	status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_QUADWORD, flash_address, data_address);
+	if (status != HAL_OK) {
+		error_log(red("HAL_FLASH_Program failed") nl);
+		return;
+	}
+	FLASH_EraseInitTypeDef erase_info = {
+		.TypeErase = FLASH_TYPEERASE_SECTORS,
+		// FLASH_BANK_1, FLASH_BANK_2, FLASH_BANK_BOTH
+		.Banks = FLASH_BANK_2,
+		.Sector = 0, // note that the HAL includes the FLASH_SECTOR_0 - FLASH_SECTOR_31 definitions
+		.NbSectors = 1,
+	};
+	const uint32_t t1 = HAL_GetTick();
+	// sector_error will be set by the HAL_FLASHEx_Erase() call to the first sector that could not be erased
+	// or to 0xFFFFFFFFU when all sectors were successfully erased
+	// not much relevant for our use, when we erase only one sector (.NbSectors = 1)
+	uint32_t sector_error;
+	status = HAL_FLASHEx_Erase(&erase_info, &sector_error);
+	if (status != HAL_OK) {
+		error_log(red("HAL_FLASHEx_Erase failed") nl);
+		return;
+	}
+
+	const uint32_t t2 = HAL_GetTick();
+
+	info_log("done in %" PRIu32 " ms" nl, t2 - t1);
+
+}
+
+void app_test_flash_high_cycling(void) {
+	info_log(cyan("app_test_flash_high_cycling") nl);
+
+	HAL_StatusTypeDef status;
+
+	// FLASH_TYPEPROGRAM_QUADWORD
+	// FLASH_TYPEPROGRAM_HALFWORD_EDATA
+	// FLASH_TYPEPROGRAM_WORD_EDATA
+
+	uint32_t flash_address = FLASH_EDATA_BASE + (FLASH_EDATA_SIZE / 2);
+	uint32_t counter = 0xABCDEF12;
+
+	uint32_t data_address = (uint32_t) &counter;
+
+	debug_log("flash_address = 0x%08" PRIx32 nl, flash_address);
+	debug_log("data_address = 0x%08" PRIx32 nl, data_address);
+
+	status = HAL_FLASH_Unlock();
+	if (status != HAL_OK) {
+		error_log(red("HAL_FLASH_Unlock failed") nl);
+		return;
+	}
+	status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD_EDATA, flash_address, data_address);
+	if (status != HAL_OK) {
+		error_log(red("HAL_FLASH_Program failed") nl);
+		return;
+	}
+	// FLASH_EraseInitTypeDef erase_info = {
+	// 	.TypeErase = FLASH_TYPEERASE_SECTORS,
+	// 	// FLASH_BANK_1, FLASH_BANK_2, FLASH_BANK_BOTH
+	// 	.Banks = FLASH_BANK_2,
+	// 	.Sector = 0, // note that the HAL includes the FLASH_SECTOR_0 - FLASH_SECTOR_31 definitions
+	// 	.NbSectors = 1,
+	// };
+	const uint32_t current_EDATA2R = FLASH->EDATA2R_CUR;
+	// alternatively we could use the heavyweight HAL_FLASHEx_OBGetConfig()
+	// that reads all option bytes and uses the private function FLASH_OB_GetEDATA()
+	debug_log("current_EDATA2R = %08" PRIx32 nl, current_EDATA2R);
+	const uint32_t t1 = HAL_GetTick();
+	// //
+	// FLASH_OBProgramInitTypeDef ob_init ={
+	// 	.OptionType = OPTIONBYTE_EDATA,
+	// 	.Banks = FLASH_BANK_2,
+	// 	.EDATASize = 8,
+	// };
+	// status = HAL_FLASH_OB_Unlock();
+	// if (status != HAL_OK) {
+	// 	error_log(red("HAL_FLASH_OB_Unlock failed") nl);
+	// 	return;
+	// }
+	// status = HAL_FLASHEx_OBProgram(&ob_init);
+	// if (status != HAL_OK) {
+	// 	error_log(red("HAL_FLASHEx_OBProgram failed") nl);
+	// 	return;
+	// }
+	// status = HAL_FLASH_OB_Launch();
+	// if (status != HAL_OK) {
+	// 	error_log(red("HAL_FLASH_OB_Launch failed") nl);
+	// 	return;
+	// }
+	// RM0481 7.4.3 Option bytes modification Option bytes modification sequence
+	// recommends: "Reset the device. This step is always recommended."
+	// NVIC_SystemReset();
+
+	// FLASH_EraseInitTypeDef erase_info = {
+	// 	.TypeErase = FLASH_TYPEERASE_SECTORS,
+	// 	// FLASH_BANK_1, FLASH_BANK_2, FLASH_BANK_BOTH
+	// 	.Banks = FLASH_BANK_2,
+	// 	.Sector = 24, // note that the HAL includes the FLASH_SECTOR_0 - FLASH_SECTOR_31 definitions
+	// 	.NbSectors = 1,
+	// };
+	// // // sector_error will be set by the HAL_FLASHEx_Erase() call to the first sector that could not be erased
+	// // // or to 0xFFFFFFFFU when all sectors were successfully erased
+	// // // not much relevant for our use, when we erase only one sector (.NbSectors = 1)
+	// uint32_t sector_error;
+	// status = HAL_FLASHEx_Erase(&erase_info, &sector_error);
+	// if (status != HAL_OK) {
+	// 	error_log(red("HAL_FLASHEx_Erase failed") nl);
+	// 	return;
+	// }
+
+	// RM0481 7.3.4 FLASH read operations, Read operation overview,
+	//   Read access to OTP, RO and flash high-cycle data operates as follows:
+	//   ... 4. If the application reads an OTP data or flash high-cycle data not previously written,
+	//          a double ECC error is reported and only a word full of set bits is returned
+	//          (see Section 7.3.9 for details). The read data (in 16 bits) is stored in FLASH_ECCDR register,
+	//          so that the user can identify if the double ECC error is due to a virgin data or a real ECC error.
+
+	uint32_t first = *((uint32_t *) (flash_address));
+	debug_log("first = 0x%08" PRIx32 nl, first);
+
+	const uint32_t t2 = HAL_GetTick();
+
+	info_log("done in %" PRIu32 " ms" nl, t2 - t1);
 
 }
 

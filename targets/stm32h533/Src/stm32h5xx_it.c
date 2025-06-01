@@ -71,6 +71,35 @@ void NMI_Handler(void) {
 	/* USER CODE BEGIN NonMaskableInt_IRQn 0 */
 
 	/* USER CODE END NonMaskableInt_IRQn 0 */
+
+	// RM0481 7.3.4 FLASH read operations, Read operation overview,
+	//   Read access to OTP, RO and flash high-cycle data operates as follows:
+	//   ... 4. If the application reads an OTP data or flash high-cycle data not previously written,
+	//          a double ECC error is reported and only a word full of set bits is returned
+	//          (see Section 7.3.9 for details). The read data (in 16 bits) is stored in FLASH_ECCDR register,
+	//          so that the user can identify if the double ECC error is due to a virgin data or a real ECC error.
+	// RM0481 7.9.10 Error correction code error (ECCC, ECCD)
+	//   ... When the ECCD the flag is raised, an NMI is generated, it can be masked in SBS registers
+	//       (HAL_SBS_FLASH_DisableECCNMI()) for data access (OTP, data area, RO data).
+	//       Software must invalidate the instruction cache (only when ICACHE is enabled, HAL_ICACHE_Invalidate())
+	//       in the NMI interrupt service routine when the ECCD flag is set.
+
+	// If this NMI is caused by a double ECC error when reading data from flash ...
+	if (__HAL_FLASH_GET_FLAG(FLASH_FLAG_ECCD)) {
+		// check that the double ECC error was detected when reading data from a high-cycling area ...
+		// HAL uses the same definitions (ECCR) for the ECCDETR and ECCCORR registers
+		if ((FLASH->ECCDETR & FLASH_ECCR_DATA_ECC) != 0u) {
+			// retrieve the read data (16 bits) that caused the double ECC error
+			// and determine if the double ECC error is due to a virgin data (0xFFFF) or if it is a real ECC error
+			if ((FLASH->ECCDR & FLASH_ECCDR_FAIL_DATA) == 0xFFFF) {
+				// if it was a false positive due to a virgin data (0xFFFF), reset the ECCD flag
+				// and return (exit exception handling and resume normal execution)
+				__HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_ECCD);
+				return;
+			}
+		}
+	}
+
 	/* USER CODE BEGIN NonMaskableInt_IRQn 1 */
 	Error_Handler();
 	/* USER CODE END NonMaskableInt_IRQn 1 */

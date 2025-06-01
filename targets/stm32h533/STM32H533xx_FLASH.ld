@@ -44,8 +44,16 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 /* Memories definition */
 MEMORY
 {
-  RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 272K
-  FLASH    (rx)    : ORIGIN = 0x8000000,   LENGTH = 512K
+  RAM     (xrw)    : ORIGIN = 0x20000000,   LENGTH = 272K
+  /*
+     STM32H533RET6 has 512 KB of flash, divided into two independent 256-KB banks (Bank 1 and Bank 2)
+     We use Bank 1 for the code and Bank 2 as the storage for LionKey's persistent data.
+     Therefore, we modified this linker script to ensure an error is thrown if the executable cannot
+     fit into Bank 1 (the first 256 KB of the flash). This also ensures that Bank 2 is never
+     accidentally overwritten/erased by the flasher/debugger (such as OpenOCD).
+  */
+  /* FLASH (rx)    : ORIGIN = 0x08000000,   LENGTH = 512K */
+  FLASH    (rx)    : ORIGIN = 0x08000000,   LENGTH = 256K /* we only want to use Bank 1 for the code */
 }
 
 /* Sections */
