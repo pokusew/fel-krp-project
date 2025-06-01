@@ -7,6 +7,11 @@
 #define LION_ATTR_PACKED         __attribute__ ((packed))
 #define LION_ATTR_ALWAYS_INLINE  __attribute__ ((always_inline))
 
+// https://gcc.gnu.org/onlinedocs/gcc/Common-Variable-Attributes.html#index-aligned-variable-attribute
+// The aligned attribute specifies a minimum alignment for the variable or structure field, measured in bytes.
+// The num_bytes value must be an integer constant power of 2.
+#define LION_ATTR_ALIGNED(num_bytes) __attribute__ ((aligned(num_bytes)))
+
 #define lion_unused(x) ((void) (x))
 
 // lion_static_assert_expr(expr, msg) is a static assert that can be used in an expression context
