@@ -1,5 +1,5 @@
-#ifndef LIONKEY_CTAP_CRYPTO
-#define LIONKEY_CTAP_CRYPTO
+#ifndef LIONKEY_CTAP_CRYPTO_H
+#define LIONKEY_CTAP_CRYPTO_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -126,4 +126,4 @@ typedef struct ctap_crypto {
 
 } ctap_crypto_t;
 
-#endif // LIONKEY_CTAP_CRYPTO
+#endif // LIONKEY_CTAP_CRYPTO_H

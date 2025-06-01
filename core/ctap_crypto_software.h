@@ -1,5 +1,5 @@
-#ifndef LIONKEY_CTAP_CRYPTO_SOFTWARE
-#define LIONKEY_CTAP_CRYPTO_SOFTWARE
+#ifndef LIONKEY_CTAP_CRYPTO_SOFTWARE_H
+#define LIONKEY_CTAP_CRYPTO_SOFTWARE_H
 
 #include "ctap_crypto.h"
 #include <sha256.h>
@@ -92,4 +92,4 @@ ctap_crypto_status_t ctap_software_crypto_sha256_compute_digest(
 
 extern const hash_alg_t hash_alg_hw_sha256;
 
-#endif // LIONKEY_CTAP_CRYPTO_SOFTWARE
+#endif // LIONKEY_CTAP_CRYPTO_SOFTWARE_H
