@@ -164,9 +164,23 @@ typedef struct CTAP_credParams {
         CTAP_authenticator_data_getAssertion_extensions_MAX_SIZE \
     )
 
+// An ECC P-256 (also known as secp256r1 or prime256v1) public key is a point on the curve,
+// with x (32 bytes) and y (32 bytes) coordinates (64 bytes in total).
+// When encoded as a COSE_Key, the resulting CBOR (in the CTAP2 canonical CBOR encoding form)
+// for has exactly 77 bytes. See ctap_encode_public_key().
+// Example:
+// {
+//     1: 2,
+//     3: -7,
+//     -1: 1,
+//     -2: h'eb3058f9ee1644bd4817dd14bf4a3ebd6ca3313f39ea8143e9f346e7502b19dd',
+//     -3: h'dd17beb4a7923956513d5d77d272fe97581a8f176080b5493cadff54a63d335f',
+// }
+// Therefore, we set the limit to 80 (77 would also work).
+#define CTAP_CREDENTIAL_PUBLIC_KEY_COSE_ENCODED_MAX_SIZE 80
+
 // WebAuthn 6.5.1. Attested Credential Data
 // https://w3c.github.io/webauthn/#attested-credential-data
-#define CTAP_CREDENTIAL_PUBLIC_KEY_COSE_ENCODED_MAX_SIZE 100 // TODO: review and update this max_site
 typedef struct LION_ATTR_PACKED CTAP_authenticator_data_attestedCredentialData {
 	struct LION_ATTR_PACKED {
 		// 	The AAGUID of the authenticator.
