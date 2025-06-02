@@ -319,10 +319,13 @@ uint8_t ctap_request(
 		uint32_t duration = ctap_get_current_time() - state->current_time;
 		if (status == CTAP2_OK) {
 			info_log(
-				green("ctap_request: success in %" PRId32 " ms, response length %" PRIsz " bytes") nl nl,
+				green("ctap_request: success in %" PRId32 " ms, response length %" PRIsz " bytes") nl,
 				duration, response->length
 			);
-			dump_hex(response->data, response->length);
+			if (response->length > 0) {
+				dump_hex(response->data, response->length);
+			}
+			info_log(nl);
 		} else {
 			info_log(
 				red("ctap_request: error in %" PRId32 " ms, status code 0x%02" wPRIx8) nl nl,
