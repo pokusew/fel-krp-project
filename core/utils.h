@@ -80,10 +80,8 @@
 
 #define IS_BIG_ENDIAN (*(uint16_t *)"\0\xff" < 0x100)
 
-#if LIONKEY_DEBUG_LEVEL > 0
-
-void dump_hex(const uint8_t *buf, size_t size);
-
+#if LIONKEY_DEBUG_LEVEL > 2
+	void dump_hex(const uint8_t *buf, size_t size);
 #else
 	#define dump_hex(buf, size) ((void) 0)
 #endif

@@ -1,6 +1,6 @@
 #include "utils.h"
 
-#if LIONKEY_DEBUG_LEVEL > 0
+#if LIONKEY_DEBUG_LEVEL > 2
 
 void dump_hex(const uint8_t *buf, size_t size) {
 	debug_log("hex(%" PRIsz "): ", size);
