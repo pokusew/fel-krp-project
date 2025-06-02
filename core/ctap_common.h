@@ -2,6 +2,7 @@
 #define LIONKEY_CTAP_COMMON_H
 
 #include "ctap_errors.h"
+#include "utils.h"
 
 #define ctap_check(expr)                                                   \
 	if ((ret = (expr)) != CTAP2_OK) {                                      \
