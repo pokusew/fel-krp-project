@@ -83,7 +83,7 @@ void app_debug_task(void) {
 	}
 
 	if (debug_uart_rx == 'p') {
-		info_log("pin_total_remaining_attempts = %" wPRIu8 nl, app_ctap.persistent.pin_total_remaining_attempts);
+		info_log("pin_total_remaining_attempts = %" wPRIu8 nl, app_ctap.pin_state.pin_total_remaining_attempts);
 		info_log("pin_boot_remaining_attempts = %" wPRIu8 nl, app_ctap.pin_boot_remaining_attempts);
 		return;
 	}

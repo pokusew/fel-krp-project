@@ -1,25 +1,54 @@
 #include <string.h>
-// #include <stdlib.h>
 #include "ctap.h"
 #include "utils.h"
 #include "ctap_parse.h"
 
-static void ctap_init_persistent_state_tmp(ctap_persistent_state_t *state) {
+static void ctap_init_pin_persistent_state(ctap_state_t *state) {
 
-	debug_log("ctap_init_persistent_state_tmp" nl);
+	debug_log("ctap_init_pin_persistent_state" nl);
 
-	state->pin_total_remaining_attempts = CTAP_PIN_TOTAL_ATTEMPTS;
+	ctap_storage_item_t item = {
+		.key = CTAP_STORAGE_KEY_PIN_INFO,
+	};
+
+	const ctap_storage_t *const storage = state->storage;
+
+	if (storage->find_item(storage, &item) == CTAP_STORAGE_OK) {
+
+		debug_log("pin_state found in the storage" nl);
+
+		assert(item.handle != 0);
+
+		if (item.size == sizeof(state->pin_state)) {
+
+			state->pin_state_item_handle = item.handle;
+			memcpy(&state->pin_state, item.data, sizeof(state->pin_state));
+
+			debug_log("initialized pin_state from the storage" nl);
+
+			// skip the initialization with the default values below
+			return;
+
+		} else {
+			error_log(red("ignoring invalid pin_state in the storage") nl);
+		}
+
+	}
+
+	state->pin_state.pin_total_remaining_attempts = CTAP_PIN_TOTAL_ATTEMPTS;
 
 	// The default pre-configured minimum PIN length is at least 4 Unicode code points
 	//   See 6.4. authenticatorGetInfo (0x04) minPINLength (0x0D)
 	//     https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#getinfo-minpinlength
 	//   See also 6.5.1. PIN Composition Requirements
 	//     https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#authnrClientPin-pin-composition
-	state->pin_min_code_point_length = 4;
+	state->pin_state.pin_min_code_point_length = 4;
 
-	state->is_pin_set = false;
+	state->pin_state.is_pin_set = 0u;
 
-	ctap_reset_credentials_store();
+	state->pin_state_item_handle = 0u;
+
+	debug_log("initialized pin_state with the initial values" nl);
 
 }
 
@@ -71,8 +100,7 @@ void ctap_init(ctap_state_t *state) {
 	// comes within 10 seconds of powering up of the authenticator as the spec requires
 	state->init_time = ctap_get_current_time();
 
-	// TODO: Replace once proper persistence is implemented.
-	ctap_init_persistent_state_tmp(&state->persistent);
+	ctap_init_pin_persistent_state(state);
 
 	state->pin_boot_remaining_attempts = CTAP_PIN_PER_BOOT_ATTEMPTS;
 
@@ -80,9 +108,10 @@ void ctap_init(ctap_state_t *state) {
 	// At power-up, the authenticator calls initialize for each pinUvAuthProtocol that it supports.
 	ctap_all_pin_protocols_initialize(state);
 
-	if (state->persistent.is_pin_set) {
-		info_log("pin remaining_tries=%" wPRId8 nl, state->persistent.pin_total_remaining_attempts);
-		if (state->persistent.pin_total_remaining_attempts == 0) {
+	if (ctap_is_pin_set(state)) {
+		const uint8_t remaining_tries = ctap_get_pin_total_remaining_attempts(state);
+		info_log("pin remaining_tries=%" wPRId8 nl, remaining_tries);
+		if (remaining_tries == 0) {
 			info_log(red("pin permanently blocked until CTAP_CMD_RESET") nl);
 		}
 	} else {

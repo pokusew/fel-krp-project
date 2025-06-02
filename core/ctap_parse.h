@@ -10,7 +10,6 @@
 #include "ctap_string.h"
 #include "cose.h"
 #include "compiler.h"
-#include "utils.h"
 
 // request (message)
 // CTAPHID_CBOR
@@ -109,6 +108,11 @@ typedef struct CTAP_rpId {
 	uint8_t hash[CTAP_SHA256_HASH_SIZE];
 	ctap_string_t id;
 } CTAP_rpId;
+
+typedef struct CTAP_rpId_hash_ptr {
+	const uint8_t *hash;
+	ctap_string_t id;
+} CTAP_rpId_hash_ptr;
 
 // https://w3c.github.io/webauthn/#credential-id
 //   Note that the WebAuthn spec implies that every Credential ID

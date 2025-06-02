@@ -59,13 +59,13 @@ static uint8_t credential_management_get_creds_metadata(ctap_state_t *const stat
 		&map, CTAP_credentialManagement_res_existingResidentCredentialsCount
 	));
 	cbor_encoding_check(cbor_encode_uint(
-		&map, ctap_get_num_stored_discoverable_credentials()
+		&map, ctap_count_num_stored_discoverable_credentials(state->storage)
 	));
 	cbor_encoding_check(cbor_encode_uint(
 		&map, CTAP_credentialManagement_res_maxPossibleRemainingResidentCredentialsCount
 	));
 	cbor_encoding_check(cbor_encode_uint(
-		&map, ctap_get_num_max_possible_remaining_discoverable_credentials()
+		&map, ctap_get_num_max_possible_remaining_discoverable_credentials(state->storage)
 	));
 	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
 
@@ -75,7 +75,7 @@ static uint8_t credential_management_get_creds_metadata(ctap_state_t *const stat
 
 static uint8_t encode_credential_management_enumerate_rps_response(
 	CborEncoder *encoder,
-	const CTAP_rpId *rp_id,
+	const CTAP_rpId_hash_ptr *rp_id,
 	const size_t num_rps
 ) {
 
@@ -86,10 +86,10 @@ static uint8_t encode_credential_management_enumerate_rps_response(
 	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, num_rps != 0 ? 3 : 2));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_credentialManagement_res_rp));
-	ctap_check(ctap_encode_rp_entity(&map, rp_id));
+	ctap_check(ctap_encode_rp_entity(&map, &rp_id->id));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_credentialManagement_res_rpIDHash));
-	cbor_encoding_check(cbor_encode_byte_string(&map, rp_id->hash, sizeof(rp_id->hash)));
+	cbor_encoding_check(cbor_encode_byte_string(&map, rp_id->hash, CTAP_SHA256_HASH_SIZE));
 
 	if (num_rps != 0) {
 		cbor_encoding_check(cbor_encode_uint(&map, CTAP_credentialManagement_res_totalRPs));
@@ -109,29 +109,27 @@ static uint8_t credential_management_enumerate_rps_begin(ctap_state_t *const sta
 		return CTAP2_ERR_PIN_AUTH_INVALID;
 	}
 
-	if (ctap_get_num_stored_discoverable_credentials() == 0) {
-		return CTAP2_ERR_NO_CREDENTIALS;
-	}
-
 	uint8_t ret;
 
 	ctap_discard_stateful_command_state(state);
 	ctap_cred_mgmt_enumerate_rps_state_t *enumerate_rps_state = &state->stateful_command_state.cred_mgmt_enumerate_rps;
 	enumerate_rps_state->num_rps = 0;
 	enumerate_rps_state->next_rp_idx = 0;
-	const size_t max_num_rp_ids = sizeof(enumerate_rps_state->rp_ids) / sizeof(CTAP_rpId *);
+	const size_t max_num_rp_ids = sizeof(enumerate_rps_state->rp_ids) / sizeof(CTAP_rpId_hash_ptr);
 	ctap_check(ctap_enumerate_rp_ids_of_discoverable_credentials(
+		state->storage,
 		enumerate_rps_state->rp_ids,
 		&enumerate_rps_state->num_rps,
 		max_num_rp_ids
 	));
 
-	// num_stored_discoverable_credentials > 0 => enumerate_rps_state->num_rps
-	assert(enumerate_rps_state->num_rps > 0);
+	if (enumerate_rps_state->num_rps == 0) {
+		return CTAP2_ERR_NO_CREDENTIALS;
+	}
 
 	ctap_check(encode_credential_management_enumerate_rps_response(
 		encoder,
-		enumerate_rps_state->rp_ids[enumerate_rps_state->next_rp_idx],
+		&enumerate_rps_state->rp_ids[enumerate_rps_state->next_rp_idx],
 		enumerate_rps_state->num_rps
 	));
 
@@ -148,8 +146,8 @@ static uint8_t credential_management_enumerate_rps_begin(ctap_state_t *const sta
 		assert(enumerate_rps_state->num_rps == 1);
 		enumerate_rps_state->num_rps = 0;
 		static_assert(
-			sizeof(enumerate_rps_state->rp_ids[0]) == sizeof(CTAP_rpId *),
-			"sizeof(enumerate_rps_state->rp_ids[0]) == sizeof(CTAP_rpId *)"
+			sizeof(enumerate_rps_state->rp_ids[0]) == sizeof(CTAP_rpId_hash_ptr),
+			"sizeof(enumerate_rps_state->rp_ids[0]) == sizeof(CTAP_rpId_hash_ptr)"
 		);
 		memset(
 			&enumerate_rps_state->rp_ids[0],
@@ -174,7 +172,7 @@ static uint8_t credential_management_enumerate_rps_get_next_rp(ctap_state_t *con
 
 	ctap_check(encode_credential_management_enumerate_rps_response(
 		encoder,
-		enumerate_rps_state->rp_ids[enumerate_rps_state->next_rp_idx],
+		&enumerate_rps_state->rp_ids[enumerate_rps_state->next_rp_idx],
 		0 // totalRPs (0x05) is omitted for the authenticatorCredentialManagement/enumerateRPsGetNextRP
 	));
 
@@ -190,7 +188,7 @@ static uint8_t credential_management_enumerate_rps_get_next_rp(ctap_state_t *con
 
 static uint8_t encode_credential_management_enumerate_credentials_response(
 	CborEncoder *encoder,
-	const ctap_credential *credential,
+	const ctap_credential_handle_t *credential,
 	const uint8_t *credential_public_key,
 	const size_t num_credentials
 ) {
@@ -204,12 +202,14 @@ static uint8_t encode_credential_management_enumerate_credentials_response(
 	));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_credentialManagement_res_user));
-	ctap_check(ctap_encode_pub_key_cred_user_entity(&map, &credential->key->user, true));
+	CTAP_userEntity user;
+	ctap_credential_get_user(credential, &user);
+	ctap_check(ctap_encode_pub_key_cred_user_entity(&map, &user, true));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_credentialManagement_res_credentialID));
-	ctap_check(ctap_encode_pub_key_cred_desc(
-		&map, sizeof(credential->value->id), credential->value->id)
-	);
+	ctap_string_t credential_id;
+	ctap_credential_get_id(credential, &credential_id);
+	ctap_check(ctap_encode_pub_key_cred_desc(&map, &credential_id));
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_credentialManagement_res_publicKey));
 	ctap_check(ctap_encode_public_key(&map, credential_public_key));
@@ -220,7 +220,7 @@ static uint8_t encode_credential_management_enumerate_credentials_response(
 	}
 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_credentialManagement_res_credProtect));
-	cbor_encoding_check(cbor_encode_uint(&map, credential->value->credProtect));
+	cbor_encoding_check(cbor_encode_uint(&map, ctap_credential_get_cred_protect(credential)));
 
 	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
 
@@ -264,10 +264,6 @@ static uint8_t credential_management_enumerate_credentials_begin(
 		return CTAP2_ERR_PIN_AUTH_INVALID;
 	}
 
-	if (ctap_get_num_stored_discoverable_credentials() == 0) {
-		return CTAP2_ERR_NO_CREDENTIALS;
-	}
-
 	uint8_t ret;
 
 	ctap_discard_stateful_command_state(state);
@@ -275,8 +271,10 @@ static uint8_t credential_management_enumerate_credentials_begin(
 		&state->stateful_command_state.cred_mgmt_enumerate_credentials;
 	enumerate_credentials_state->num_credentials = 0;
 	enumerate_credentials_state->next_credential_idx = 0;
-	const size_t max_num_credentials = sizeof(enumerate_credentials_state->credentials) / sizeof(ctap_credential);
+	const size_t max_num_credentials =
+		sizeof(enumerate_credentials_state->credentials) / sizeof(ctap_credential_handle_t);
 	ctap_check(ctap_find_discoverable_credentials_by_rp_id(
+		state->storage,
 		NULL,
 		cm->subCommandParams.rpIDHash.data,
 		true,
@@ -289,13 +287,13 @@ static uint8_t credential_management_enumerate_credentials_begin(
 		return CTAP2_ERR_NO_CREDENTIALS;
 	}
 
-	const ctap_credential *credential = &enumerate_credentials_state->credentials[
+	const ctap_credential_handle_t *credential = &enumerate_credentials_state->credentials[
 		enumerate_credentials_state->next_credential_idx
 	];
 	uint8_t credential_public_key[64];
-	ctap_crypto_check(state->crypto->ecc_secp256r1_compute_public_key(
+	ctap_check(ctap_credential_compute_public_key(
 		state->crypto,
-		credential->value->private_key,
+		credential,
 		credential_public_key
 	));
 	ctap_check(encode_credential_management_enumerate_credentials_response(
@@ -318,8 +316,8 @@ static uint8_t credential_management_enumerate_credentials_begin(
 		assert(enumerate_credentials_state->num_credentials == 1);
 		enumerate_credentials_state->num_credentials = 0;
 		static_assert(
-			sizeof(enumerate_credentials_state->credentials[0]) == sizeof(ctap_credential),
-			"sizeof(enumerate_credentials_state->credentials[0]) == sizeof(ctap_credential)"
+			sizeof(enumerate_credentials_state->credentials[0]) == sizeof(ctap_credential_handle_t),
+			"sizeof(enumerate_credentials_state->credentials[0]) == sizeof(ctap_credential_handle_t)"
 		);
 		memset(
 			&enumerate_credentials_state->credentials[0],
@@ -346,13 +344,13 @@ static uint8_t credential_management_enumerate_credentials_get_next_credential(
 
 	uint8_t ret;
 
-	const ctap_credential *credential = &enumerate_credentials_state->credentials[
+	const ctap_credential_handle_t *credential = &enumerate_credentials_state->credentials[
 		enumerate_credentials_state->next_credential_idx
 	];
 	uint8_t credential_public_key[64];
-	ctap_crypto_check(state->crypto->ecc_secp256r1_compute_public_key(
+	ctap_check(ctap_credential_compute_public_key(
 		state->crypto,
-		credential->value->private_key,
+		credential,
 		credential_public_key
 	));
 	ctap_check(encode_credential_management_enumerate_credentials_response(
@@ -387,7 +385,7 @@ static uint8_t credential_management_enumerate_credentials_get_next_credential(
  */
 static uint8_t ensure_pin_uv_auth_token_can_be_used(
 	const ctap_state_t *const state,
-	const ctap_credentials_map_key *const credential
+	const ctap_credential_handle_t *const credential
 ) {
 	if ((
 		state->pin_uv_auth_token_state.rpId_set
@@ -419,16 +417,14 @@ static uint8_t credential_management_delete_credential(
 	}
 
 	// find credential
-	const int idx = ctap_lookup_credential_by_desc(&cm->subCommandParams.credentialID);
-	if (idx == -1) {
+	ctap_credential_handle_t credential;
+	if (!ctap_lookup_credential_by_desc(state->storage, &cm->subCommandParams.credentialID, &credential)) {
 		return CTAP2_ERR_NO_CREDENTIALS;
 	}
 
-	ctap_credentials_map_key *key = ctap_get_credential_key_by_idx(idx);
+	ctap_check(ensure_pin_uv_auth_token_can_be_used(state, &credential));
 
-	ctap_check(ensure_pin_uv_auth_token_can_be_used(state, key));
-
-	return ctap_delete_credential(idx);
+	return ctap_delete_credential(state->storage, &credential);
 
 }
 
@@ -449,54 +445,16 @@ static uint8_t credential_management_update_user_information(
 	}
 
 	// find credential
-	const int idx = ctap_lookup_credential_by_desc(&cm->subCommandParams.credentialID);
-	if (idx == -1) {
+	ctap_credential_handle_t credential;
+	if (!ctap_lookup_credential_by_desc(state->storage, &cm->subCommandParams.credentialID, &credential)) {
 		return CTAP2_ERR_NO_CREDENTIALS;
 	}
 
-	ctap_credentials_map_key *key = ctap_get_credential_key_by_idx(idx);
+	ctap_check(ensure_pin_uv_auth_token_can_be_used(state, &credential));
 
-	ctap_check(ensure_pin_uv_auth_token_can_be_used(state, key));
+	const CTAP_userEntity *const updated_user = &cm->subCommandParams.user;
 
-	const CTAP_userEntity *updated_user = &cm->subCommandParams.user;
-
-	// update of user.id is not allowed by the spec
-	if (!ctap_string_matches(&updated_user->id, &key->user.id)) {
-		return CTAP1_ERR_INVALID_PARAMETER;
-	}
-
-	// Replace the matching credential's PublicKeyCredentialUserEntity's
-	// name, displayName with the passed-in user details.
-	// If a field is not present in the passed-in user details, or it is present and empty,
-	// remove it from the matching credential's PublicKeyCredentialUserEntity.
-	if (ctap_param_is_present(updated_user, CTAP_userEntity_name) && updated_user->name.size > 0) {
-		ctap_set_present(&key->user, CTAP_userEntity_name);
-		if (ctap_store_arbitrary_length_string(
-			&updated_user->name,
-			&key->user.name,
-			key->userName_buffer,
-			sizeof(key->userName_buffer),
-			ctap_maybe_truncate_string
-		)) {
-			key->truncated |= CTAP_truncated_userName;
-		}
-	} else {
-		ctap_set_absent(&key->user, CTAP_userEntity_name);
-	}
-	if (ctap_param_is_present(updated_user, CTAP_userEntity_displayName) && updated_user->displayName.size > 0) {
-		ctap_set_present(&key->user, CTAP_userEntity_displayName);
-		if (ctap_store_arbitrary_length_string(
-			&updated_user->displayName,
-			&key->user.displayName,
-			key->userDisplayName_buffer,
-			sizeof(key->userDisplayName_buffer),
-			ctap_maybe_truncate_string
-		)) {
-			key->truncated |= CTAP_truncated_userDisplayName;
-		}
-	} else {
-		ctap_set_absent(&key->user, CTAP_userEntity_displayName);
-	}
+	ctap_check(ctap_credential_update_user_information(state->storage, &credential, updated_user));
 
 	return CTAP2_OK;
 

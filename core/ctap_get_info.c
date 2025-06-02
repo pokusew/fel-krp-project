@@ -79,7 +79,7 @@ uint8_t ctap_get_info(ctap_state_t *state, CborValue *it, CborEncoder *encoder) 
 		// ->  if true, it indicates that PIN has been set
 		// -> if false, it indicates that PIN has not been set yet
 		cbor_encoding_check(cbor_encode_text_string(&options, "clientPin", 9));
-		cbor_encoding_check(cbor_encode_boolean(&options, state->persistent.is_pin_set));
+		cbor_encoding_check(cbor_encode_boolean(&options, ctap_is_pin_set(state)));
 
 		cbor_encoding_check(cbor_encode_text_string(&options, "pinUvAuthToken", 14));
 		cbor_encoding_check(cbor_encode_boolean(&options, true));
@@ -157,7 +157,7 @@ uint8_t ctap_get_info(ctap_state_t *state, CborValue *it, CborEncoder *encoder) 
 	//   the minPINLength member MUST be absent if the clientPin option ID is absent;
 	//   it MUST be present if the authenticator supports authenticatorClientPIN (LionKey's case).
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_minPINLength));
-	cbor_encoding_check(cbor_encode_uint(&map, state->persistent.pin_min_code_point_length));
+	cbor_encoding_check(cbor_encode_uint(&map, ctap_get_pin_min_code_point_length(state)));
 
 	// close response map
 	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));

@@ -38,20 +38,49 @@ static size_t count_unicode_code_points_in_utf8_string(const uint8_t *str, const
 
 }
 
-static void decrement_pin_remaining_attempts(ctap_state_t *state) {
-	assert(state->persistent.pin_total_remaining_attempts > 0);
-	assert(state->pin_boot_remaining_attempts > 0);
-	state->persistent.pin_total_remaining_attempts--;
-	state->pin_boot_remaining_attempts--;
+static void update_persistent_pin_state(ctap_state_t *state) {
+	const ctap_storage_t *const storage = state->storage;
+	ctap_storage_item_t item = {
+		.handle = state->pin_state_item_handle,
+		.key = CTAP_STORAGE_KEY_PIN_INFO,
+		.size = sizeof(state->pin_state),
+		.data = (const uint8_t *) &state->pin_state,
+	};
+	if (storage->create_or_update_item(storage, &item) == CTAP_STORAGE_OK) {
+		debug_log("created or updated pin_state in the storage" nl);
+		state->pin_state_item_handle = item.handle;
+	} else {
+		error_log(red("creating or updating pin_state in the storage failed") nl);
+		// TODO: propagate error
+	}
 }
 
-static void reset_pin_remaining_attempts(ctap_state_t *state) {
-	state->persistent.pin_total_remaining_attempts = CTAP_PIN_TOTAL_ATTEMPTS;
+static void decrement_pin_remaining_attempts(ctap_state_t *state) {
+
+	assert(state->pin_boot_remaining_attempts > 0);
+	state->pin_boot_remaining_attempts--;
+
+	assert(ctap_get_pin_total_remaining_attempts(state) > 0);
+	state->pin_state.pin_total_remaining_attempts--;
+	update_persistent_pin_state(state);
+
+}
+
+static void reset_pin_remaining_attempts(ctap_state_t *state, bool perform_persistent_update) {
+
 	state->pin_boot_remaining_attempts = CTAP_PIN_PER_BOOT_ATTEMPTS;
+
+	if (ctap_get_pin_total_remaining_attempts(state) < CTAP_PIN_TOTAL_ATTEMPTS) {
+		state->pin_state.pin_total_remaining_attempts = CTAP_PIN_TOTAL_ATTEMPTS;
+		if (perform_persistent_update) {
+			update_persistent_pin_state(state);
+		}
+	}
+
 }
 
 static uint8_t check_pin_remaining_attempts(ctap_state_t *state) {
-	if (state->persistent.pin_total_remaining_attempts == 0) {
+	if (ctap_get_pin_total_remaining_attempts(state) == 0) {
 		return CTAP2_ERR_PIN_BLOCKED;
 	}
 	if (state->pin_boot_remaining_attempts == 0) {
@@ -75,11 +104,11 @@ static uint8_t check_pin_hash(
 	const uint8_t *const shared_secret
 ) {
 	// These preconditions should be ensured by the caller function.
-	assert(state->persistent.pin_total_remaining_attempts > 0);
+	assert(ctap_get_pin_total_remaining_attempts(state) > 0);
 	assert(state->pin_boot_remaining_attempts > 0);
 
 	// Note: This case is not explicitly mentioned in the spec.
-	if (!state->persistent.is_pin_set) {
+	if (!ctap_is_pin_set(state)) {
 		return CTAP2_ERR_PIN_NOT_SET;
 	}
 
@@ -91,7 +120,7 @@ static uint8_t check_pin_hash(
 
 	// Authenticator decrypts pinHashEnc using decrypt(shared secret, pinHashEnc)
 	// and verifies against its internal stored LEFT(SHA-256(curPin), 16).
-	const size_t expected_pin_hash_length = sizeof(state->persistent.pin_hash);
+	const size_t expected_pin_hash_length = sizeof(state->pin_state.pin_hash);
 	if (pin_hash_enc->size < pin_protocol->encryption_extra_length) {
 		return handle_invalid_pin(state, pin_protocol);
 	}
@@ -108,12 +137,12 @@ static uint8_t check_pin_hash(
 	) != 0) {
 		return handle_invalid_pin(state, pin_protocol);
 	}
-	if (memcmp(state->persistent.pin_hash, pin_hash, sizeof(state->persistent.pin_hash)) != 0) {
+	if (memcmp(state->pin_state.pin_hash, pin_hash, sizeof(state->pin_state.pin_hash)) != 0) {
 		return handle_invalid_pin(state, pin_protocol);
 	}
 
 	// 5.8 Authenticator sets the pinRetries counter to maximum value.
-	reset_pin_remaining_attempts(state);
+	reset_pin_remaining_attempts(state, true);
 
 	return CTAP2_OK;
 }
@@ -235,7 +264,7 @@ static uint8_t set_pin(
 	// in order to comply with the CTAP2.1 standard, which states in 6.5.1. PIN Composition Requirements
 	// that "Authenticators MUST enforce the minimum PIN Length of 4 Unicode code points".
 	const size_t new_pin_code_point_length = count_unicode_code_points_in_utf8_string(new_pin, new_pin_length);
-	const size_t pin_min_code_point_length = state->persistent.pin_min_code_point_length;
+	const size_t pin_min_code_point_length = ctap_get_pin_min_code_point_length(state);
 	if (new_pin_code_point_length < pin_min_code_point_length) {
 		return CTAP2_ERR_PIN_POLICY_VIOLATION;
 	}
@@ -258,11 +287,12 @@ static uint8_t set_pin(
 		CTAP_PIN_HASH_SIZE <= sizeof(new_pin_hash),
 		"CTAP_PIN_HASH_SIZE must be less than or equal to 32 bytes (the size of the SHA-256 output)"
 	);
-	memcpy(state->persistent.pin_hash, new_pin_hash, CTAP_PIN_HASH_SIZE);
-	state->persistent.pin_code_point_length = new_pin_code_point_length;
-	state->persistent.is_pin_set = true;
 
-	reset_pin_remaining_attempts(state);
+	memcpy(state->pin_state.pin_hash, new_pin_hash, CTAP_PIN_HASH_SIZE);
+	state->pin_state.pin_code_point_length = new_pin_code_point_length;
+	state->pin_state.is_pin_set = 1u;
+	reset_pin_remaining_attempts(state, false);
+	update_persistent_pin_state(state);
 
 	return CTAP2_OK;
 
@@ -287,7 +317,7 @@ uint8_t ctap_client_pin_set_pin(
 	}
 
 	// 5.3 If a PIN has already been set, authenticator returns CTAP2_ERR_PIN_AUTH_INVALID error.
-	if (state->persistent.is_pin_set) {
+	if (ctap_is_pin_set(state)) {
 		return CTAP2_ERR_PIN_AUTH_INVALID;
 	}
 
@@ -621,7 +651,7 @@ uint8_t ctap_client_pin(ctap_state_t *const state, CborValue *const it, CborEnco
 			cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 2));
 			// 1. pinRetries
 			cbor_encoding_check(cbor_encode_int(&map, CTAP_clientPIN_res_pinRetries));
-			cbor_encoding_check(cbor_encode_int(&map, state->persistent.pin_total_remaining_attempts));
+			cbor_encoding_check(cbor_encode_int(&map, ctap_get_pin_total_remaining_attempts(state)));
 			// 2. powerCycleState
 			cbor_encoding_check(cbor_encode_int(&map, CTAP_clientPIN_res_powerCycleState));
 			// Present and true if the authenticator requires a power cycle

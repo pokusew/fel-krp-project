@@ -5,6 +5,7 @@
 extern "C" {
 #include <ctap.h>
 #include <ctap_crypto_software.h>
+#include <ctap_memory_storage.h>
 }
 namespace {
 
@@ -14,10 +15,16 @@ namespace {
 
 class CtapMakeCredentialTest : public testing::Test {
 protected:
+	uint8_t ctap_persistent_memory[16 * 1024]{};
 	uint8_t ctap_response_buffer[CTAP_RESPONSE_BUFFER_SIZE]{};
 	ctap_software_crypto_context_t crypto_ctx{};
 	const ctap_crypto_t crypto = CTAP_SOFTWARE_CRYPTO_CONST_INIT(&crypto_ctx);
-	ctap_state_t ctap = CTAP_STATE_CONST_INIT(&crypto);
+	ctap_memory_storage_context_t storage_ctx{
+		.memory_size = sizeof(ctap_persistent_memory),
+		.memory = ctap_persistent_memory,
+	};
+	const ctap_storage_t storage = CTAP_MEMORY_STORAGE_CONST_INIT(&storage_ctx);
+	ctap_state_t ctap = CTAP_STATE_CONST_INIT(&crypto, &storage);
 	ctap_response_t response{
 		.data_max_size = sizeof(ctap_response_buffer),
 		.data = ctap_response_buffer,

@@ -51,10 +51,10 @@ void ctap_compute_rp_id_hash(const ctap_crypto_t *const crypto, uint8_t *rp_id_h
 }
 
 static uint8_t create_attested_credential_data(
+	const ctap_crypto_t *crypto,
 	CTAP_authenticator_data_attestedCredentialData *attested_credential_data,
 	size_t *attested_credential_data_size,
-	const uint8_t *public_key,
-	const ctap_credentials_map_value *credential
+	const ctap_credential_handle_t *credential
 ) {
 
 	static_assert(
@@ -64,25 +64,29 @@ static uint8_t create_attested_credential_data(
 
 	memcpy(attested_credential_data->fixed_header.aaguid, ctap_aaguid, sizeof(ctap_aaguid));
 
-	static_assert(sizeof(credential->id) <= 1023, "credentialIdLength MUST be <= 1023");
-	attested_credential_data->fixed_header.credentialIdLength = lion_htons(sizeof(credential->id));
+	ctap_string_t credential_id;
+	ctap_credential_get_id(credential, &credential_id);
+	assert(credential_id.size <= 1023);
+	attested_credential_data->fixed_header.credentialIdLength = lion_htons(credential_id.size);
 
-	memcpy(attested_credential_data->variable_data, credential->id, sizeof(credential->id));
+	memcpy(attested_credential_data->variable_data, credential_id.data, credential_id.size);
 
 	CborEncoder encoder;
 	uint8_t ret;
 
-	uint8_t *credentialPublicKey = &attested_credential_data->variable_data[sizeof(credential->id)];
+	uint8_t *credentialPublicKey = &attested_credential_data->variable_data[credential_id.size];
 	const size_t credentialPublicKey_buffer_size =
-		sizeof(attested_credential_data->variable_data) - sizeof(credential->id);
+		sizeof(attested_credential_data->variable_data) - credential_id.size;
 
 	cbor_encoder_init(&encoder, credentialPublicKey, credentialPublicKey_buffer_size, 0);
 
+	uint8_t public_key[64];
+	ctap_check(ctap_credential_compute_public_key(crypto, credential, public_key));
 	ctap_check(ctap_encode_public_key(&encoder, public_key));
 
 	*attested_credential_data_size =
 		sizeof(attested_credential_data->fixed_header)
-		+ sizeof(credential->id)
+		+ credential_id.size
 		+ cbor_encoder_get_buffer_size(&encoder, credentialPublicKey);
 
 	assert(*attested_credential_data_size <= sizeof(CTAP_authenticator_data_attestedCredentialData));
@@ -96,7 +100,7 @@ static uint8_t encode_make_credential_authenticator_data_extensions(
 	const size_t buffer_size,
 	size_t *extensions_size,
 	const uint8_t extensions_present,
-	const ctap_credentials_map_value *credential
+	const ctap_credential_handle_t *credential
 ) {
 
 	CborEncoder encoder;
@@ -116,7 +120,8 @@ static uint8_t encode_make_credential_authenticator_data_extensions(
 	cbor_encoding_check(cbor_encoder_create_map(&encoder, &map, num_extensions_in_output_map));
 	if ((extensions_present & CTAP_extension_credProtect) != 0u) {
 		cbor_encoding_check(cbor_encode_text_string(&map, "credProtect", 11));
-		cbor_encoding_check(cbor_encode_uint(&map, credential->credProtect));
+		const uint8_t cred_protect = ctap_credential_get_cred_protect(credential);
+		cbor_encoding_check(cbor_encode_uint(&map, cred_protect));
 	}
 	if ((extensions_present & CTAP_extension_hmac_secret) != 0u) {
 		cbor_encoding_check(cbor_encode_text_string(&map, "hmac-secret", 11));
@@ -135,10 +140,12 @@ static uint8_t compute_signature(
 	const CTAP_authenticator_data *auth_data,
 	const size_t auth_data_size,
 	const uint8_t *client_data_hash,
-	const ctap_credentials_map_value *credential,
+	const ctap_credential_handle_t *credential,
 	uint8_t asn1_der_sig[72],
 	size_t *asn1_der_sig_size
 ) {
+
+	uint8_t ret;
 
 	// message_hash = SHA256(authenticatorData || clientDataHash)
 	uint8_t message_hash[CTAP_SHA256_HASH_SIZE];
@@ -153,13 +160,12 @@ static uint8_t compute_signature(
 	sha256->final(sha256_ctx, message_hash);
 
 	uint8_t signature[64];
-	ctap_crypto_check(crypto->ecc_secp256r1_sign(
+	ctap_check(ctap_credential_compute_signature(
 		crypto,
-		credential->private_key,
+		credential,
 		message_hash,
 		sizeof(message_hash),
-		signature,
-		NULL
+		signature
 	));
 
 	// WebAuthn 6.5.5. Signature Formats for Packed Attestation, FIDO U2F Attestation, and Assertion Signatures
@@ -182,7 +188,7 @@ static uint8_t create_self_attestation_statement(
 	const CTAP_authenticator_data *auth_data,
 	const size_t auth_data_size,
 	const uint8_t *client_data_hash,
-	const ctap_credentials_map_value *credential
+	const ctap_credential_handle_t *credential
 ) {
 
 	uint8_t ret;
@@ -263,7 +269,7 @@ static uint8_t handle_pin_uv_auth_param_and_protocol(
 			case CTAP_UP_RESULT_ALLOW:
 				// 3. If evidence of user interaction is provided in this step then return either CTAP2_ERR_PIN_NOT_SET
 				//    if PIN is not set or CTAP2_ERR_PIN_INVALID if PIN has been set.
-				return !state->persistent.is_pin_set ? CTAP2_ERR_PIN_NOT_SET : CTAP2_ERR_PIN_INVALID;
+				return !ctap_is_pin_set(state) ? CTAP2_ERR_PIN_NOT_SET : CTAP2_ERR_PIN_INVALID;
 		}
 	}
 
@@ -422,17 +428,17 @@ static uint8_t process_exclude_list(
 		if (cred_desc == NULL) {
 			break;
 		}
-		int idx = ctap_lookup_credential_by_desc(cred_desc);
-		if (idx == -1) {
+		ctap_credential_handle_t credential;
+		if (!ctap_lookup_credential_by_desc(state->storage, cred_desc, &credential)) {
 			debug_log("process_exclude_list: skipping unknown credential ID" nl);
 			continue;
 		}
-		if (!ctap_credential_matches_rp(ctap_get_credential_key_by_idx(idx), rpId)) {
+		if (!ctap_credential_matches_rp(&credential, rpId)) {
 			debug_log("process_exclude_list: skipping credential ID that is bound to a different RP" nl);
 			continue;
 		}
-		ctap_credentials_map_value *cred = ctap_get_credential_value_by_idx(idx);
-		if (cred->credProtect == CTAP_extension_credProtect_3_userVerificationRequired && !uv_collected) {
+		const uint8_t cred_protect = ctap_credential_get_cred_protect(&credential);
+		if (cred_protect == CTAP_extension_credProtect_3_userVerificationRequired && !uv_collected) {
 			debug_log(
 				"process_exclude_list:"
 				" skipping a credential with credProtect_3_userVerificationRequired"
@@ -442,7 +448,7 @@ static uint8_t process_exclude_list(
 		}
 		// TODO:
 		//   What if is the pinUvAuthParam is invalid here?
-		//   Note that it is validated only if !allow_no_verification && state->persistent.is_pin_set (see Step 11).
+		//   Note that it is validated only if !allow_no_verification && ctap_is_pin_set(state) (see Step 11).
 		const bool user_present = pinUvAuthParam_present && ctap_pin_uv_auth_token_get_user_present_flag_value(state);
 		if (!user_present) {
 			debug_log("process_exclude_list: collecting user presence ..." nl);
@@ -459,10 +465,11 @@ static uint8_t process_exclude_list(
 }
 
 static uint8_t process_allow_list(
+	ctap_state_t *state,
 	const CborValue *allowList,
 	const CTAP_rpId *rpId,
 	const bool response_has_uv,
-	ctap_credential *credentials,
+	ctap_credential_handle_t *credentials,
 	size_t *const num_credentials,
 	const size_t max_num_credentials
 ) {
@@ -488,23 +495,18 @@ static uint8_t process_allow_list(
 			break;
 		}
 
-		int idx = ctap_lookup_credential_by_desc(cred_desc);
-
-		if (idx == -1) {
+		ctap_credential_handle_t credential;
+		if (!ctap_lookup_credential_by_desc(state->storage, cred_desc, &credential)) {
 			debug_log("process_allow_list: skipping unknown credential ID" nl);
 			continue;
 		}
 
-		ctap_credentials_map_key *key = ctap_get_credential_key_by_idx(idx);
-
-		if (!ctap_credential_matches_rp(key, rpId)) {
+		if (!ctap_credential_matches_rp(&credential, rpId)) {
 			debug_log("process_allow_list: skipping credential ID that is bound to a different RP" nl);
 			continue;
 		}
 
-		ctap_credentials_map_value *value = ctap_get_credential_value_by_idx(idx);
-
-		if (!ctap_should_add_credential_to_list(value, true, response_has_uv)) {
+		if (!ctap_should_add_credential_to_list(&credential, true, response_has_uv)) {
 			debug_log("process_allow_list: skipping credential due to its credProtect" nl);
 			continue;
 		}
@@ -516,9 +518,7 @@ static uint8_t process_allow_list(
 			);
 			return CTAP1_ERR_INVALID_LENGTH;
 		}
-		ctap_credential *credential = &credentials[credentials_num++];
-		credential->key = key;
-		credential->value = value;
+		credentials[credentials_num++] = credential;
 
 	}
 
@@ -572,8 +572,8 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 
 	// 5. If the options parameter is present, process all option keys and values present in the parameter.
 	//    Treat any option keys that are not understood as absent.
-	const bool rk = get_option_value_or_false(&params->options, CTAP_ma_ga_option_rk);
-	debug_log("option rk=%d" nl, rk);
+	const bool discoverable = get_option_value_or_false(&params->options, CTAP_ma_ga_option_rk);
+	debug_log("discoverable = %d" nl, discoverable);
 	if (ctap_param_is_present(params, CTAP_makeCredential_options)) {
 		ctap_check(ensure_uv_option_false(pinUvAuthParam_present, &params->options));
 		// user presence (defaults to true):
@@ -595,7 +595,7 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 	//    Note:
 	//      This step returns an error if the platform tries to create a discoverable credential
 	//      without performing some form of user verification.
-	if (state->persistent.is_pin_set && !pinUvAuthParam_present && rk) {
+	if (ctap_is_pin_set(state) && !pinUvAuthParam_present && discoverable) {
 		return CTAP2_ERR_PUAT_REQUIRED;
 	}
 
@@ -612,10 +612,10 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 
 	// 10. Allow the authenticator to create a non-discoverable credential
 	//     without requiring some form of user verification under the below specific criteria.
-	const bool allow_no_verification = !rk && !pinUvAuthParam_present;
+	const bool allow_no_verification = !discoverable && !pinUvAuthParam_present;
 	debug_log("allow_no_verification=%d" nl, allow_no_verification);
 	// 11. If the authenticator is protected by some form of user verification , then:
-	if (!allow_no_verification && state->persistent.is_pin_set) {
+	if (!allow_no_verification && ctap_is_pin_set(state)) {
 		// 1. If pinUvAuthParam parameter is present (implying the "uv" option is false (see Step 5)):
 		if (pinUvAuthParam_present) {
 			assert(pin_protocol != NULL); // <- this should be ensured by Step 2
@@ -663,19 +663,16 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 
 	// extensions processing
 
-	ctap_credentials_map_value credential;
-	credential.discoverable = rk;
-	credential.signCount = 1;
-
 	// 12.1. Credential Protection (credProtect)
 	// https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html#sctn-credProtect-extension
 	//   credProtect value is persisted with the credential.
 	//   If no credProtect extension was included in the request the authenticator
 	//   SHOULD use the default value of 1 for compatibility with CTAP2.0 platforms.
 	//   The authenticator MUST NOT return an unsolicited credProtect extension output.
-	credential.credProtect = CTAP_extension_credProtect_1_userVerificationOptional;
+	uint8_t credProtect = CTAP_extension_credProtect_1_userVerificationOptional;
 
 	// 12.5. HMAC Secret Extension (hmac-secret)
+	//   (handled by ctap_create_credential())
 	//   authenticatorMakeCredential additional behaviors
 	//     The authenticator generates two random 32-byte values (called CredRandomWithUV and CredRandomWithoutUV)
 	//     and associates them with the credential.
@@ -683,14 +680,6 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 	//       Authenticator SHOULD generate CredRandomWithUV/CredRandomWithoutUV and associate
 	//       them with the credential, even if hmac-secret extension is NOT present
 	//       in authenticatorMakeCredential request.
-	ctap_crypto_check(crypto->rng_generate_data(
-		crypto,
-		credential.CredRandomWithUV, sizeof(credential.CredRandomWithUV)
-	));
-	ctap_crypto_check(crypto->rng_generate_data(
-		crypto,
-		credential.CredRandomWithoutUV, sizeof(credential.CredRandomWithoutUV))
-	);
 
 	// 15. If the extensions parameter is present:
 	if (ctap_param_is_present(params, CTAP_makeCredential_extensions)) {
@@ -712,7 +701,7 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 				mc.credProtect == CTAP_extension_credProtect_2_userVerificationOptionalWithCredentialIDList
 				|| mc.credProtect == CTAP_extension_credProtect_3_userVerificationRequired
 			)) {
-				credential.credProtect = mc.credProtect;
+				credProtect = mc.credProtect;
 			}
 		}
 	}
@@ -732,16 +721,12 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 	//     Note: This step is a change from CTAP2.0 where if the "rk" option is false the authenticator
 	//           could optionally create a discoverable credential.
 
-	credential.id[0] = 0x01u; // version
-	ctap_crypto_check(crypto->rng_generate_data(crypto, &credential.id[1], sizeof(credential.id) - 1));
-	ctap_crypto_check(crypto->rng_generate_data(crypto, credential.private_key, sizeof(credential.private_key)));
-	uint8_t public_key[64];
-	ctap_crypto_check(crypto->ecc_secp256r1_compute_public_key(
-		crypto,
-		credential.private_key,
-		public_key
-	));
-	ctap_check(ctap_store_credential(
+	ctap_credential_handle_t credential;
+	ctap_check(ctap_create_credential(
+		state->storage,
+		state->crypto,
+		discoverable,
+		credProtect,
 		&params->rpId,
 		&mc.user,
 		&credential
@@ -751,7 +736,9 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 	//     taking into account the value of the enterpriseAttestation parameter, if present,
 	//     as described above in Step 9.
 	memcpy(auth_data.fixed_header.rpIdHash, params->rpId.hash, CTAP_SHA256_HASH_SIZE);
-	auth_data.fixed_header.signCount = lion_htonl(credential.signCount);
+	uint32_t signCount;
+	ctap_check(ctap_increment_global_signature_counter(state->storage, state->crypto, &signCount));
+	auth_data.fixed_header.signCount = lion_htonl(signCount);
 
 	size_t auth_data_variable_size = 0;
 	const size_t auth_data_variable_max_size = sizeof(auth_data.variable_data);
@@ -760,9 +747,9 @@ uint8_t ctap_make_credential(ctap_state_t *const state, CborValue *const it, Cbo
 		(CTAP_authenticator_data_attestedCredentialData *) &auth_data.variable_data[auth_data_variable_size];
 	size_t attested_credential_data_size;
 	ctap_check(create_attested_credential_data(
+		state->crypto,
 		attested_credential_data,
 		&attested_credential_data_size,
-		public_key,
 		&credential
 	));
 	auth_data_variable_size += attested_credential_data_size;
@@ -889,7 +876,7 @@ static uint8_t generate_get_assertion_hmac_secret_extension_output(
 	const ctap_crypto_t *const crypto,
 	const ctap_get_assertion_hmac_secret_state_t *const hmac_secret_state,
 	const uint32_t auth_data_flags,
-	const ctap_credential *const credential,
+	const ctap_credential_handle_t *const credential,
 	CborEncoder *const encoder
 ) {
 
@@ -901,8 +888,10 @@ static uint8_t generate_get_assertion_hmac_secret_extension_output(
 	crypto->sha256_bind_ctx(crypto, sha256_ctx);
 	uint8_t hmac_ctx[hmac_get_context_size(sha256)];
 
-	uint8_t *const CredRandom = (auth_data_flags & CTAP_authenticator_data_flags_uv) != 0
-		? credential->value->CredRandomWithUV : credential->value->CredRandomWithoutUV;
+	const uint8_t *const CredRandom = ctap_credential_get_cred_random(
+		credential,
+		(auth_data_flags & CTAP_authenticator_data_flags_uv) != 0
+	);
 
 	assert(hmac_secret_state->salt_length == 32 || hmac_secret_state->salt_length == 64);
 	static_assert(
@@ -950,7 +939,7 @@ static uint8_t generate_get_assertion_extensions_output(
 
 	assert(ga_state->next_credential_idx < ga_state->num_credentials);
 
-	const ctap_credential *const credential = &ga_state->credentials[ga_state->next_credential_idx];
+	const ctap_credential_handle_t *const credential = &ga_state->credentials[ga_state->next_credential_idx];
 
 	const uint8_t extensions = ga_state->extensions;
 
@@ -983,6 +972,7 @@ static uint8_t generate_get_assertion_extensions_output(
 static uint8_t generate_get_assertion_response(
 	CborEncoder *encoder,
 	const ctap_crypto_t *const crypto,
+	const ctap_storage_t *const storage,
 	const ctap_get_assertion_state_t *const ga_state
 ) {
 
@@ -990,14 +980,7 @@ static uint8_t generate_get_assertion_response(
 
 	assert(ga_state->next_credential_idx < ga_state->num_credentials);
 
-	const ctap_credential *const credential = &ga_state->credentials[ga_state->next_credential_idx];
-
-	uint8_t public_key[64];
-	ctap_crypto_check(crypto->ecc_secp256r1_compute_public_key(
-		crypto,
-		credential->value->private_key,
-		public_key
-	));
+	const ctap_credential_handle_t *const credential = &ga_state->credentials[ga_state->next_credential_idx];
 
 	CTAP_authenticator_data auth_data;
 
@@ -1011,9 +994,10 @@ static uint8_t generate_get_assertion_response(
 	// copy the auth_data_flags to the authenticator data
 	auth_data.fixed_header.flags = ga_state->auth_data_flags;
 
-	// increment the credential's signature counter and copy tne new value to the authenticator data
-	credential->value->signCount++;
-	auth_data.fixed_header.signCount = lion_htonl(credential->value->signCount);
+	// increment the credential's signature counter and copy the new value to the authenticator data
+	uint32_t signCount;
+	ctap_check(ctap_increment_global_signature_counter(storage, crypto, &signCount));
+	auth_data.fixed_header.signCount = lion_htonl(signCount);
 
 	size_t auth_data_variable_size = 0u;
 	const size_t auth_data_variable_max_size = sizeof(auth_data.variable_data);
@@ -1042,7 +1026,7 @@ static uint8_t generate_get_assertion_response(
 		&auth_data,
 		auth_data_total_size,
 		ga_state->client_data_hash,
-		credential->value,
+		credential,
 		asn1_der_sig,
 		&asn1_der_sig_size
 	));
@@ -1061,7 +1045,9 @@ static uint8_t generate_get_assertion_response(
 	));
 	// credential (0x01)
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_credential));
-	ctap_check(ctap_encode_pub_key_cred_desc(&map, sizeof(credential->value->id), credential->value->id));
+	ctap_string_t credential_id;
+	ctap_credential_get_id(credential, &credential_id);
+	ctap_check(ctap_encode_pub_key_cred_desc(&map, &credential_id));
 	// authData (0x02)
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_authData));
 	cbor_encoding_check(cbor_encode_byte_string(
@@ -1082,7 +1068,13 @@ static uint8_t generate_get_assertion_response(
 	//   in the original authenticatorGetAssertion call.
 	bool include_user_identifiable_info = (ga_state->auth_data_flags & CTAP_authenticator_data_flags_uv) != 0u;
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_user));
-	ctap_check(ctap_encode_pub_key_cred_user_entity(&map, &credential->key->user, include_user_identifiable_info));
+	CTAP_userEntity user;
+	ctap_credential_get_user(credential, &user);
+	ctap_check(ctap_encode_pub_key_cred_user_entity(
+		&map,
+		&user,
+		include_user_identifiable_info
+	));
 	if (num_credentials > 0) {
 		// numberOfCredentials (0x05)
 		cbor_encoding_check(cbor_encode_uint(&map, CTAP_getAssertion_res_numberOfCredentials));
@@ -1148,7 +1140,7 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 	// 5. (not applicable to LionKey) If the alwaysUv option ID is present and true and ...
 
 	// 6. If the authenticator is protected by some form of user verification, then:
-	if (state->persistent.is_pin_set) {
+	if (ctap_is_pin_set(state)) {
 		// 1. If pinUvAuthParam parameter is present (implying the "uv" option is false (see Step 4)):
 		if (pinUvAuthParam_present) {
 			assert(pin_protocol != NULL); // <- this should be ensured by Step 2
@@ -1170,7 +1162,7 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 	ga_state->extensions = 0;
 	ga_state->num_credentials = 0;
 	ga_state->next_credential_idx = 0;
-	const size_t max_num_credentials = sizeof(ga_state->credentials) / sizeof(ctap_credential);
+	const size_t max_num_credentials = sizeof(ga_state->credentials) / sizeof(ctap_credential_handle_t);
 	const bool response_has_uv = (auth_data_flags & CTAP_authenticator_data_flags_uv) != 0u;
 	// 7. Locate all credentials that are eligible for retrieval under the specified criteria:
 	//    Note: Our implementation also performs steps 7.3., 7.4., and 7.5. at the same time.
@@ -1178,6 +1170,7 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 		// 7.1. If the allowList parameter is present and is non-empty,
 		//      locate all denoted credentials created by this authenticator and bound to the specified rpId.
 		ctap_check(process_allow_list(
+			state,
 			&ga.allowList,
 			&params->rpId,
 			response_has_uv,
@@ -1193,6 +1186,7 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 		//   by the time when they were created in reverse order.
 		//   (I.e. the first credential is the most recently created.)
 		ctap_check(ctap_find_discoverable_credentials_by_rp_id(
+			state->storage,
 			&params->rpId,
 			NULL,
 			response_has_uv,
@@ -1260,6 +1254,7 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 	ctap_check(generate_get_assertion_response(
 		encoder,
 		crypto,
+		state->storage,
 		ga_state
 	));
 
@@ -1292,8 +1287,8 @@ uint8_t ctap_get_assertion(ctap_state_t *const state, CborValue *const it, CborE
 		ga_state->extensions = 0;
 		memset(&ga_state->hmac_secret_state, 0, sizeof(ga_state->hmac_secret_state));
 		static_assert(
-			sizeof(ga_state->credentials[0]) == sizeof(ctap_credential),
-			"sizeof(ga_state->credentials[0]) == sizeof(ctap_credential)"
+			sizeof(ga_state->credentials[0]) == sizeof(ctap_credential_handle_t),
+			"sizeof(ga_state->credentials[0]) == sizeof(ctap_credential_handle_t)"
 		);
 		memset(ga_state->credentials, 0, sizeof(ga_state->credentials[0]) * ga_state->num_credentials);
 		ga_state->num_credentials = 0;
@@ -1342,6 +1337,7 @@ uint8_t ctap_get_next_assertion(ctap_state_t *const state, CborValue *const it, 
 	ctap_check(generate_get_assertion_response(
 		encoder,
 		state->crypto,
+		state->storage,
 		ga_state
 	));
 

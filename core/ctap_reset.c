@@ -43,7 +43,11 @@ uint8_t ctap_reset(ctap_state_t *const state, CborValue *const it, CborEncoder *
 			// If all conditions are met (1. evidence of user interaction collected
 			// and 2. the request came within 10 seconds of powering up), authenticator returns CTAP2_OK.
 			ctap_send_keepalive_if_needed(CTAP_STATUS_PROCESSING);
-			ctap_init(state); // TODO: Update once we implement the state persistence.
+			if (state->storage->erase(state->storage) != CTAP_STORAGE_OK) {
+				error_log("storage->erase failed" nl);
+				return CTAP1_ERR_OTHER;
+			}
+			ctap_init(state);
 			return CTAP2_OK;
 	}
 

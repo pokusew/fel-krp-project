@@ -5,6 +5,7 @@
 extern "C" {
 #include <ctap.h>
 #include <ctap_crypto_software.h>
+#include <ctap_memory_storage.h>
 }
 namespace {
 
@@ -285,8 +286,8 @@ constexpr auto create_get_pin_token_v2(
 	EXPECT_EQ(response.length, 0)
 
 #define EXPECT_PIN_SET_SUCCESSFULLY() \
-	EXPECT_EQ(ctap.persistent.is_pin_set, true); \
-	EXPECT_EQ(ctap.persistent.pin_total_remaining_attempts, CTAP_PIN_TOTAL_ATTEMPTS); \
+	EXPECT_EQ(ctap.pin_state.is_pin_set, true); \
+	EXPECT_EQ(ctap.pin_state.pin_total_remaining_attempts, CTAP_PIN_TOTAL_ATTEMPTS); \
 	EXPECT_EQ(ctap.pin_boot_remaining_attempts, CTAP_PIN_PER_BOOT_ATTEMPTS)
 
 
@@ -295,7 +296,9 @@ protected:
 	uint8_t ctap_response_buffer[CTAP_RESPONSE_BUFFER_SIZE]{};
 	ctap_software_crypto_context_t crypto_ctx{};
 	const ctap_crypto_t crypto = CTAP_SOFTWARE_CRYPTO_CONST_INIT(&crypto_ctx);
-	ctap_state_t ctap = CTAP_STATE_CONST_INIT(&crypto);
+	ctap_memory_storage_context_t storage_ctx{};
+	const ctap_storage_t storage = CTAP_MEMORY_STORAGE_CONST_INIT(&storage_ctx);
+	ctap_state_t ctap = CTAP_STATE_CONST_INIT(&crypto, &storage);
 	ctap_response_t response{
 		.data_max_size = sizeof(ctap_response_buffer),
 		.data = ctap_response_buffer,
@@ -392,15 +395,15 @@ TEST_F(CtapClientPinTest, SetPinV1To1234) {
 		>()
 	);
 
-	EXPECT_EQ(ctap.persistent.is_pin_set, false);
+	EXPECT_EQ(ctap.pin_state.is_pin_set, false);
 
 	test_ctap_client_pin(params);
 	EXPECT_SUCCESS_EMPTY_RESPONSE();
 
 	EXPECT_PIN_SET_SUCCESSFULLY();
-	EXPECT_EQ(ctap.persistent.pin_code_point_length, 4);
-	static_assert(sizeof(ctap.persistent.pin_hash) <= pin_hash.size());
-	EXPECT_SAME_BYTES(ctap.persistent.pin_hash, pin_hash.data());
+	EXPECT_EQ(ctap.pin_state.pin_code_point_length, 4);
+	static_assert(sizeof(ctap.pin_state.pin_hash) <= pin_hash.size());
+	EXPECT_SAME_BYTES(ctap.pin_state.pin_hash, pin_hash.data());
 }
 
 TEST_F(CtapClientPinTest, SetPinV1OneCodePoint) {
@@ -417,13 +420,13 @@ TEST_F(CtapClientPinTest, SetPinV1OneCodePoint) {
 		>()
 	);
 
-	EXPECT_EQ(ctap.persistent.is_pin_set, false);
+	EXPECT_EQ(ctap.pin_state.is_pin_set, false);
 
 	test_ctap_client_pin(params);
 	EXPECT_ERROR_RESPONSE(CTAP2_ERR_PIN_POLICY_VIOLATION);
 
-	EXPECT_EQ(ctap.persistent.is_pin_set, false);
-	EXPECT_EQ(ctap.persistent.pin_total_remaining_attempts, CTAP_PIN_TOTAL_ATTEMPTS);
+	EXPECT_EQ(ctap.pin_state.is_pin_set, false);
+	EXPECT_EQ(ctap.pin_state.pin_total_remaining_attempts, CTAP_PIN_TOTAL_ATTEMPTS);
 	EXPECT_EQ(ctap.pin_boot_remaining_attempts, CTAP_PIN_PER_BOOT_ATTEMPTS);
 }
 
@@ -444,15 +447,15 @@ TEST_F(CtapClientPinTest, SetPinV1Emoji) {
 		>()
 	);
 
-	EXPECT_EQ(ctap.persistent.is_pin_set, false);
+	EXPECT_EQ(ctap.pin_state.is_pin_set, false);
 
 	test_ctap_client_pin(params);
 	EXPECT_SUCCESS_EMPTY_RESPONSE();
 
 	EXPECT_PIN_SET_SUCCESSFULLY();
-	EXPECT_EQ(ctap.persistent.pin_code_point_length, 4);
-	static_assert(sizeof(ctap.persistent.pin_hash) <= pin_hash.size());
-	EXPECT_SAME_BYTES(ctap.persistent.pin_hash, pin_hash.data());
+	EXPECT_EQ(ctap.pin_state.pin_code_point_length, 4);
+	static_assert(sizeof(ctap.pin_state.pin_hash) <= pin_hash.size());
+	EXPECT_SAME_BYTES(ctap.pin_state.pin_hash, pin_hash.data());
 }
 
 TEST_F(CtapClientPinTest, ChangePinV1From1234ToABCD) {
@@ -490,15 +493,15 @@ TEST_F(CtapClientPinTest, ChangePinV1From1234ToABCD) {
 		>()
 	);
 
-	EXPECT_EQ(ctap.persistent.is_pin_set, false);
+	EXPECT_EQ(ctap.pin_state.is_pin_set, false);
 
 	test_ctap_client_pin(params_set_pin_1234);
 	EXPECT_SUCCESS_EMPTY_RESPONSE();
 
 	EXPECT_PIN_SET_SUCCESSFULLY();
-	EXPECT_EQ(ctap.persistent.pin_code_point_length, 4);
-	static_assert(sizeof(ctap.persistent.pin_hash) <= pin_1234_hash.size());
-	EXPECT_SAME_BYTES(ctap.persistent.pin_hash, pin_1234_hash.data());
+	EXPECT_EQ(ctap.pin_state.pin_code_point_length, 4);
+	static_assert(sizeof(ctap.pin_state.pin_hash) <= pin_1234_hash.size());
+	EXPECT_SAME_BYTES(ctap.pin_state.pin_hash, pin_1234_hash.data());
 
 	test_ctap_client_pin(params_change_pin_from_1234_to_ABCD);
 	EXPECT_SUCCESS_EMPTY_RESPONSE();
@@ -528,15 +531,15 @@ TEST_F(CtapClientPinTest, GetPinTokenV1) {
 		>()
 	);
 
-	EXPECT_EQ(ctap.persistent.is_pin_set, false);
+	EXPECT_EQ(ctap.pin_state.is_pin_set, false);
 
 	test_ctap_client_pin(params_set_pin_1234);
 	EXPECT_SUCCESS_EMPTY_RESPONSE();
 
 	EXPECT_PIN_SET_SUCCESSFULLY();
-	EXPECT_EQ(ctap.persistent.pin_code_point_length, 4);
-	static_assert(sizeof(ctap.persistent.pin_hash) <= pin_1234_hash.size());
-	EXPECT_SAME_BYTES(ctap.persistent.pin_hash, pin_1234_hash.data());
+	EXPECT_EQ(ctap.pin_state.pin_code_point_length, 4);
+	static_assert(sizeof(ctap.pin_state.pin_hash) <= pin_1234_hash.size());
+	EXPECT_SAME_BYTES(ctap.pin_state.pin_hash, pin_1234_hash.data());
 
 	test_ctap_client_pin(params_get_pin_token);
 	EXPECT_EQ(status, CTAP2_OK);
@@ -622,16 +625,16 @@ TEST_F(CtapClientPinTest, SetPinV2To1234) {
 		>()
 	);
 
-	EXPECT_EQ(ctap.persistent.is_pin_set, false);
+	EXPECT_EQ(ctap.pin_state.is_pin_set, false);
 
 	dump_hex(params.data(), params.size());
 	test_ctap_client_pin(params);
 	EXPECT_SUCCESS_EMPTY_RESPONSE();
 
 	EXPECT_PIN_SET_SUCCESSFULLY();
-	EXPECT_EQ(ctap.persistent.pin_code_point_length, 4);
-	static_assert(sizeof(ctap.persistent.pin_hash) <= pin_hash.size());
-	EXPECT_SAME_BYTES(ctap.persistent.pin_hash, pin_hash.data());
+	EXPECT_EQ(ctap.pin_state.pin_code_point_length, 4);
+	static_assert(sizeof(ctap.pin_state.pin_hash) <= pin_hash.size());
+	EXPECT_SAME_BYTES(ctap.pin_state.pin_hash, pin_hash.data());
 }
 
 TEST_F(CtapClientPinTest, SetPinV2OneCodePoint) {
@@ -649,13 +652,13 @@ TEST_F(CtapClientPinTest, SetPinV2OneCodePoint) {
 		>()
 	);
 
-	EXPECT_EQ(ctap.persistent.is_pin_set, false);
+	EXPECT_EQ(ctap.pin_state.is_pin_set, false);
 
 	test_ctap_client_pin(params);
 	EXPECT_ERROR_RESPONSE(CTAP2_ERR_PIN_POLICY_VIOLATION);
 
-	EXPECT_EQ(ctap.persistent.is_pin_set, false);
-	EXPECT_EQ(ctap.persistent.pin_total_remaining_attempts, CTAP_PIN_TOTAL_ATTEMPTS);
+	EXPECT_EQ(ctap.pin_state.is_pin_set, false);
+	EXPECT_EQ(ctap.pin_state.pin_total_remaining_attempts, CTAP_PIN_TOTAL_ATTEMPTS);
 	EXPECT_EQ(ctap.pin_boot_remaining_attempts, CTAP_PIN_PER_BOOT_ATTEMPTS);
 }
 
@@ -677,15 +680,15 @@ TEST_F(CtapClientPinTest, SetPinV2Emoji) {
 		>()
 	);
 
-	EXPECT_EQ(ctap.persistent.is_pin_set, false);
+	EXPECT_EQ(ctap.pin_state.is_pin_set, false);
 
 	test_ctap_client_pin(params);
 	EXPECT_SUCCESS_EMPTY_RESPONSE();
 
 	EXPECT_PIN_SET_SUCCESSFULLY();
-	EXPECT_EQ(ctap.persistent.pin_code_point_length, 4);
-	static_assert(sizeof(ctap.persistent.pin_hash) <= pin_hash.size());
-	EXPECT_SAME_BYTES(ctap.persistent.pin_hash, pin_hash.data());
+	EXPECT_EQ(ctap.pin_state.pin_code_point_length, 4);
+	static_assert(sizeof(ctap.pin_state.pin_hash) <= pin_hash.size());
+	EXPECT_SAME_BYTES(ctap.pin_state.pin_hash, pin_hash.data());
 }
 
 TEST_F(CtapClientPinTest, ChangePinV2From1234ToABCD) {
@@ -725,15 +728,15 @@ TEST_F(CtapClientPinTest, ChangePinV2From1234ToABCD) {
 		>()
 	);
 
-	EXPECT_EQ(ctap.persistent.is_pin_set, false);
+	EXPECT_EQ(ctap.pin_state.is_pin_set, false);
 
 	test_ctap_client_pin(params_set_pin_1234);
 	EXPECT_SUCCESS_EMPTY_RESPONSE();
 
 	EXPECT_PIN_SET_SUCCESSFULLY();
-	EXPECT_EQ(ctap.persistent.pin_code_point_length, 4);
-	static_assert(sizeof(ctap.persistent.pin_hash) <= pin_1234_hash.size());
-	EXPECT_SAME_BYTES(ctap.persistent.pin_hash, pin_1234_hash.data());
+	EXPECT_EQ(ctap.pin_state.pin_code_point_length, 4);
+	static_assert(sizeof(ctap.pin_state.pin_hash) <= pin_1234_hash.size());
+	EXPECT_SAME_BYTES(ctap.pin_state.pin_hash, pin_1234_hash.data());
 
 	test_ctap_client_pin(params_change_pin_from_1234_to_ABCD);
 	EXPECT_SUCCESS_EMPTY_RESPONSE();
@@ -764,15 +767,15 @@ TEST_F(CtapClientPinTest, GetPinTokenV2) {
 		>()
 	);
 
-	EXPECT_EQ(ctap.persistent.is_pin_set, false);
+	EXPECT_EQ(ctap.pin_state.is_pin_set, false);
 
 	test_ctap_client_pin(params_set_pin_1234);
 	EXPECT_SUCCESS_EMPTY_RESPONSE();
 
 	EXPECT_PIN_SET_SUCCESSFULLY();
-	EXPECT_EQ(ctap.persistent.pin_code_point_length, 4);
-	static_assert(sizeof(ctap.persistent.pin_hash) <= pin_1234_hash.size());
-	EXPECT_SAME_BYTES(ctap.persistent.pin_hash, pin_1234_hash.data());
+	EXPECT_EQ(ctap.pin_state.pin_code_point_length, 4);
+	static_assert(sizeof(ctap.pin_state.pin_hash) <= pin_1234_hash.size());
+	EXPECT_SAME_BYTES(ctap.pin_state.pin_hash, pin_1234_hash.data());
 
 	test_ctap_client_pin(params_get_pin_token);
 	EXPECT_EQ(status, CTAP2_OK);

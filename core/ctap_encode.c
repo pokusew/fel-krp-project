@@ -54,17 +54,17 @@ uint8_t ctap_encode_public_key(
 
 uint8_t ctap_encode_pub_key_cred_desc(
 	CborEncoder *const encoder,
-	const size_t cred_id_size,
-	const uint8_t *const cred_id_data
+	const ctap_string_t *cred_id
 ) {
 
+	uint8_t ret;
 	CborError err;
 	CborEncoder map;
 
 	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 2));
 
 	cbor_encoding_check(cbor_encode_text_string(&map, "id", 2));
-	cbor_encoding_check(cbor_encode_byte_string(&map, cred_id_data, cred_id_size));
+	ctap_check(ctap_encode_ctap_string_as_byte_string(&map, cred_id));
 
 	cbor_encoding_check(cbor_encode_text_string(&map, "type", 4));
 	cbor_encoding_check(cbor_encode_text_string(&map, "public-key", 10));
@@ -123,7 +123,7 @@ uint8_t ctap_encode_pub_key_cred_user_entity(
 
 uint8_t ctap_encode_rp_entity(
 	CborEncoder *const encoder,
-	const CTAP_rpId *const rp_id
+	const ctap_string_t *const rp_id
 ) {
 
 	uint8_t ret;
@@ -133,7 +133,7 @@ uint8_t ctap_encode_rp_entity(
 	cbor_encoding_check(cbor_encoder_create_map(encoder, &map, 1));
 
 	cbor_encoding_check(cbor_encode_text_string(&map, "id", 2));
-	ctap_check(ctap_encode_ctap_string_as_text_string(&map, &rp_id->id));
+	ctap_check(ctap_encode_ctap_string_as_text_string(&map, rp_id));
 
 	cbor_encoding_check(cbor_encoder_close_container(encoder, &map));
 

@@ -4,8 +4,16 @@
 #include "utils.h"
 #include <stdbool.h>
 #include "ctap_crypto_software.h"
+#include "ctap_memory_storage.h"
 #include "hw_crypto.h"
 #include "app_test.h"
+
+static uint8_t memory[16 * 1024];
+static ctap_memory_storage_context_t app_storage_ctx = {
+	.memory_size = sizeof(memory),
+	.memory = memory,
+};
+const ctap_storage_t app_storage = CTAP_MEMORY_STORAGE_CONST_INIT(&app_storage_ctx);
 
 static ctap_software_crypto_context_t app_crypto_ctx;
 const ctap_crypto_t app_sw_crypto = CTAP_SOFTWARE_CRYPTO_CONST_INIT(&app_crypto_ctx);
@@ -30,7 +38,7 @@ ctap_response_t app_ctap_response = {
 	.data_max_size = sizeof(app_ctaphid_cbor_response_buffer) - 1,
 	.data = &app_ctaphid_cbor_response_buffer[1]
 };
-ctap_state_t app_ctap = CTAP_STATE_CONST_INIT(&app_hw_crypto);
+ctap_state_t app_ctap = CTAP_STATE_CONST_INIT(&app_hw_crypto, &app_storage);
 
 
 static ctap_keepalive_status_t app_ctap_last_status = CTAP_STATUS_PROCESSING;
@@ -144,6 +152,9 @@ static void app_init(void) {
 
 	const uint32_t t1 = HAL_GetTick();
 	ctaphid_init(&app_ctaphid);
+	if (app_storage.init(&app_storage) != CTAP_STORAGE_OK) {
+		Error_Handler();
+	}
 	if (app_sw_crypto.init(&app_sw_crypto, 0) != CTAP_CRYPTO_OK) {
 		Error_Handler();
 	}

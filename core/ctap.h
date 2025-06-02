@@ -6,9 +6,13 @@
 #endif
 
 #include "ctap_parse.h"
+#include "ctap_encode.h"
 #include "ctap_crypto.h"
+#include "ctap_storage.h"
 #include "ctap_asn1.h"
 #include "ctap_pin_protocol.h"
+#include "ctap_credentials_store.h"
+
 #include "compiler.h"
 
 typedef enum LION_ATTR_PACKED ctap_command {
@@ -53,17 +57,19 @@ static_assert(
 	"CTAP_PIN_PER_BOOT_ATTEMPTS must be greater than or equal to CTAP_PIN_PER_BOOT_ATTEMPTS"
 );
 
-typedef struct ctap_persistent_state {
-
-	// PIN information
+// persistent PIN information
+typedef struct LION_ATTR_PACKED ctap_pin_persistent_state {
+	uint8_t pin_total_remaining_attempts;
 	uint8_t pin_min_code_point_length;
-	bool is_pin_set;
+	uint8_t is_pin_set;
 	// from the spec we can derive that 4 <= pin_code_point_length <= 63
 	uint8_t pin_code_point_length;
 	uint8_t pin_hash[CTAP_PIN_HASH_SIZE];
-	uint8_t pin_total_remaining_attempts;
-
-} ctap_persistent_state_t;
+} ctap_pin_persistent_state_t;
+static_assert(
+	sizeof(ctap_pin_persistent_state_t) == 4 + CTAP_PIN_HASH_SIZE,
+	"sizeof(ctap_pin_persistent_state_t) == 4 + CTAP_PIN_HASH_SIZE"
+);
 
 #define CTAP_RESPONSE_BUFFER_SIZE   4096
 
@@ -72,39 +78,6 @@ typedef struct ctap_response {
 	const size_t data_max_size;
 	uint8_t *const data;
 } ctap_response_t;
-
-typedef struct ctap_credentials_map_key {
-	bool used;
-	uint8_t rpId_hash[CTAP_SHA256_HASH_SIZE];
-	uint8_t truncated;
-	CTAP_rpId rpId;
-	CTAP_userEntity user;
-	uint8_t rpId_buffer[CTAP_RP_ID_MAX_SIZE];
-	uint8_t userId_buffer[CTAP_USER_ENTITY_ID_MAX_SIZE];
-	uint8_t userName_buffer[CTAP_USER_ENTITY_NAME_MAX_SIZE];
-	uint8_t userDisplayName_buffer[CTAP_USER_ENTITY_DISPLAY_NAME_MAX_SIZE];
-} ctap_credentials_map_key;
-#define CTAP_truncated_rpId             (1u << 0)
-#define CTAP_truncated_userName         (1u << 1)
-#define CTAP_truncated_userDisplayName  (1u << 2)
-
-typedef struct ctap_credentials_map_value {
-	bool discoverable;
-	uint32_t signCount;
-	uint8_t id[128];
-	// credProtect extension
-	uint8_t credProtect;
-	// the actual private key
-	uint8_t private_key[32];
-	// hmac-secret extension
-	uint8_t CredRandomWithUV[32];
-	uint8_t CredRandomWithoutUV[32];
-} ctap_credentials_map_value;
-
-typedef struct ctap_credential {
-	ctap_credentials_map_key *key;
-	ctap_credentials_map_value *value;
-} ctap_credential;
 
 typedef struct ctap_get_assertion_hmac_secret_state {
 	ctap_pin_protocol_t *pin_protocol;
@@ -121,19 +94,19 @@ typedef struct ctap_get_assertion_state {
 	ctap_get_assertion_hmac_secret_state_t hmac_secret_state;
 	size_t num_credentials;
 	size_t next_credential_idx;
-	ctap_credential credentials[128];
+	ctap_credential_handle_t credentials[128];
 } ctap_get_assertion_state_t;
 
 typedef struct ctap_cred_mgmt_enumerate_rps_state {
 	size_t num_rps;
 	size_t next_rp_idx;
-	CTAP_rpId *rp_ids[128];
+	CTAP_rpId_hash_ptr rp_ids[128];
 } ctap_cred_mgmt_enumerate_rps_state_t;
 
 typedef struct ctap_cred_mgmt_enumerate_credentials_state {
 	size_t num_credentials;
 	size_t next_credential_idx;
-	ctap_credential credentials[128];
+	ctap_credential_handle_t credentials[128];
 } ctap_cred_mgmt_enumerate_credentials_state_t;
 
 typedef enum ctap_stateful_command {
@@ -168,7 +141,10 @@ typedef struct ctap_state {
 
 	const ctap_crypto_t *const crypto;
 
-	ctap_persistent_state_t persistent;
+	const ctap_storage_t *const storage;
+
+	ctap_pin_persistent_state_t pin_state LION_ATTR_ALIGNED(4);
+	uint32_t pin_state_item_handle;
 
 	uint32_t init_time;
 	uint32_t current_time;
@@ -181,6 +157,18 @@ typedef struct ctap_state {
 
 } ctap_state_t;
 
+LION_ATTR_ALWAYS_INLINE static inline bool ctap_is_pin_set(const ctap_state_t *const state) {
+	return state->pin_state.is_pin_set == 1u;
+}
+
+LION_ATTR_ALWAYS_INLINE static inline uint8_t ctap_get_pin_total_remaining_attempts(const ctap_state_t *const state) {
+	return state->pin_state.pin_total_remaining_attempts;
+}
+
+LION_ATTR_ALWAYS_INLINE static inline uint8_t ctap_get_pin_min_code_point_length(const ctap_state_t *const state) {
+	return state->pin_state.pin_min_code_point_length;
+}
+
 LION_ATTR_ALWAYS_INLINE static inline bool ctap_has_stateful_command_state(const ctap_state_t *const state) {
 	return state->stateful_command_state.active_cmd != CTAP_STATEFUL_CMD_NONE;
 }
@@ -191,9 +179,10 @@ LION_ATTR_ALWAYS_INLINE static inline bool ctap_has_stateful_command_state(const
         CTAP_PIN_PROTOCOL_V2_CONST_INIT(crypto_ptr), \
     }
 
-#define CTAP_STATE_CONST_INIT(crypto_ptr) \
+#define CTAP_STATE_CONST_INIT(crypto_ptr, storage_ptr) \
     { \
         .crypto = (crypto_ptr), \
+        .storage = (storage_ptr), \
         .pin_protocols = CTAP_PIN_PROTOCOLS_CONST_INIT(crypto_ptr), \
     }
 
@@ -264,12 +253,6 @@ uint8_t ctap_get_info(ctap_state_t *state, CborValue *it, CborEncoder *encoder);
 
 extern const uint8_t ctap_aaguid[CTAP_AAGUID_SIZE];
 
-bool ctap_get_info_is_option_present(const ctap_state_t *state, uint32_t option);
-
-bool ctap_get_info_is_option_present_with(const ctap_state_t *state, uint32_t option, bool value);
-
-bool ctap_get_info_is_option_absent(const ctap_state_t *state, uint32_t option);
-
 uint8_t ctap_client_pin(ctap_state_t *state, CborValue *it, CborEncoder *encoder);
 
 uint8_t ctap_get_pin_protocol(ctap_state_t *state, size_t protocol_version, ctap_pin_protocol_t **pin_protocol);
@@ -294,64 +277,6 @@ void ctap_pin_uv_auth_token_stop_using(ctap_state_t *state);
 
 void ctap_compute_rp_id_hash(const ctap_crypto_t *crypto, uint8_t *rp_id_hash, const CTAP_rpId *rp_id);
 
-size_t ctap_get_num_stored_credentials(void);
-
-size_t ctap_get_num_stored_discoverable_credentials(void);
-
-size_t ctap_get_num_max_possible_remaining_discoverable_credentials(void);
-
-ctap_credentials_map_key *ctap_get_credential_key_by_idx(int idx);
-
-ctap_credentials_map_value *ctap_get_credential_value_by_idx(int idx);
-
-bool ctap_credential_matches_rp_id_hash(
-	const ctap_credentials_map_key *key,
-	const uint8_t *rp_id_hash
-);
-
-bool ctap_credential_matches_rp(
-	const ctap_credentials_map_key *key,
-	const CTAP_rpId *rp_id
-);
-
-int ctap_find_credential_index(
-	const CTAP_rpId *rp_id,
-	const CTAP_userHandle *user_handle
-);
-
-int ctap_lookup_credential_by_desc(const CTAP_credDesc *cred_desc);
-
-uint8_t ctap_store_credential(
-	const CTAP_rpId *rp_id,
-	const CTAP_userEntity *user,
-	const ctap_credentials_map_value *credential
-);
-
-uint8_t ctap_delete_credential(int idx);
-
-void ctap_reset_credentials_store(void);
-
-bool ctap_should_add_credential_to_list(
-	const ctap_credentials_map_value *cred_value,
-	bool is_from_allow_list,
-	bool response_has_uv
-);
-
-uint8_t ctap_find_discoverable_credentials_by_rp_id(
-	const CTAP_rpId *rp_id,
-	const uint8_t *rp_id_hash,
-	bool response_has_uv,
-	ctap_credential *credentials,
-	size_t *num_credentials,
-	size_t max_num_credentials
-);
-
-uint8_t ctap_enumerate_rp_ids_of_discoverable_credentials(
-	CTAP_rpId **rp_ids,
-	size_t *num_rp_ids,
-	size_t max_num_rp_ids
-);
-
 uint8_t ctap_make_credential(ctap_state_t *state, CborValue *it, CborEncoder *encoder);
 
 uint8_t ctap_get_assertion(ctap_state_t *state, CborValue *it, CborEncoder *encoder);
@@ -363,37 +288,5 @@ uint8_t ctap_reset(ctap_state_t *state, CborValue *it, CborEncoder *encoder);
 uint8_t ctap_credential_management(ctap_state_t *state, CborValue *it, CborEncoder *encoder);
 
 uint8_t ctap_selection(ctap_state_t *state, CborValue *it, CborEncoder *encoder);
-
-uint8_t ctap_encode_ctap_string_as_byte_string(
-	CborEncoder *encoder,
-	const ctap_string_t *str
-);
-
-uint8_t ctap_encode_ctap_string_as_text_string(
-	CborEncoder *encoder,
-	const ctap_string_t *str
-);
-
-uint8_t ctap_encode_public_key(
-	CborEncoder *encoder,
-	const uint8_t *public_key
-);
-
-uint8_t ctap_encode_pub_key_cred_desc(
-	CborEncoder *encoder,
-	size_t cred_id_size,
-	const uint8_t *cred_id_data
-);
-
-uint8_t ctap_encode_pub_key_cred_user_entity(
-	CborEncoder *encoder,
-	const CTAP_userEntity *user,
-	bool include_user_identifiable_info
-);
-
-uint8_t ctap_encode_rp_entity(
-	CborEncoder *encoder,
-	const CTAP_rpId *rp_id
-);
 
 #endif // LIONKEY_CTAP_H
