@@ -54,6 +54,8 @@ extern __IO uint32_t BspButtonState;
 
 /* USER CODE END EM */
 
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
 /* Exported functions prototypes ---------------------------------------------*/
 noreturn void Error_Handler(void);
 

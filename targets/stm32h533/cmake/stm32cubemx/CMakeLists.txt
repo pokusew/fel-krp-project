@@ -54,6 +54,8 @@ set(STM32_Drivers_Src
     ${MX_Root_Dir}/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_rng.c
     ${MX_Root_Dir}/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_rng_ex.c
     ${MX_Root_Dir}/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_ll_rng.c
+    ${MX_Root_Dir}/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_tim.c
+    ${MX_Root_Dir}/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_tim_ex.c
     ${MX_Root_Dir}/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_usart.c
     ${MX_Root_Dir}/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_usart_ex.c
     ${MX_Root_Dir}/Drivers/STM32H5xx_HAL_Driver/Src/stm32h5xx_hal_uart_ex.c
