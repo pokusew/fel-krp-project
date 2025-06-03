@@ -5,15 +5,19 @@
 #include <stdbool.h>
 #include "ctap_crypto_software.h"
 #include "ctap_memory_storage.h"
+#include "flash_storage.h"
 #include "hw_crypto.h"
 #include "app_test.h"
 
-static uint8_t memory[16 * 1024];
-static ctap_memory_storage_context_t app_storage_ctx = {
-	.memory_size = sizeof(memory),
-	.memory = memory,
-};
-const ctap_storage_t app_storage = CTAP_MEMORY_STORAGE_CONST_INIT(&app_storage_ctx);
+// static uint8_t memory[16 * 1024];
+// static ctap_memory_storage_context_t app_storage_ctx = {
+// 	.memory_size = sizeof(memory),
+// 	.memory = memory,
+// };
+// const ctap_storage_t app_storage = CTAP_MEMORY_STORAGE_CONST_INIT(&app_storage_ctx);
+
+static stm32h533_flash_storage_context_t app_storage_ctx;
+const ctap_storage_t app_storage = STM32H533_FLASH_STORAGE_CONST_INIT(&app_storage_ctx);
 
 static ctap_software_crypto_context_t app_crypto_ctx;
 const ctap_crypto_t app_sw_crypto = CTAP_SOFTWARE_CRYPTO_CONST_INIT(&app_crypto_ctx);
