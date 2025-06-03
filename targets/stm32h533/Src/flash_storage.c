@@ -15,6 +15,8 @@
     }                                            \
     ((void) 0)
 
+#define FLASH_STORAGE_VIRGIN_UINT32  (0xFFFFFFFF)
+
 #define FLASH_STORAGE_STANDARD_SECTOR_SIZE  (8 * 1024)
 #define FLASH_WORD_SIZE    16 // 128 bits
 
@@ -22,7 +24,7 @@
 #define FLASH_STORAGE_EDATA_WORD_SIZE       4 // 32 bits
 #define FLASH_STORAGE_EDATA_NUM_SECTORS     8
 
-#define FLASH_STORAGE_STANDARD_NUM_SECTORS  (32 - FLASH_STORAGE_EDATA_NUM_SECTORS)
+#define FLASH_STORAGE_STANDARD_NUM_SECTORS  32
 
 #define FLASH_STORAGE_VERSION  1
 
@@ -108,11 +110,11 @@ LION_ATTR_ALWAYS_INLINE static inline uint32_t sector_base_address(const uint32_
 }
 
 LION_ATTR_ALWAYS_INLINE static inline uint32_t is_virgin_word(const uint32_t *word) {
-	uint32_t virgin_word = 0xFFFFFFFF;
+	uint32_t virgin_word = FLASH_STORAGE_VIRGIN_UINT32;
 	for (int i = 0; i < 4; ++i) {
 		virgin_word &= word[i];
 	}
-	return virgin_word == 0xFFFFFFFF;
+	return virgin_word == FLASH_STORAGE_VIRGIN_UINT32;
 }
 
 static ctap_storage_status_t erase_sector(uint32_t sector) {
@@ -152,6 +154,64 @@ static ctap_storage_status_t program_word(uint32_t flash_address, uint32_t data_
 
 }
 
+static ctap_storage_status_t program_edata_word(uint32_t flash_address, uint32_t data_address) {
+
+	HAL_StatusTypeDef status = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD_EDATA, flash_address, data_address);
+	if (status != HAL_OK) {
+		error_log(red("HAL_FLASH_Program failed") nl);
+		return CTAP_STORAGE_ERROR;
+	}
+
+	return CTAP_STORAGE_OK;
+
+}
+
+static ctap_storage_status_t ensure_high_cycling_area_enabled(void) {
+
+	const uint32_t current_EDATA2R = FLASH->EDATA2R_CUR;
+
+	// alternatively we could use the heavyweight HAL_FLASHEx_OBGetConfig()
+	// that reads all option bytes and uses the private function FLASH_OB_GetEDATA()
+	uint32_t current_EDATASize = ((current_EDATA2R & FLASH_EDATAR_EDATA_EN) != 0u)
+		? (current_EDATA2R & FLASH_EDATAR_EDATA_STRT) + 1u
+		: 0u;
+	debug_log("current_EDATA2R = 0x%08" PRIx32 nl, current_EDATA2R);
+	debug_log("current_EDATASize = %" PRIu32 nl, current_EDATASize);
+
+	if (current_EDATASize == FLASH_STORAGE_EDATA_NUM_SECTORS) {
+		return CTAP_STORAGE_OK;
+	}
+
+	FLASH_OBProgramInitTypeDef ob_init = {
+		.OptionType = OPTIONBYTE_EDATA,
+		.Banks = FLASH_BANK_2,
+		.EDATASize = FLASH_STORAGE_EDATA_NUM_SECTORS,
+	};
+
+	HAL_StatusTypeDef status;
+	status = HAL_FLASH_OB_Unlock();
+	if (status != HAL_OK) {
+		error_log(red("HAL_FLASH_OB_Unlock failed") nl);
+		return CTAP_STORAGE_ERROR;
+	}
+	status = HAL_FLASHEx_OBProgram(&ob_init);
+	if (status != HAL_OK) {
+		error_log(red("HAL_FLASHEx_OBProgram failed") nl);
+		return CTAP_STORAGE_ERROR;
+	}
+	status = HAL_FLASH_OB_Launch();
+	if (status != HAL_OK) {
+		error_log(red("HAL_FLASH_OB_Launch failed") nl);
+		return CTAP_STORAGE_ERROR;
+	}
+	// // RM0481 7.4.3 Option bytes modification Option bytes modification sequence
+	// // recommends: "Reset the device. This step is always recommended."
+	// NVIC_SystemReset();
+
+	return CTAP_STORAGE_OK;
+
+}
+
 static ctap_storage_status_t init_sector(uint32_t sector) {
 
 	debug_log("init_sector = %" PRIu32 nl, sector);
@@ -174,6 +234,49 @@ static ctap_storage_status_t init_sector(uint32_t sector) {
 		return CTAP_STORAGE_OK;
 	}
 
+	return CTAP_STORAGE_OK;
+
+}
+
+static ctap_storage_status_t init_high_cycling_area(uint32_t *counter_write_address) {
+
+	debug_log("init_high_cycling_area" nl);
+
+	ctap_storage_status_t status;
+
+	// see RM0481 7.3.10 Flash high-cycle data, Figure 27. Flash high-cycle data memory map on 512-Kbyte devices
+	const uint32_t sector = FLASH_STORAGE_STANDARD_NUM_SECTORS - FLASH_STORAGE_EDATA_NUM_SECTORS;
+
+	const uint32_t base_address = (FLASH_EDATA_BASE + (FLASH_EDATA_SIZE / 2));
+	const uint32_t version = *((uint32_t *) (base_address));
+	const uint32_t delete_marker = *((uint32_t *) (base_address + sizeof(uint32_t)));
+
+	const uint32_t version_value = FLASH_STORAGE_VERSION;
+
+	if (version != FLASH_STORAGE_VERSION || delete_marker != FLASH_STORAGE_VIRGIN_UINT32) {
+		debug_log("  erasing dirty high cycling sector ..." nl);
+		ctap_storage_check(erase_sector(sector));
+		debug_log("  programming new sector header ..." nl);
+		ctap_storage_check(program_edata_word(base_address, (uint32_t) &version_value));
+		*counter_write_address = base_address + 2 * sizeof(uint32_t);
+		return CTAP_STORAGE_OK;
+	}
+
+	const uint32_t *value = (const uint32_t *) (base_address + 2 * sizeof(uint32_t));
+	for (
+		size_t offset = 2 * sizeof(uint32_t);
+		offset < FLASH_STORAGE_EDATA_SECTOR_SIZE;
+		offset += sizeof(uint32_t), ++value) {
+
+		if (*value == FLASH_STORAGE_VIRGIN_UINT32) {
+			*counter_write_address = base_address + offset;
+			return CTAP_STORAGE_OK;
+		}
+
+	}
+
+	// out of memory
+	*counter_write_address = base_address + FLASH_STORAGE_EDATA_SECTOR_SIZE;
 	return CTAP_STORAGE_OK;
 
 }
@@ -204,6 +307,8 @@ ctap_storage_status_t stm32h533_flash_storage_init(
 	const ctap_storage_t *const storage
 ) {
 
+	ctap_storage_status_t status;
+
 	debug_log("stm32h533_flash_storage_init" nl);
 
 	stm32h533_flash_storage_context_t *context = storage->context;
@@ -213,16 +318,20 @@ ctap_storage_status_t stm32h533_flash_storage_init(
 		return CTAP_STORAGE_ERROR;
 	}
 
-	if (init_sector(0) != CTAP_STORAGE_OK) {
-		return CTAP_STORAGE_ERROR;
-	}
-
+	ctap_storage_check(init_sector(0));
 	context->write_address = find_write_address(storage);
 	const uint32_t max_address = sector_base_address(1);
-
 	info_log(
 		"flash_storage: write_address = 0x%08" PRIx32 ", remaining size = %" PRIu32 nl,
 		context->write_address, max_address - context->write_address
+	);
+
+	ctap_storage_check(ensure_high_cycling_area_enabled());
+	ctap_storage_check(init_high_cycling_area(&context->counter_write_address));
+	info_log(
+		"flash_storage: counter_write_address = 0x%08" PRIx32 ", remaining size = %" PRIu32 nl,
+		context->counter_write_address,
+		((FLASH_EDATA_BASE + (FLASH_EDATA_SIZE / 2)) + FLASH_STORAGE_EDATA_SECTOR_SIZE) - context->counter_write_address
 	);
 
 	return CTAP_STORAGE_OK;
@@ -281,7 +390,7 @@ ctap_storage_status_t stm32h533_flash_storage_find_item(
 		}
 
 		// next item
-		debug_log("  next item" nl);
+		// debug_log("  next item" nl);
 		address += compute_total_item_size(header->size);
 
 	}
@@ -420,6 +529,40 @@ ctap_storage_status_t stm32h533_flash_storage_increment_counter(
 	uint32_t *const counter_new_value
 ) {
 
+	debug_log("stm32h533_flash_storage_increment_counter" nl);
+
+	stm32h533_flash_storage_context_t *context = storage->context;
+
+	const uint32_t base_address = (FLASH_EDATA_BASE + (FLASH_EDATA_SIZE / 2));
+	const uint32_t first_value_address = base_address + (2 * sizeof(uint32_t));
+	const uint32_t max_address = base_address + FLASH_STORAGE_EDATA_SECTOR_SIZE;
+
+	if (context->counter_write_address + sizeof(uint32_t) > max_address) {
+		// TODO: Use all eight EDATA sectors (and also implement reusing sectors / compaction).
+		return CTAP_STORAGE_OUT_OF_MEMORY_ERROR;
+	}
+
+	ctap_storage_status_t status;
+
+	uint32_t value = context->counter_write_address > first_value_address
+		? *((uint32_t *) (context->counter_write_address - sizeof(uint32_t)))
+		: 1u;
+
+	value += increment;
+
+	ctap_storage_check(program_edata_word(
+		context->counter_write_address,
+		(uint32_t) &value
+	));
+
+	assert(*((const uint32_t *) context->counter_write_address) == value);
+
+	*counter_new_value = value;
+
+	context->counter_write_address += sizeof(uint32_t);
+
+	return CTAP_STORAGE_OK;
+
 	// The signature counter is not strictly mandatory.
 	// Until we implement a more efficient counter storage (using the EDATA area (high-cycling area)),
 	// we could just disable the signature counter feature (i.e., always return 0 which signals
@@ -432,35 +575,38 @@ ctap_storage_status_t stm32h533_flash_storage_increment_counter(
 	//
 	// return CTAP_STORAGE_OK;
 
-	ctap_storage_item_t item = {
-		.handle = 0u,
-		.key = CTAP_STORAGE_KEY_GLOBAL_SIGNATURE_COUNTER,
-	};
-
-	uint32_t tmp_counter_value = 0u;
-
-	if (stm32h533_flash_storage_find_item(storage, &item) == CTAP_STORAGE_OK) {
-		assert(item.size == sizeof(uint32_t));
-		tmp_counter_value = *((uint32_t *) item.data);
-	}
-
-	tmp_counter_value += increment;
-
-	item.size = sizeof(uint32_t);
-	item.data = (const uint8_t *) &tmp_counter_value;
-
-	if (stm32h533_flash_storage_create_or_update_item(storage, &item) == CTAP_STORAGE_OK) {
-		*counter_new_value = *((uint32_t *) item.data);
-		assert(*counter_new_value == tmp_counter_value);
-		debug_log(
-			"stm32h533_flash_storage_increment_counter" nl
-			"  counter_new_value = %" PRIu32 nl,
-			*counter_new_value
-		);
-		return CTAP_STORAGE_OK;
-	}
-
-	return CTAP_STORAGE_ERROR;
+	// We could also store the counter value using items.
+	// However, the item has significant overhead (it is always at least 64 bytes).
+	//
+	// ctap_storage_item_t item = {
+	// 	.handle = 0u,
+	// 	.key = CTAP_STORAGE_KEY_GLOBAL_SIGNATURE_COUNTER,
+	// };
+	//
+	// uint32_t tmp_counter_value = 0u;
+	//
+	// if (stm32h533_flash_storage_find_item(storage, &item) == CTAP_STORAGE_OK) {
+	// 	assert(item.size == sizeof(uint32_t));
+	// 	tmp_counter_value = *((uint32_t *) item.data);
+	// }
+	//
+	// tmp_counter_value += increment;
+	//
+	// item.size = sizeof(uint32_t);
+	// item.data = (const uint8_t *) &tmp_counter_value;
+	//
+	// if (stm32h533_flash_storage_create_or_update_item(storage, &item) == CTAP_STORAGE_OK) {
+	// 	*counter_new_value = *((uint32_t *) item.data);
+	// 	assert(*counter_new_value == tmp_counter_value);
+	// 	debug_log(
+	// 		"stm32h533_flash_storage_increment_counter" nl
+	// 		"  counter_new_value = %" PRIu32 nl,
+	// 		*counter_new_value
+	// 	);
+	// 	return CTAP_STORAGE_OK;
+	// }
+	//
+	// return CTAP_STORAGE_ERROR;
 
 }
 
@@ -497,6 +643,10 @@ ctap_storage_status_t stm32h533_flash_storage_erase(
 		sector_base_address(0) + FLASH_WORD_SIZE,
 		(uint32_t) delete_marker_data
 	));
+	ctap_storage_check(program_edata_word(
+		(FLASH_EDATA_BASE + (FLASH_EDATA_SIZE / 2)) + 4,
+		(uint32_t) delete_marker_data)
+	);
 
 	return stm32h533_flash_storage_init(storage);
 

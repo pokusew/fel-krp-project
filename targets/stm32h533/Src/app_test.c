@@ -42,6 +42,11 @@ void app_debug_task(void) {
 		return;
 	}
 
+	if (debug_uart_rx == 'c') {
+		app_test_signature_counter();
+		return;
+	}
+
 	if (debug_uart_rx == 'r') {
 		app_test_rng_tinymt();
 		app_test_rng_hw();
@@ -265,6 +270,17 @@ void app_test_flash_high_cycling(void) {
 
 	info_log("done in %" PRIu32 " ms" nl, t2 - t1);
 
+}
+
+void app_test_signature_counter(void) {
+	info_log(cyan("app_test_signature_counter") nl);
+	const uint32_t t1 = HAL_GetTick();
+	uint32_t counter_new_value;
+	if (app_storage.increment_counter(&app_storage, 1, &counter_new_value) != CTAP_STORAGE_OK) {
+		error_log(red("app_storage.increment_counter() failed") nl);
+	}
+	const uint32_t t2 = HAL_GetTick();
+	info_log("done in %" PRIu32 " ms" nl, t2 - t1);
 }
 
 void app_test_rng_tinymt(void) {

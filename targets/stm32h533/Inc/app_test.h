@@ -7,6 +7,8 @@ void app_test_flash(void);
 
 void app_test_flash_high_cycling(void);
 
+void app_test_signature_counter(void);
+
 void app_test_rng_tinymt(void);
 
 void app_test_rng_hw(void);

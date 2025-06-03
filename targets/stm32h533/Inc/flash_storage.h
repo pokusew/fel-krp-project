@@ -5,6 +5,7 @@
 
 typedef struct stm32h533_flash_storage_context {
 	uint32_t write_address;
+	uint32_t counter_write_address;
 } stm32h533_flash_storage_context_t;
 
 #define STM32H533_FLASH_STORAGE_CONST_INIT(context_ptr) \
