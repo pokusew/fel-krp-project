@@ -50,10 +50,19 @@
 			}
 		},
 		{
+			"name": "stm32h533-debug-info-logs",
+			"inherits": "stm32h533-debug",
+			"cacheVariables": {
+				"LIONKEY_DEBUG_LEVEL": "2"
+			}
+		},
+		{
 			"name": "stm32h533-release",
 			"inherits": "stm32h533",
 			"cacheVariables": {
-				"CMAKE_BUILD_TYPE": "Release"
+				"CMAKE_BUILD_TYPE": "Release",
+				"LIONKEY_DEBUG_LEVEL": "2",
+				"LIONKEY_DEVELOPMENT_OVERRIDE": "OFF"
 			}
 		}
 	],
@@ -69,6 +78,10 @@
 		{
 			"name": "stm32h533-debug",
 			"configurePreset": "stm32h533-debug"
+		},
+		{
+			"name": "stm32h533-debug-info-logs",
+			"configurePreset": "stm32h533-debug-info-logs"
 		},
 		{
 			"name": "stm32h533-release",
@@ -112,6 +125,19 @@
 				{
 					"type": "build",
 					"name": "stm32h533-debug"
+				}
+			]
+		},
+		{
+			"name": "stm32h533-debug-info-logs",
+			"steps": [
+				{
+					"type": "configure",
+					"name": "stm32h533-debug-info-logs"
+				},
+				{
+					"type": "build",
+					"name": "stm32h533-debug-info-logs"
 				}
 			]
 		},
