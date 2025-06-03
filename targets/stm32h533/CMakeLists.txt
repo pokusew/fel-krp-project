@@ -194,6 +194,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 		Src/usb.c
 		Src/app.c
 		Src/app_test.c
+		Src/flash_storage.c
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
