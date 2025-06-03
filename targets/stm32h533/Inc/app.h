@@ -1,5 +1,5 @@
-#ifndef LIONKEY_STM32H33_APP_H
-#define LIONKEY_STM32H33_APP_H
+#ifndef LIONKEY_STM32H533_APP_H
+#define LIONKEY_STM32H533_APP_H
 
 #include <stdnoreturn.h>
 #include "ctaphid.h"
@@ -23,4 +23,4 @@ void app_hid_report_send_queue_send_one_if_possible(void);
 
 bool app_hid_report_send_queue_is_empty(void);
 
-#endif // LIONKEY_STM32H33_APP_H
+#endif // LIONKEY_STM32H533_APP_H

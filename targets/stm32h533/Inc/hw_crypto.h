@@ -1,5 +1,5 @@
-#ifndef LIONKEY_STM32H33_CRYPTO_H
-#define LIONKEY_STM32H33_CRYPTO_H
+#ifndef LIONKEY_STM32H533_CRYPTO_H
+#define LIONKEY_STM32H533_CRYPTO_H
 
 #include "ctap_crypto.h"
 #include "stm32h5xx_hal.h"
@@ -92,4 +92,4 @@ ctap_crypto_status_t stm32h533_crypto_sha256_compute_digest(
 	uint8_t *hash
 );
 
-#endif // LIONKEY_STM32H33_CRYPTO_H
+#endif // LIONKEY_STM32H533_CRYPTO_H

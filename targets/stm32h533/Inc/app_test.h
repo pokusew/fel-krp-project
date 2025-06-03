@@ -1,5 +1,5 @@
-#ifndef LIONKEY_STM32H33_APP_TEST_H
-#define LIONKEY_STM32H33_APP_TEST_H
+#ifndef LIONKEY_STM32H533_APP_TEST_H
+#define LIONKEY_STM32H533_APP_TEST_H
 
 void app_debug_task(void);
 
@@ -25,4 +25,4 @@ void app_test_hash_big(void);
 
 void app_test_hash_big_two_parts(void);
 
-#endif // LIONKEY_STM32H33_APP_TEST_H
+#endif // LIONKEY_STM32H533_APP_TEST_H

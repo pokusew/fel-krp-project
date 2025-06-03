@@ -1,5 +1,5 @@
-#ifndef LIONKEY_STM32H33_FLASH_H
-#define LIONKEY_STM32H33_FLASH_H
+#ifndef LIONKEY_STM32H533_FLASH_H
+#define LIONKEY_STM32H533_FLASH_H
 
 #include "stm32h5xx_hal.h"
 #include <assert.h>
@@ -78,4 +78,4 @@ void flash_write(uint32_t addr, uint8_t *data, size_t size);
 static_assert(FLASH_BASE == 0x08000000UL, "FLASH_BASE == 0x08000000UL");
 static_assert(FLASH_EDATA_BASE == 0x09000000UL, "FLASH_EDATA_BASE == 0x09000000UL");
 
-#endif // LIONKEY_STM32H33_FLASH_H
+#endif // LIONKEY_STM32H533_FLASH_H

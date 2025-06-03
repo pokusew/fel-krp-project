@@ -1,5 +1,5 @@
-#ifndef LIONKEY_STM32H33_CRYPTO_CURVES_H
-#define LIONKEY_STM32H33_CRYPTO_CURVES_H
+#ifndef LIONKEY_STM32H533_CRYPTO_CURVES_H
+#define LIONKEY_STM32H533_CRYPTO_CURVES_H
 
 #include <stdint.h>
 
@@ -18,4 +18,4 @@ typedef struct stm32h533_crypto_ecc_curve {
 
 extern const stm32h533_crypto_ecc_curve_t stm32h533_secp256r1;
 
-#endif // LIONKEY_STM32H33_CRYPTO_CURVES_H
+#endif // LIONKEY_STM32H533_CRYPTO_CURVES_H
