@@ -80,6 +80,43 @@ int Debug_UART_Get_Byte() {
 	return -1;
 }
 
+void Status_LED_Set_Mode(Status_LED_Mode mode) {
+	switch (mode) {
+		case STATUS_LED_MODE_OFF:
+			MODIFY_REG(
+				htim2.Instance->CCMR1,
+				TIM_CCMR1_OC1M_3 | TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_0,
+				TIM_CCMR1_OC1M_2
+				);
+			break;
+		case STATUS_LED_MODE_ON:
+			MODIFY_REG(
+				htim2.Instance->CCMR1,
+				TIM_CCMR1_OC1M_3 | TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_0,
+				TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_0
+			);
+			break;
+		case STATUS_LED_MODE_BLINKING_NORMAL:
+			MODIFY_REG(
+				htim2.Instance->CCMR1,
+				TIM_CCMR1_OC1M_3 | TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_0,
+				TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1
+			);
+			htim2.Instance->CCR1 = __HAL_TIM_CALC_PULSE(240000000, 0, 500 * 1000);
+			htim2.Instance->ARR = __HAL_TIM_CALC_PERIOD(240000000, 0, 1);
+			break;
+		case STATUS_LED_MODE_BLINKING_SPECIAL:
+			MODIFY_REG(
+				htim2.Instance->CCMR1,
+				TIM_CCMR1_OC1M_3 | TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_0,
+				TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1
+			);
+			htim2.Instance->CCR1 = __HAL_TIM_CALC_PULSE(240000000, 0, 25 * 1000);
+			htim2.Instance->ARR = __HAL_TIM_CALC_PERIOD(240000000, 0, 2);
+			break;
+	}
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -251,7 +288,7 @@ static void MX_TIM2_Init(void) {
 	htim2.Instance = TIM2;
 	htim2.Init.Prescaler = 0;
 	htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-	htim2.Init.Period = 240000000;
+	htim2.Init.Period = __HAL_TIM_CALC_PERIOD(240000000, 0, 1);
 	htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
 	htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
 	if (HAL_TIM_Base_Init(&htim2) != HAL_OK) {
@@ -334,6 +371,7 @@ noreturn void Error_Handler(void) {
 	/* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
+	Status_LED_Set_Mode(STATUS_LED_MODE_BLINKING_SPECIAL);
 	while (1) {
 	}
 	/* USER CODE END Error_Handler_Debug */

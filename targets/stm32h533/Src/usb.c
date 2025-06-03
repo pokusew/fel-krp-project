@@ -119,6 +119,7 @@ void usb_init(void) {
 // Invoked when device is mounted
 void tud_mount_cb(void) {
 	info_log(green("usb device mounted") nl);
+	Status_LED_Set_Mode(STATUS_LED_MODE_ON);
 	// Note:
 	//   This is a development-only workaround to simulate the "reboot" (MCU reset) behavior
 	//   even without the actual reset.
@@ -145,6 +146,7 @@ void tud_umount_cb(void) {
 // Within 7ms, device must draw an average of current less than 2.5 mA from bus
 void tud_suspend_cb(bool remote_wakeup_en) {
 	info_log(yellow("usb bus is suspended") nl);
+	Status_LED_Set_Mode(STATUS_LED_MODE_OFF);
 	UNUSED(remote_wakeup_en);
 }
 

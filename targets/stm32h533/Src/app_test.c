@@ -9,6 +9,8 @@
 // LED status indicators:
 // Green  main loop running
 
+static Status_LED_Mode test_current_led_mode = STATUS_LED_MODE_OFF;
+
 void app_debug_task(void) {
 
 	int debug_uart_rx = Debug_UART_Get_Byte();
@@ -21,7 +23,12 @@ void app_debug_task(void) {
 	debug_log("debug_uart_rx = %c" nl, debug_uart_rx);
 
 	if (debug_uart_rx == 'l') {
-		BSP_LED_Toggle(LED_GREEN);
+		if (test_current_led_mode == STATUS_LED_MODE_BLINKING_SPECIAL) {
+			test_current_led_mode = STATUS_LED_MODE_OFF;
+		} else {
+			test_current_led_mode++;
+		}
+		Status_LED_Set_Mode(test_current_led_mode);
 		return;
 	}
 

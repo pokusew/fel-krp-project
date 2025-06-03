@@ -116,7 +116,9 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim) {
 		HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 		/* USER CODE BEGIN TIM2_MspPostInit 1 */
-
+		if (HAL_TIM_PWM_Start(htim, TIM_CHANNEL_1) != HAL_OK) {
+			Error_Handler();
+		}
 		/* USER CODE END TIM2_MspPostInit 1 */
 	}
 
