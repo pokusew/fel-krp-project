@@ -82,7 +82,7 @@ target_include_directories(hash INTERFACE ../../crypto/hash)
 
 add_library(hmac STATIC)
 target_sources(hmac PRIVATE ../../crypto/hmac/hmac.c)
-target_include_directories(hmac INTERFACE  ../../crypto/hmac)
+target_include_directories(hmac INTERFACE ../../crypto/hmac)
 target_link_libraries(hmac PUBLIC hash)
 
 add_library(hkdf STATIC)
