@@ -3,6 +3,14 @@ cmake_minimum_required(VERSION 3.30)
 set(BUILD_TARGET "host" CACHE STRING "Build the embedded targets")
 set_property(CACHE BUILD_TARGET PROPERTY STRINGS "host" "stm32h533")
 
+set(LIONKEY_DEBUG_LEVEL "3" CACHE STRING "0 - nothing, 1 - errors only, 2 - info logs, 3 - debug logs")
+set_property(CACHE LIONKEY_DEBUG_LEVEL PROPERTY STRINGS "0" "1" "2" "3")
+
+set(LIONKEY_DEVELOPMENT_OVERRIDE ON CACHE BOOL "Enable special behavior for better DX")
+
+# LIONKEY_DEVELOPMENT_AUTO_USER_PRESENCE
+#  Auto confirm user presence during development after the given number of milliseconds
+
 option(SANITIZERS "Enable sanitizers (only takes effect when BUILD_TARGET=host)" OFF)
 
 if ((BUILD_TARGET STREQUAL "host") AND SANITIZERS)

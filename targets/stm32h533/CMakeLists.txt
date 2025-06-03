@@ -139,10 +139,23 @@ target_link_libraries(core PUBLIC
 		tinycbor hkdf hmac
 )
 target_compile_definitions(core PUBLIC
-		LIONKEY_DEBUG_LEVEL=3
+		LIONKEY_DEBUG_LEVEL=${LIONKEY_DEBUG_LEVEL}
 		# TODO: arm-none-eabi does not support %zu? see https://stackoverflow.com/questions/76837281/zu-format-specifier-with-c99-not-working
 		PRIsz="u"
 )
+
+if (LIONKEY_DEVELOPMENT_OVERRIDE)
+	target_compile_definitions(core PUBLIC
+			LIONKEY_DEVELOPMENT_OVERRIDE=1
+	)
+endif ()
+
+if (DEFINED LIONKEY_DEVELOPMENT_AUTO_USER_PRESENCE)
+	target_compile_definitions(core PUBLIC
+			LIONKEY_DEVELOPMENT_AUTO_USER_PRESENCE=${LIONKEY_DEVELOPMENT_AUTO_USER_PRESENCE}
+	)
+endif ()
+
 
 set(TINYUSB_SRC ../../lib/tinyusb/src)
 add_library(tinyusb INTERFACE)
