@@ -1,0 +1,14 @@
+# https://prettier.io/docs/en/ignore.html
+/package-lock.json
+# By default prettier ignores files in version control systems directories
+# (".git", ".jj", ".sl", ".svn" and ".hg") and node_modules.
+# Prettier will also follow rules specified in the ".gitignore" file
+# BUT only if the ".gitignore" exists in the same directory from which Prettier is run.
+# Because in our project, this Prettier instance in docs/ is in a subdirectory,
+# and we use just the project root .gitignore, we have to explicitly list relevant patterns here:
+/build/
+/temp/
+/.docusaurus/
+/.cache-loader/
+/.wrangler/
+/dist/

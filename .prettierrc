@@ -1,0 +1,22 @@
+{
+	"printWidth": 90,
+	"singleQuote": true,
+	"semi": true,
+	"useTabs": true,
+	"trailingComma": "all",
+	"overrides": [
+		{
+			"files": "package.json",
+			"options": {
+				"useTabs": false,
+				"tabWidth": 2
+			}
+		},
+		{
+			"files": "tsconfig.json",
+			"options": {
+				"parser": "jsonc"
+			}
+		}
+	]
+}
