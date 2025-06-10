@@ -1,0 +1,56 @@
+# Cloudflare Workers Static Assets Headers Config
+# see https://developers.cloudflare.com/workers/static-assets/headers/
+
+# add common headers to all responses
+# https://developers.cloudflare.com/workers/static-assets/headers/#harden-security-for-an-application
+/*
+	X-Frame-Options: DENY
+	X-Content-Type-Options: nosniff
+	Referrer-Policy: no-referrer
+	Content-Security-Policy: frame-ancestors 'none'
+
+# Docusaurus outputs all assets with hash to the assets dir
+#   see https://github.com/facebook/docusaurus/pull/3998
+# webpack rules for JS and CSS files are provided by @docusaurus/core
+#   ([contenthash:8] with hashFunction set to xxhash64)
+#   JS: 'assets/js/[name].[contenthash:8].js'
+#     https://github.com/facebook/docusaurus/blob/main/packages/docusaurus/src/webpack/base.ts#L208-L214
+#   CSS: 'assets/css/[name].[contenthash:8].css'
+#     https://github.com/facebook/docusaurus/blob/main/packages/docusaurus/src/webpack/base.ts#L342-L347
+# webpack rules for static assets are provided by @docusaurus/utils
+#   ([contenthash] with the default hashFunction (md4))
+#   see https://github.com/facebook/docusaurus/blob/main/packages/docusaurus-utils/src/webpackUtils.ts#L68
+# note: webpack bundles hash functions, see https://github.com/webpack/webpack/tree/main/assembly/hash
+
+# add Cache-Control to assets with hash
+/assets/*
+	Cache-Control: public, max-age=31536000, immutable
+
+# partial workaround for the problematic /404 behavior
+#   Problem:
+#     The the 404 error page (the assets.not_found_handling feature)
+#     is accessible at /404 with the 200 OK status code.
+#     It should be served with the 404 Not Found status code,
+#     just like when it is returned for some non-existent URL.
+#   See the discussion about this problematic behavior here:
+#     https://community.cloudflare.com/t/how-to-make-404-html-return-404-status-code/662019
+#   See docs for the assets.not_found_handling feature:
+#     https://developers.cloudflare.com/workers/static-assets/routing/static-site-generation/#custom-404-pages
+#   Note: Even the official Cloudflare websites have this problem:
+#     https://www.cloudflare.com/404/ -> returns 200 OK instead of 404 Not Found
+#     https://developers.cloudflare.com/404 -> returns 200 OK instead of 404 Not Found
+#   Possible solutions:
+#     1. Rewrite the status code using the _redirects file -> currently not supported
+#        (see the comment in the _redirects file for more info)
+#     2. Use some Cloudflare Rule on the domain/zone change HTTP response status code when path == /404
+#        -> not possible, no such rule exists (note: a paid WAF rule could be abused for this)
+#     3. (partial workaround)
+#        At least, add the X-Robots-Tag header with the noindex value
+#        to prevent the actual /404 path to be indexed.
+/404
+	X-Robots-Tag: noindex
+
+# prevent *.workers.dev URLs from being indexed
+# (the production deployment uses custom domain)
+https://*.workers.dev/*
+	X-Robots-Tag: noindex

@@ -1,0 +1,12 @@
+# Cloudflare Workers Static Assets Redirects Config
+# see https://developers.cloudflare.com/workers/static-assets/redirects/
+
+# prevent the HTML for the 404 error page (/404.html) to be served at /404 with the 200 OK status
+# unfortunately, the necessary status code rewrite is not supported by Cloudflare in the _redirects file
+# see https://developers.cloudflare.com/workers/static-assets/redirects/#advanced-redirects
+# see also the discussion about the problematic /404 behavior here:
+#   https://community.cloudflare.com/t/how-to-make-404-html-return-404-status-code/662019
+# see docs for the assets.not_found_handling feature:
+#   https://developers.cloudflare.com/workers/static-assets/routing/static-site-generation/#custom-404-pages
+# TODO: enable once supported by Cloudflare
+# /404 /404 404

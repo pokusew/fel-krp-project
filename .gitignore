@@ -56,3 +56,7 @@ Desktop.ini
 # generated
 /docs/.docusaurus/
 /docs/.cache-loader/
+
+# Wrangler (Cloudflare Workers)
+/docs/.wrangler/
+/docs/dist/
