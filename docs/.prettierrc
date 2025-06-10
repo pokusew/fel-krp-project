@@ -17,6 +17,13 @@
 			"options": {
 				"parser": "jsonc"
 			}
+		},
+		{
+			"files": "*.jsonc",
+			"options": {
+				"parser": "jsonc",
+				"trailingComma": "none"
+			}
 		}
 	]
 }
