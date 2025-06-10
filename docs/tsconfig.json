@@ -1,5 +1,6 @@
 {
 	// This file is not used in compilation. It is here just for a nice editor experience.
+	// https://docusaurus.io/docs/typescript-support
 	"extends": "@docusaurus/tsconfig",
 	"compilerOptions": {
 		"baseUrl": ".",
