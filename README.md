@@ -2,6 +2,7 @@
 
 # LionKey: An open-source FIDO2 USB Security Key
 
+[![website](https://img.shields.io/badge/docs-lionkey.dev-A6672A)](https://lionkey.dev/)
 [![build status](https://img.shields.io/github/actions/workflow/status/pokusew/lionkey/ci.yml?logo=github)](https://github.com/pokusew/lionkey/actions/workflows/ci.yml)
 
 A working [FIDO2]/[WebAuthn] USB hardware external authenticator (also called “security key”) 🔑
@@ -66,7 +67,7 @@ Key features:
 > **STM32H5** does not work with the original OpenOCD.
 > Currently, it only works with the STMicroelectronics' fork [STMicroelectronics/OpenOCD],
 > which has to be built from source,
-> **see 👉 [this guide for the instructions](./docs/content/development/openocd.md)**.
+> **see 👉 [this guide for the instructions](https://lionkey.dev/docs/development/openocd)**.
 
 
 ### Cloning the Project
