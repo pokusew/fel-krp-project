@@ -1,4 +1,4 @@
-<p align="center"><img src="./docs/logo/lionkey-logo-v2-no-padding.svg" title="LionKey" alt="LionKey logo" height="100"></p>
+<p align="center"><img src="./docs/assets/img/lionkey-logo-v2-no-padding.svg" title="LionKey" alt="LionKey logo" height="100"></p>
 
 # LionKey: An open-source FIDO2 USB Security Key
 
@@ -65,7 +65,8 @@ Key features:
 > [!CAUTION]  
 > **STM32H5** does not work with the original OpenOCD.
 > Currently, it only works with the STMicroelectronics' fork [STMicroelectronics/OpenOCD],
-> which has to be built from source, **see 👉 [this guide for the instructions](./docs/OpenOCD.md)**.
+> which has to be built from source,
+> **see 👉 [this guide for the instructions](./docs/content/development/openocd.md)**.
 
 
 ### Cloning the Project
