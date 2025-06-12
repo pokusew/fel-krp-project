@@ -7,6 +7,10 @@
   <component name="CidrRootsConfiguration">
     <excludeRoots>
       <file path="$PROJECT_DIR$/build" />
+      <file path="$PROJECT_DIR$/docs/.docusaurus" />
+      <file path="$PROJECT_DIR$/docs/.wrangler" />
+      <file path="$PROJECT_DIR$/docs/dist" />
+      <file path="$PROJECT_DIR$/docs/build" />
     </excludeRoots>
   </component>
 </project>
