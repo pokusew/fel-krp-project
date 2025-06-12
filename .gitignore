@@ -53,6 +53,9 @@ Desktop.ini
 # build
 /docs/build/
 
+# CI
+/docs/temp/
+
 # generated
 /docs/.docusaurus/
 /docs/.cache-loader/

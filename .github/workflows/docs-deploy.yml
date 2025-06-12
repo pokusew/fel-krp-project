@@ -1,0 +1,35 @@
+#
+# GitHub Actions Workflow
+#   reference: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+#
+
+name: Docs Deploy
+
+run-name: ${{ format('Deploy {0}', inputs.environment) }}
+
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#on
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: The environment to deploy
+        required: true
+        type: choice
+        options:
+          - lionkey.dev
+      dry-run:
+        description: Don't actually deploy (--dry-run)
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  deploy:
+    name: Deploy
+    uses: ./.github/workflows/docs.yml
+    secrets: inherit
+    with:
+      deployment: true
+      dry-run: ${{ inputs.dry-run }}
+      environment: ${{ inputs.environment }}
+    concurrency: ${{ inputs.environment }}

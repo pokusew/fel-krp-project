@@ -1,0 +1,147 @@
+#
+# GitHub Actions Workflow
+#   reference: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+#
+
+name: Docs Build
+
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#on
+on:
+
+  push:
+    paths:
+      - 'docs/**'
+
+  workflow_call:
+    inputs:
+      deployment:
+        required: false
+        type: boolean
+        default: false
+      dry-run:
+        required: false
+        type: boolean
+        default: false
+      environment:
+        required: false
+        type: string
+    secrets:
+      CLOUDFLARE_ACCOUNT_ID:
+        required: false
+      CLOUDFLARE_API_TOKEN:
+        required: false
+
+env:
+  # TODO: forces colorized output in Node.js scripts, better solution?
+  # see https://nodejs.org/api/cli.html#force_color1-2-3
+  FORCE_COLOR: true
+
+defaults:
+  # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
+  run:
+    # When Bash is specified explicitly, a different command is run internally by GH:
+    # shell: unspecified => bash -e {0}
+    # shell: bash => bash --noprofile --norc -eo pipefail {0} <-- Note that this enables the useful pipefail option.
+    # see https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
+    shell: bash
+    working-directory: ./docs
+
+jobs:
+  build:
+    name: ${{ inputs.deployment && 'Build & Deployment' || 'Build' }}
+
+    environment: ${{ inputs.environment }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest ]
+        node-version: [ 20.x ]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # https://github.com/actions/checkout
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        # https://github.com/actions/setup-node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          # consider built-in cache feature
+          # see https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
+
+      # https://github.com/actions/cache
+      # https://github.com/actions/cache/blob/main/examples.md#node---npm
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        run: echo "dir=$(npm config get cache)" >> ${GITHUB_OUTPUT}
+      - name: Cache npm cache
+        # https://github.com/actions/cache
+        uses: actions/cache@v4
+        id: npm-cache # use this to check for `cache-hit` ==> if: steps.npm-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ matrix.node-version }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-${{ matrix.node-version }}-npm-
+
+      - name: Install dependencies
+        id: install
+        run: npm ci
+
+      - name: Create the temp dir
+        if: always() && steps.install.outcome == 'success'
+        run: mkdir -p temp
+
+      - name: Run code formatting check
+        if: always() && steps.install.outcome == 'success'
+        # more info about the `|& tee` syntax at https://askubuntu.com/a/731237
+        run: npm run check-format |& tee temp/prettier-output.txt
+
+      - name: Run tsc
+        if: always() && steps.install.outcome == 'success'
+        # more info about the `|& tee` syntax at https://askubuntu.com/a/731237
+        run: npm run tsc |& tee temp/tsc-output.txt
+
+      - name: Store checks results
+        if: always() && steps.install.outcome == 'success'
+        # https://github.com/actions/upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: checks-results
+          path: |
+            docs/temp/*-output.txt
+
+      - name: Build
+        id: build
+        if: always() && steps.install.outcome == 'success'
+        run: npm run build
+
+      - name: Store build
+        if: always() && steps.build.outcome == 'success'
+        # https://github.com/actions/upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-build
+          path: |
+            docs/build
+
+      - name: Deploy
+        id: deploy
+        if: success() && inputs.deployment == true && inputs.environment != ''
+        run: npm run deploy -- --dry-run ${{ inputs.dry-run }}
+        env:
+          DEPLOYMENT_VERSION: ${{ format('deploy-{0}@{1}.{2}.{3}', inputs.environment, github.run_id, github.run_number, github.run_attempt) }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Store deployment bundle
+        if: always() && steps.deploy.outcome == 'success'
+        # https://github.com/actions/upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-bundle
+          path: |
+            docs/dist

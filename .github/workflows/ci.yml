@@ -7,9 +7,9 @@ name: "Build and Test"
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - 'tools/**'
 
 defaults:
   # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
