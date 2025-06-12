@@ -44,7 +44,7 @@
     "@docusaurus/types": "3.8.1",
     "prettier": "^3.5.3",
     "typescript": "^5.8.3",
-    "wrangler": "^4.19.1"
+    "wrangler": "^4.19.2"
   },
   "engines": {
     "node": ">=18.0"
