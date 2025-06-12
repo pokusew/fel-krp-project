@@ -36,7 +36,23 @@ Desktop.ini
 /cmake-build-*
 /build/
 /build-*/
+
+# a temporary log dir used in CI
 /log/
 
-# Node.js project
+## Node.js project in the tools/scripts/ subdirectory
+
+# dependencies
 /tools/scripts/node_modules/
+
+## Docusaurus Node.js project in the docs/ subdirectory
+
+# dependencies
+/docs/node_modules/
+
+# build
+/docs/build/
+
+# generated
+/docs/.docusaurus/
+/docs/.cache-loader/
