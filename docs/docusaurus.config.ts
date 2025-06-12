@@ -1,36 +1,38 @@
 import { themes as prismThemes } from 'prism-react-renderer';
 import type { Config } from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+import path from 'node:path';
 
-// This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
+// useful when debugging the webpack config
+// import util from 'node:util';
+// util.inspect.defaultOptions.depth = Infinity;
 
+// https://docusaurus.io/docs/api/docusaurus-config
 const config: Config = {
-	title: 'My Site',
-	tagline: 'Dinosaurs are cool',
-	favicon: 'img/favicon.ico',
+	// https://docusaurus.io/docs/api/docusaurus-config#required-fields
+	title: 'LionKey',
+	url: 'https://lionkey.dev',
+	baseUrl: '/',
+
+	// https://docusaurus.io/docs/api/docusaurus-config#trailingSlash
+	// https://developers.cloudflare.com/workers/static-assets/routing/advanced/html-handling/
+	trailingSlash: false,
+
+	titleDelimiter: '|',
+
+	// favicon: 'img/favicon.ico',
 
 	// Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
 	future: {
 		v4: true, // Improve compatibility with the upcoming Docusaurus v4
 	},
 
-	// Set the production url of your site here
-	url: 'https://your-docusaurus-site.example.com',
-	// Set the /<baseUrl>/ pathname under which your site is served
-	// For GitHub pages deployment, it is often '/<projectName>/'
-	baseUrl: '/',
-
-	// GitHub pages deployment config.
-	// If you aren't using GitHub pages, you don't need these.
-	organizationName: 'facebook', // Usually your GitHub org/user name.
-	projectName: 'docusaurus', // Usually your repo name.
-
 	onBrokenLinks: 'throw',
+	onBrokenAnchors: 'warn',
 	onBrokenMarkdownLinks: 'warn',
 
-	// Even if you don't use internationalization, you can use this field to set
-	// useful metadata like html lang. For example, if your site is Chinese, you
-	// may want to replace "en" with "zh-Hans".
+	baseUrlIssueBanner: false,
+
 	i18n: {
 		defaultLocale: 'en',
 		locales: ['en'],
@@ -40,27 +42,16 @@ const config: Config = {
 		[
 			'classic',
 			{
-				docs: {
-					sidebarPath: './sidebars.ts',
-					// Please change this to your repo.
-					// Remove this to remove the "edit this page" links.
-					editUrl:
-						'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
+				pages: {
+					path: './src/pages/',
+					routeBasePath: '/',
 				},
-				blog: {
-					showReadingTime: true,
-					feedOptions: {
-						type: ['rss', 'atom'],
-						xslt: true,
-					},
-					// Please change this to your repo.
-					// Remove this to remove the "edit this page" links.
-					editUrl:
-						'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
-					// Useful options to enforce blogging best practices
-					onInlineTags: 'warn',
-					onInlineAuthors: 'warn',
-					onUntruncatedBlogPosts: 'warn',
+				blog: false,
+				docs: {
+					path: './content/',
+					routeBasePath: 'docs',
+					sidebarPath: './src/sidebars.ts',
+					editUrl: 'https://github.com/pokusew/lionkey/tree/main/docs/',
 				},
 				theme: {
 					customCss: './src/css/custom.css',
@@ -70,79 +61,87 @@ const config: Config = {
 	],
 
 	themeConfig: {
-		// Replace with your project's social card
-		image: 'img/docusaurus-social-card.jpg',
+		// image: 'img/lionkey-social-card.jpg',
 		navbar: {
-			title: 'My Site',
-			logo: {
-				alt: 'My Site Logo',
-				src: 'img/logo.svg',
-			},
+			hideOnScroll: true,
+			title: 'LionKey',
 			items: [
 				{
 					type: 'docSidebar',
-					sidebarId: 'tutorialSidebar',
+					sidebarId: 'docsSidebar',
 					position: 'left',
-					label: 'Tutorial',
+					label: 'Docs',
 				},
-				{ to: '/blog', label: 'Blog', position: 'left' },
 				{
-					href: 'https://github.com/facebook/docusaurus',
+					href: 'https://github.com/pokusew/lionkey',
 					label: 'GitHub',
 					position: 'right',
 				},
 			],
-		},
-		footer: {
-			style: 'dark',
-			links: [
-				{
-					title: 'Docs',
-					items: [
-						{
-							label: 'Tutorial',
-							to: '/docs/intro',
-						},
-					],
-				},
-				{
-					title: 'Community',
-					items: [
-						{
-							label: 'Stack Overflow',
-							href: 'https://stackoverflow.com/questions/tagged/docusaurus',
-						},
-						{
-							label: 'Discord',
-							href: 'https://discordapp.com/invite/docusaurus',
-						},
-						{
-							label: 'X',
-							href: 'https://x.com/docusaurus',
-						},
-					],
-				},
-				{
-					title: 'More',
-					items: [
-						{
-							label: 'Blog',
-							to: '/blog',
-						},
-						{
-							label: 'GitHub',
-							href: 'https://github.com/facebook/docusaurus',
-						},
-					],
-				},
-			],
-			copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
 		},
 		prism: {
 			theme: prismThemes.github,
 			darkTheme: prismThemes.dracula,
 		},
 	} satisfies Preset.ThemeConfig,
+
+	plugins: [
+		() => ({
+			name: 'lionkey-webpack',
+			// https://docusaurus.io/docs/api/plugin-methods/lifecycle-apis#configureWebpack
+			configureWebpack(config, isServer, utils, content) {
+				// console.log(
+				// 	`lionkey-webpack isServer = ${isServer}, rules =`,
+				// 	config.module.rules,
+				// );
+				return {
+					mergeStrategy: { 'module.rules': 'replace' },
+					module: {
+						rules: config.module.rules.map((rule) => {
+							if (typeof rule !== 'object' || rule === null) {
+								return rule;
+							}
+
+							if (
+								rule.test instanceof RegExp &&
+								rule.test.toString() === '/\\.svg$/i'
+							) {
+								if (!Array.isArray(rule.oneOf)) {
+									throw new Error();
+								}
+								const customAssetsDir = path.resolve(__dirname, 'assets');
+								return {
+									...rule,
+									oneOf: [
+										{
+											resourceQuery: '?file',
+											test: /\.svg$/,
+											include: [customAssetsDir],
+											use: [
+												{
+													loader: 'file-loader',
+													options: {
+														context: customAssetsDir,
+														// the [path] is relative to the context
+														name: 'assets/[path][name].[contenthash].[ext]',
+														emitFile: !isServer,
+													},
+												},
+											],
+										},
+										// default Docusaurus SVG inlining logic
+										...rule.oneOf,
+									],
+								};
+							}
+
+							return rule;
+						}),
+					},
+				};
+			},
+		}),
+	],
 };
 
 export default config;

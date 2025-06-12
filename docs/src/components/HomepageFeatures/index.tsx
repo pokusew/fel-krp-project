@@ -5,49 +5,51 @@ import styles from './styles.module.css';
 
 type FeatureItem = {
 	title: string;
-	Svg: React.ComponentType<React.ComponentProps<'svg'>>;
 	description: ReactNode;
 };
 
 const FeatureList: FeatureItem[] = [
 	{
-		title: 'Easy to Use',
-		Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+		title: 'WebAuthn authenticator',
 		description: (
 			<>
-				Docusaurus was designed from the ground up to be easily installed and used
-				to get your website up and running quickly.
+				<strong>LionKey</strong> is a roaming authenticator with{' '}
+				<em>cross-platform attachment</em> using CTAP 2.1 over USB 2.0 (CTAPHID)
+				as the communication protocol, supporting <em>user verification</em> using
+				PIN (CTAP2 ClientPIN), and capable of storing <strong>passkeys</strong> (
+				<em>client-side discoverable credentials</em>).
 			</>
 		),
 	},
 	{
-		title: 'Focus on What Matters',
-		Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
+		title: 'Usable as a library',
 		description: (
 			<>
-				Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-				ahead and move your docs into the <code>docs</code> directory.
+				LionKey provides a <strong>fully compliant</strong> implementation of CTAP
+				2.1 with all mandatory features. It is written in <strong>C</strong>,
+				without dynamic memory allocations, designed for use in
+				resource-constrained environments. The core parts are MCU independent,
+				easily portable, and can be used as a&nbsp;library.
 			</>
 		),
 	},
 	{
-		title: 'Powered by React',
-		Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
+		title: 'Easily portable',
 		description: (
 			<>
-				Extend or customize your website layout by reusing React. Docusaurus can
-				be extended while reusing the same header and footer.
+				The reference implementation is fully usable security key that runs on the
+				NUCLEO-H533RE board, featuring the <strong>STM32H533</strong> MCU and
+				hardware-accelerated cryptography.
+				<br />
+				It can be easily ported to different MCUs.
 			</>
 		),
 	},
 ];
 
-function Feature({ title, Svg, description }: FeatureItem) {
+function Feature({ title, description }: FeatureItem) {
 	return (
 		<div className={clsx('col col--4')}>
-			<div className="text--center">
-				<Svg className={styles.featureSvg} role="img" />
-			</div>
 			<div className="text--center padding-horiz--md">
 				<Heading as="h3">{title}</Heading>
 				<p>{description}</p>
