@@ -2,7 +2,6 @@
 #include "flash.h"
 #include "utils.h"
 #include <string.h>
-#include <stdbool.h>
 
 // TODO:
 //   This is a work-in-progress (more like a PoC).
@@ -26,7 +25,12 @@
 
 #define FLASH_STORAGE_STANDARD_NUM_SECTORS  32
 
-#define FLASH_STORAGE_VERSION  1
+#define FLASH_STORAGE_VERSION  3
+
+static const uint32_t high_cycling_area_bank_2_sector_0_base = (FLASH_EDATA_BASE + (FLASH_EDATA_SIZE / 2));
+// high_cycling_area_bank_2_sector_1_base
+static const uint32_t high_cycling_area_bank_2_sector_0_end =
+	high_cycling_area_bank_2_sector_0_base + FLASH_STORAGE_EDATA_SECTOR_SIZE;
 
 static const uint8_t delete_marker_data[FLASH_WORD_SIZE] LION_ATTR_ALIGNED(4);
 
@@ -175,10 +179,11 @@ static ctap_storage_status_t ensure_high_cycling_area_enabled(void) {
 	uint32_t current_EDATASize = ((current_EDATA2R & FLASH_EDATAR_EDATA_EN) != 0u)
 		? (current_EDATA2R & FLASH_EDATAR_EDATA_STRT) + 1u
 		: 0u;
-	debug_log("current_EDATA2R = 0x%08" PRIx32 nl, current_EDATA2R);
-	debug_log("current_EDATASize = %" PRIu32 nl, current_EDATASize);
+	debug_log("  current_EDATA2R = 0x%08" PRIx32 nl, current_EDATA2R);
+	debug_log("  current_EDATASize = %" PRIu32 nl, current_EDATASize);
 
 	if (current_EDATASize == FLASH_STORAGE_EDATA_NUM_SECTORS) {
+		info_log("  high cycling area already enabled" nl);
 		return CTAP_STORAGE_OK;
 	}
 
@@ -207,77 +212,72 @@ static ctap_storage_status_t ensure_high_cycling_area_enabled(void) {
 	// // RM0481 7.4.3 Option bytes modification Option bytes modification sequence
 	// // recommends: "Reset the device. This step is always recommended."
 	// NVIC_SystemReset();
+	info_log("  high cycling area just enabled" nl);
 
 	return CTAP_STORAGE_OK;
 
 }
 
-static ctap_storage_status_t init_sector(uint32_t sector) {
+static ctap_storage_status_t should_initialize(void) {
 
-	debug_log("init_sector = %" PRIu32 nl, sector);
+	const uint32_t first_sector_base = sector_base_address(0);
+
+	debug_log("should_initialize: first_sector_base = 0x%08" PRIx32 nl, first_sector_base);
+
+	const sector_header_t *header = (sector_header_t *) (first_sector_base + 0);
+	const uint32_t *delete_marker = (uint32_t *) (first_sector_base + sizeof(sector_header_t));
+
+	return header->version != FLASH_STORAGE_VERSION || !is_virgin_word(delete_marker);
+
+}
+
+static ctap_storage_status_t erase_and_init_sector(uint32_t sector) {
 
 	ctap_storage_status_t status;
 
 	const uint32_t sector_base = sector_base_address(sector);
 
-	const sector_header_t *header = (sector_header_t *) (sector_base + 0);
-	const uint32_t *delete_marker = (uint32_t *) (sector_base + sizeof(sector_header_t));
+	debug_log("  erase_and_init_sector: sector = %" PRIu32 ", sector_base = 0x%08" PRIx32 nl, sector, sector_base);
 
-	if (header->version != FLASH_STORAGE_VERSION || !is_virgin_word(delete_marker)) {
-		debug_log("  erasing dirty sector ..." nl);
-		ctap_storage_check(erase_sector(sector));
-		sector_header_t new_header = {
-			.version = FLASH_STORAGE_VERSION,
-		};
-		debug_log("  programming new sector header ..." nl);
-		ctap_storage_check(program_word(sector_base, (uint32_t) &new_header));
-		return CTAP_STORAGE_OK;
-	}
+	ctap_storage_check(erase_sector(sector));
+	sector_header_t new_header = {
+		.version = FLASH_STORAGE_VERSION,
+	};
+	debug_log("    programming new sector header ..." nl);
+	ctap_storage_check(program_word(sector_base, (uint32_t) &new_header));
 
 	return CTAP_STORAGE_OK;
 
 }
 
-static ctap_storage_status_t init_high_cycling_area(uint32_t *counter_write_address) {
+static ctap_storage_status_t erase_high_cycling_area(void) {
 
-	debug_log("init_high_cycling_area" nl);
+	debug_log("  erase_high_cycling_area" nl);
 
 	ctap_storage_status_t status;
 
 	// see RM0481 7.3.10 Flash high-cycle data, Figure 27. Flash high-cycle data memory map on 512-Kbyte devices
 	const uint32_t sector = FLASH_STORAGE_STANDARD_NUM_SECTORS - FLASH_STORAGE_EDATA_NUM_SECTORS;
-
-	const uint32_t base_address = (FLASH_EDATA_BASE + (FLASH_EDATA_SIZE / 2));
-	const uint32_t version = *((uint32_t *) (base_address));
-	const uint32_t delete_marker = *((uint32_t *) (base_address + sizeof(uint32_t)));
-
-	const uint32_t version_value = FLASH_STORAGE_VERSION;
-
-	if (version != FLASH_STORAGE_VERSION || delete_marker != FLASH_STORAGE_VIRGIN_UINT32) {
-		debug_log("  erasing dirty high cycling sector ..." nl);
-		ctap_storage_check(erase_sector(sector));
-		debug_log("  programming new sector header ..." nl);
-		ctap_storage_check(program_edata_word(base_address, (uint32_t) &version_value));
-		*counter_write_address = base_address + 2 * sizeof(uint32_t);
-		return CTAP_STORAGE_OK;
-	}
-
-	const uint32_t *value = (const uint32_t *) (base_address + 2 * sizeof(uint32_t));
-	for (
-		size_t offset = 2 * sizeof(uint32_t);
-		offset < FLASH_STORAGE_EDATA_SECTOR_SIZE;
-		offset += sizeof(uint32_t), ++value) {
-
-		if (*value == FLASH_STORAGE_VIRGIN_UINT32) {
-			*counter_write_address = base_address + offset;
-			return CTAP_STORAGE_OK;
-		}
-
-	}
-
-	// out of memory
-	*counter_write_address = base_address + FLASH_STORAGE_EDATA_SECTOR_SIZE;
+	ctap_storage_check(erase_sector(sector));
 	return CTAP_STORAGE_OK;
+
+}
+
+static uint32_t find_counter_write_address(void) {
+
+	debug_log("find_counter_write_address" nl);
+
+	// find the address of the first 4-byte virgin word 0xFFFFFFFF within the sector
+	const uint32_t *value = (const uint32_t *) (high_cycling_area_bank_2_sector_0_base);
+	const uint32_t *const end = (const uint32_t *) (high_cycling_area_bank_2_sector_0_end);
+	while (value < end) {
+		if (*value == FLASH_STORAGE_VIRGIN_UINT32) {
+			break;
+		}
+		++value;
+	}
+
+	return (uint32_t) value;
 
 }
 
@@ -318,20 +318,31 @@ ctap_storage_status_t stm32h533_flash_storage_init(
 		return CTAP_STORAGE_ERROR;
 	}
 
-	ctap_storage_check(init_sector(0));
+	if (should_initialize()) {
+		info_log("flash storage: initialization sequence ..." nl);
+		ctap_storage_check(ensure_high_cycling_area_enabled());
+		ctap_storage_check(erase_high_cycling_area());
+		// always erase the sector 0 last to ensure atomicity (it holds the global version and the delete marker)
+		ctap_storage_check(erase_and_init_sector(0));
+		info_log("flash storage: initialized" nl);
+	} else {
+		debug_log("flash storage: already initialized" nl);
+	}
+
 	context->write_address = find_write_address(storage);
-	const uint32_t max_address = sector_base_address(1);
 	info_log(
-		"flash_storage: write_address = 0x%08" PRIx32 ", remaining size = %" PRIu32 nl,
-		context->write_address, max_address - context->write_address
+		"flash_storage: data write_addr = 0x%08" PRIx32 ", remaining %" PRIu32 "/%" PRIu32 nl,
+		context->write_address,
+		sector_base_address(1) - context->write_address,
+		sector_base_address(1) - sector_base_address(0)
 	);
 
-	ctap_storage_check(ensure_high_cycling_area_enabled());
-	ctap_storage_check(init_high_cycling_area(&context->counter_write_address));
+	context->counter_write_address = find_counter_write_address();
 	info_log(
-		"flash_storage: counter_write_address = 0x%08" PRIx32 ", remaining size = %" PRIu32 nl,
+		"flash_storage: counter write_addr = 0x%08" PRIx32 ", remaining %" PRIu32 "/%" PRIu32 nl,
 		context->counter_write_address,
-		((FLASH_EDATA_BASE + (FLASH_EDATA_SIZE / 2)) + FLASH_STORAGE_EDATA_SECTOR_SIZE) - context->counter_write_address
+		high_cycling_area_bank_2_sector_0_end - context->counter_write_address,
+		high_cycling_area_bank_2_sector_0_end - high_cycling_area_bank_2_sector_0_base
 	);
 
 	return CTAP_STORAGE_OK;
@@ -533,18 +544,14 @@ ctap_storage_status_t stm32h533_flash_storage_increment_counter(
 
 	stm32h533_flash_storage_context_t *context = storage->context;
 
-	const uint32_t base_address = (FLASH_EDATA_BASE + (FLASH_EDATA_SIZE / 2));
-	const uint32_t first_value_address = base_address + (2 * sizeof(uint32_t));
-	const uint32_t max_address = base_address + FLASH_STORAGE_EDATA_SECTOR_SIZE;
-
-	if (context->counter_write_address + sizeof(uint32_t) > max_address) {
+	if (context->counter_write_address + sizeof(uint32_t) > high_cycling_area_bank_2_sector_0_end) {
 		// TODO: Use all eight EDATA sectors (and also implement reusing sectors / compaction).
 		return CTAP_STORAGE_OUT_OF_MEMORY_ERROR;
 	}
 
 	ctap_storage_status_t status;
 
-	uint32_t value = context->counter_write_address > first_value_address
+	uint32_t value = context->counter_write_address >= (high_cycling_area_bank_2_sector_0_base + sizeof(uint32_t))
 		? *((uint32_t *) (context->counter_write_address - sizeof(uint32_t)))
 		: 1u;
 
@@ -640,13 +647,13 @@ ctap_storage_status_t stm32h533_flash_storage_erase(
 	ctap_storage_status_t status;
 
 	ctap_storage_check(program_word(
+		// sector:
+		//   header (128 bits)
+		//   delete marker (128 bit)
+		//   ... items
 		sector_base_address(0) + FLASH_WORD_SIZE,
 		(uint32_t) delete_marker_data
 	));
-	ctap_storage_check(program_edata_word(
-		(FLASH_EDATA_BASE + (FLASH_EDATA_SIZE / 2)) + 4,
-		(uint32_t) delete_marker_data)
-	);
 
 	return stm32h533_flash_storage_init(storage);
 
