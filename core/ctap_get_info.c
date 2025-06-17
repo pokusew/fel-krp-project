@@ -37,7 +37,8 @@ uint8_t ctap_get_info(ctap_state_t *state, CborValue *it, CborEncoder *encoder) 
 	cbor_encoding_check(cbor_encode_uint(&map, CTAP_authenticatorGetInfo_res_versions));
 	{
 		CborEncoder array;
-		cbor_encoding_check(cbor_encoder_create_array(&map, &array, 1));
+		cbor_encoding_check(cbor_encoder_create_array(&map, &array, 2));
+		cbor_encoding_check(cbor_encode_text_string(&array, "FIDO_2_0", 8));
 		cbor_encoding_check(cbor_encode_text_string(&array, "FIDO_2_1", 8));
 		cbor_encoding_check(cbor_encoder_close_container(&map, &array));
 	}
