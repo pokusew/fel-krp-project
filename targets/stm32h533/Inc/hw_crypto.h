@@ -92,4 +92,6 @@ ctap_crypto_status_t stm32h533_crypto_sha256_compute_digest(
 	uint8_t *hash
 );
 
+extern const hash_alg_t hash_alg_hw_sha256;
+
 #endif // LIONKEY_STM32H533_CRYPTO_H
