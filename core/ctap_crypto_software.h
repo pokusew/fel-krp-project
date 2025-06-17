@@ -90,6 +90,4 @@ ctap_crypto_status_t ctap_software_crypto_sha256_compute_digest(
 	uint8_t *hash
 );
 
-extern const hash_alg_t hash_alg_hw_sha256;
-
 #endif // LIONKEY_CTAP_CRYPTO_SOFTWARE_H
