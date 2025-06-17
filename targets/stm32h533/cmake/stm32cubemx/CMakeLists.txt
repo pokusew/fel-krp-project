@@ -97,7 +97,7 @@ target_link_directories(${PROJECT_NAME} PRIVATE ${MX_LINK_DIRS})
 target_link_libraries(${PROJECT_NAME} ${MX_LINK_LIBS})
 
 # Add the map file to the list of files to be removed with 'clean' target
-set_target_properties(${PROJECT_NAME} PROPERTIES ADDITIONAL_CLEAN_FILES ${PROJECT_NAME}.map)
+set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY ADDITIONAL_CLEAN_FILES ${PROJECT_NAME}.map)
 
 # Validate that STM32CubeMX code is compatible with C standard
 if((CMAKE_C_STANDARD EQUAL 90) OR (CMAKE_C_STANDARD EQUAL 99))
