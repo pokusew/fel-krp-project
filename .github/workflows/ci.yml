@@ -7,9 +7,15 @@ name: "Build and Test"
 
 on:
   push:
-    paths-ignore:
-      - 'docs/**'
-      - 'tools/**'
+    paths:
+      - 'core/**'
+      - 'crypto/**'
+      - 'lib/**'
+      - 'targets/**'
+      - 'test/**'
+      - '.gitmodules'
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
 
 defaults:
   # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
