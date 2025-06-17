@@ -27,9 +27,7 @@ Key features:
 
 > [!WARNING]  
 > 🚧 This is still a work in progress. **The security key is already usable.**
-> More detailed documentation will be added soon.
-> The main missing feature is state persistence to the flash memory on STM32H533
-(currently all state is reset when power is lost).
+> See the documentation at [lionkey.dev](https://lionkey.dev/). More detailed documentation will be added soon.
 
 ## Content
 
