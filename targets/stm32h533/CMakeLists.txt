@@ -32,50 +32,50 @@ target_compile_options(tinycbor PUBLIC
 		$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-fno-freestanding>
 )
 
-add_library(tinyaes STATIC)
-target_sources(tinyaes
-		PRIVATE
-		../../crypto/tiny-AES-c/aes.c
-)
-target_compile_definitions(tinyaes
-		# we need only AES-256-CBC
-		PUBLIC TINYAES_ENABLE_AES256=1 TINYAES_ENABLE_CBC=1 TINYAES_ENABLE_ECB=0 TINYAES_ENABLE_CTR=0
-)
-target_include_directories(tinyaes
-		INTERFACE
-		../../crypto/tiny-AES-c
-)
-
-add_library(tinymt32 STATIC)
-target_sources(tinymt32
-		PRIVATE
-		../../crypto/tinymt/tinymt/tinymt32.c
-		PUBLIC
-		../../crypto/tinymt/tinymt/tinymt32.h
-)
-target_include_directories(tinymt32
-		PUBLIC
-		../../crypto/tinymt/tinymt
-)
-
-add_library(micro_ecc STATIC)
-target_sources(micro_ecc
-		PRIVATE
-		../../crypto/micro-ecc/uECC.c
-		INTERFACE
-		../../crypto/micro-ecc/uECC.h
-)
-target_compile_definitions(micro_ecc
-		PUBLIC
-		uECC_PLATFORM=0 # if not provided directly, it will be auto-guessed from compiler macros
-		uECC_OPTIMIZATION_LEVEL=4
-		uECC_SQUARE_FUNC=1
-		uECC_SUPPORT_COMPRESSED_POINT=0
-)
-target_include_directories(micro_ecc
-		INTERFACE
-		../../crypto/micro-ecc
-)
+# add_library(tinyaes STATIC)
+# target_sources(tinyaes
+# 		PRIVATE
+# 		../../crypto/tiny-AES-c/aes.c
+# )
+# target_compile_definitions(tinyaes
+# 		# we need only AES-256-CBC
+# 		PUBLIC TINYAES_ENABLE_AES256=1 TINYAES_ENABLE_CBC=1 TINYAES_ENABLE_ECB=0 TINYAES_ENABLE_CTR=0
+# )
+# target_include_directories(tinyaes
+# 		INTERFACE
+# 		../../crypto/tiny-AES-c
+# )
+#
+# add_library(tinymt32 STATIC)
+# target_sources(tinymt32
+# 		PRIVATE
+# 		../../crypto/tinymt/tinymt/tinymt32.c
+# 		PUBLIC
+# 		../../crypto/tinymt/tinymt/tinymt32.h
+# )
+# target_include_directories(tinymt32
+# 		PUBLIC
+# 		../../crypto/tinymt/tinymt
+# )
+#
+# add_library(micro_ecc STATIC)
+# target_sources(micro_ecc
+# 		PRIVATE
+# 		../../crypto/micro-ecc/uECC.c
+# 		INTERFACE
+# 		../../crypto/micro-ecc/uECC.h
+# )
+# target_compile_definitions(micro_ecc
+# 		PUBLIC
+# 		uECC_PLATFORM=0 # if not provided directly, it will be auto-guessed from compiler macros
+# 		uECC_OPTIMIZATION_LEVEL=4
+# 		uECC_SQUARE_FUNC=1
+# 		uECC_SUPPORT_COMPRESSED_POINT=0
+# )
+# target_include_directories(micro_ecc
+# 		INTERFACE
+# 		../../crypto/micro-ecc
+# )
 
 add_library(hash INTERFACE)
 target_include_directories(hash INTERFACE ../../crypto/hash)
@@ -90,19 +90,19 @@ target_sources(hkdf PRIVATE ../../crypto/hkdf/hkdf.c)
 target_include_directories(hkdf INTERFACE ../../crypto/hkdf)
 target_link_libraries(hkdf PUBLIC hash hmac)
 
-add_library(sha256 STATIC)
-target_sources(sha256 PRIVATE ../../crypto/sha256/sha256.c)
-target_include_directories(sha256 INTERFACE ../../crypto/sha256)
-target_link_libraries(sha256 PUBLIC hash)
-
-add_library(ctap_crypto_software STATIC)
-target_sources(ctap_crypto_software PUBLIC
-		../../core/ctap_crypto_software.c
-)
-target_include_directories(ctap_crypto_software PUBLIC ../../core)
-target_link_libraries(ctap_crypto_software
-		PUBLIC tinyaes micro_ecc tinymt32 sha256
-)
+# add_library(sha256 STATIC)
+# target_sources(sha256 PRIVATE ../../crypto/sha256/sha256.c)
+# target_include_directories(sha256 INTERFACE ../../crypto/sha256)
+# target_link_libraries(sha256 PUBLIC hash)
+#
+# add_library(ctap_crypto_software STATIC)
+# target_sources(ctap_crypto_software PUBLIC
+# 		../../core/ctap_crypto_software.c
+# )
+# target_include_directories(ctap_crypto_software PUBLIC ../../core)
+# target_link_libraries(ctap_crypto_software
+# 		PUBLIC tinyaes micro_ecc tinymt32 sha256
+# )
 
 add_library(app_hw_crypto STATIC)
 target_sources(app_hw_crypto PUBLIC
@@ -123,7 +123,7 @@ target_sources(core PUBLIC
 		../../core/ctap_credentials.c
 		../../core/ctap_encode.c
 		../../core/ctap_get_info.c
-		../../core/ctap_memory_storage.c
+		# ../../core/ctap_memory_storage.c
 		../../core/ctap_parse.c
 		../../core/ctap_pin.c
 		../../core/ctap_pin_protocol.c
@@ -222,7 +222,7 @@ target_link_libraries(${PROJECT_NAME}
 		tinyusb
 		core
 		app_hw_crypto
-		ctap_crypto_software
+		# ctap_crypto_software
 )
 
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)

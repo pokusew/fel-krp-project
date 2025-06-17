@@ -7,7 +7,7 @@
 
 extern const ctap_storage_t app_storage;
 
-extern const ctap_crypto_t app_sw_crypto;
+// extern const ctap_crypto_t app_sw_crypto;
 extern const ctap_crypto_t app_hw_crypto;
 
 extern ctaphid_state_t app_ctaphid;

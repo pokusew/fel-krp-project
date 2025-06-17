@@ -3,8 +3,8 @@
 #include "main.h"
 #include "utils.h"
 #include <stdbool.h>
-#include "ctap_crypto_software.h"
-#include "ctap_memory_storage.h"
+// #include "ctap_crypto_software.h"
+// #include "ctap_memory_storage.h"
 #include "flash_storage.h"
 #include "hw_crypto.h"
 #include "app_test.h"
@@ -19,8 +19,8 @@
 static stm32h533_flash_storage_context_t app_storage_ctx;
 const ctap_storage_t app_storage = STM32H533_FLASH_STORAGE_CONST_INIT(&app_storage_ctx);
 
-static ctap_software_crypto_context_t app_crypto_ctx;
-const ctap_crypto_t app_sw_crypto = CTAP_SOFTWARE_CRYPTO_CONST_INIT(&app_crypto_ctx);
+// static ctap_software_crypto_context_t app_crypto_ctx;
+// const ctap_crypto_t app_sw_crypto = CTAP_SOFTWARE_CRYPTO_CONST_INIT(&app_crypto_ctx);
 
 static stm32h533_crypto_context_t app_hw_crypto_ctx;
 const ctap_crypto_t app_hw_crypto = STM32H533_CRYPTO_CONST_INIT(&app_hw_crypto_ctx);
@@ -164,9 +164,9 @@ static void app_init(void) {
 	if (app_storage.init(&app_storage) != CTAP_STORAGE_OK) {
 		Error_Handler();
 	}
-	if (app_sw_crypto.init(&app_sw_crypto, 0) != CTAP_CRYPTO_OK) {
-		Error_Handler();
-	}
+	// if (app_sw_crypto.init(&app_sw_crypto, 0) != CTAP_CRYPTO_OK) {
+	// 	Error_Handler();
+	// }
 	if (app_hw_crypto.init(&app_hw_crypto, 0) != CTAP_CRYPTO_OK) {
 		Error_Handler();
 	}
