@@ -111,7 +111,7 @@ target_sources(app_hw_crypto PUBLIC
 )
 target_include_directories(app_hw_crypto PUBLIC ../../core)
 target_link_libraries(app_hw_crypto
-		PUBLIC hash micro_ecc stm32cubemx
+		PUBLIC hash stm32cubemx
 )
 
 add_library(core STATIC)

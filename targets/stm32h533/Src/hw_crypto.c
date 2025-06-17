@@ -4,7 +4,6 @@
 #include "compiler.h"
 #include "utils.h"
 
-#include <uECC.h>
 #include <assert.h>
 #include <string.h>
 #include <stdbool.h>
