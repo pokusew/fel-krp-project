@@ -20,10 +20,11 @@ Key features:
   * No dynamic memory allocations.
   * Designed for use in resource-constrained environments.
   * MCU independent, easily portable, can be used as a library (see the [core](./core) dir).
-  * Just a single external dependency ([TinyCBOR]).
-* Running on the **[NUCLEO-H533RE]** board with the **[STM32H533RET6]** MCU.
-* Uses [STM32CubeH5](#stm32cubeH5).
-* **Hardware-accelerated cryptography** on STM32H533 (using the RNG, PKA, AES, SHA peripherals).
+  * The [core](./core) has just a single external dependency ([TinyCBOR]).
+* Runs on the **[NUCLEO-H533RE]** board with the **[STM32H533RET6]** MCU.
+* Uses [TinyUSB] library for the USB and USB HID implementation.
+* Uses [STM32CubeH5](#stm32cubeH5) (CMSIS, HAL, LL).
+* **Hardware-accelerated cryptography** on STM32H533 using the RNG, PKA, AES, SHA peripherals.
 
 > [!WARNING]  
 > 🚧 This is still a work in progress. **The security key is already usable.**
@@ -156,6 +157,8 @@ and the HAL (hardware abstraction layer) and LL (low-level) drivers for the STM3
 [CTAP 2.1]: https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html
 
 [TinyCBOR]: https://github.com/intel/tinycbor
+
+[TinyUSB]: https://github.com/hathach/tinyusb
 
 [NUCLEO-H533RE]: https://www.st.com/en/evaluation-tools/nucleo-h533re.html
 
