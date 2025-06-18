@@ -4,9 +4,11 @@
 #include <string.h>
 
 // TODO:
-//   This is a work-in-progress (more like a PoC).
-//   Support for multiple sectors, compaction (free space by reordering items and removing the deleted ones),
-//   efficient atomic counter (within the high-cycling (EDATA) area) is planned.
+//   This is a work-in-progress. It is fully functional and usable.
+//   However, it lacks support for multiple sectors and it cannot perform compaction
+//   (free up space by reordering items and removing the deleted ones).
+//   Also, there are some possible edge cases we should correctly handle.
+//   We plan to address those limitations in future releases.
 
 #define ctap_storage_check(expr)                 \
     if ((status = (expr)) != CTAP_STORAGE_OK) {  \
