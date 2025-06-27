@@ -30,6 +30,11 @@ Key features:
 > 🚧 This is still a work in progress. **The security key is already usable.**
 > See the documentation at [lionkey.dev](https://lionkey.dev/). More detailed documentation will be added soon.
 
+> [!TIP]  
+> This project was originally created as my master's thesis at CTU FEE.
+> You can find the latest version of the thesis text in the [pokusew/fel-masters-thesis][Thesis] repository.
+
+
 ## Content
 
 <!-- **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)* -->
